@@ -225,12 +225,12 @@ export function PcTopNav({
   const menuItems: MenuItem[] = items.map((item) => ({
     key: item.key,
     label: item.href.includes('#') ? (
-      <a
+      <Link
         className={item.active ? 'active' : undefined}
-        href={item.href}
+        href={item.href as Href}
         onClick={(event) => navigateToPageSection(event, item.href)}>
         {item.label}
-      </a>
+      </Link>
     ) : (
       <Link className={item.active ? 'active' : undefined} href={item.href as Href}>
         {item.label}
