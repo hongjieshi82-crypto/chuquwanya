@@ -16,7 +16,10 @@ const westLakeImage = require('../../assets/images/pc-hero-west-lake.jpg') as St
 function bundledTravelImage(fileName: string) {
   const configuredBasePath = process.env.EXPO_GITHUB_PAGES_BASE_URL ?? '';
   if (typeof window === 'undefined') return `${configuredBasePath}/media/travel/${fileName}`;
-  const basePath = configuredBasePath || (window.location.pathname.startsWith('/weekend-oracle') ? '/weekend-oracle' : '');
+  const runtimePagesBasePath = window.location.hostname.endsWith('github.io')
+    ? `/${window.location.pathname.split('/').filter(Boolean)[0] ?? ''}`
+    : '';
+  const basePath = configuredBasePath || runtimePagesBasePath;
   return `${basePath}/media/travel/${fileName}`;
 }
 

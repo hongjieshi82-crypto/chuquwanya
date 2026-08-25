@@ -2,7 +2,7 @@
   "name": "lazyde",
   "version": "0.1.0",
   "private": true,
-  "description": "懒得动 Web / iOS / Android 多端初版项目",
+  "description": "粗去玩鸭｜跨端 AI 周末旅行盲盒",
   "scripts": {
     "dev:client": "npm --prefix apps/client run start",
     "dev:web": "npm --prefix apps/client run web",
