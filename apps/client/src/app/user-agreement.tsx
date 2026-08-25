@@ -1,0 +1,45 @@
+import { LegalDocumentScreen, type LegalBlock } from '@/components/legal-document-screen';
+
+const USER_AGREEMENT_BLOCKS: LegalBlock[] = [
+  { type: 'paragraph', text: '生效日期：2026年8月17日' },
+  { type: 'paragraph', text: '本协议适用于本产品/服务。您使用本服务即表示同意以下全部条款。' },
+  { type: 'heading', text: '1. 定义' },
+  { type: 'paragraph', text: '1. 用户：使用本服务的个人或组织' },
+  { type: 'paragraph', text: '2. 本服务：由本公司提供的产品与功能' },
+  { type: 'paragraph', text: '3. AI服务：基于人工智能模型提供的生成与处理能力' },
+  { type: 'heading', text: '2. 服务内容' },
+  { type: 'paragraph', text: '1. 提供AI生成、信息处理及工具服务' },
+  { type: 'paragraph', text: '2. 当前为免费内测服务，功能可能随验证结果调整' },
+  { type: 'heading', text: '3. 用户行为规范' },
+  { type: 'paragraph', text: '不得：' },
+  { type: 'item', text: '违法行为' },
+  { type: 'item', text: '侵权行为' },
+  { type: 'item', text: '恶意攻击系统' },
+  { type: 'item', text: '传播病毒或垃圾信息' },
+  { type: 'item', text: '破坏系统运行' },
+  { type: 'heading', text: '4. AI服务特别条款' },
+  { type: 'subheading', text: '4.1 AI输出性质' },
+  { type: 'paragraph', text: 'AI生成的地点、时间、预算和路线信息仅供参考，不构成出行安全或服务可用性承诺。' },
+  { type: 'subheading', text: '4.2 免责说明' },
+  { type: 'paragraph', text: '出发前请自行核实营业时间、天气、票价、交通和现场安全情况。' },
+  { type: 'subheading', text: '4.3 使用限制' },
+  { type: 'paragraph', text: '禁止用于：' },
+  { type: 'item', text: '违法内容生成' },
+  { type: 'item', text: '欺诈或误导行为' },
+  { type: 'item', text: '深度伪造' },
+  { type: 'item', text: '高风险决策场景' },
+  { type: 'heading', text: '5. AI数据说明' },
+  { type: 'paragraph', text: '系统会处理用户主动提交的偏好与反馈，用于完成推荐任务和改善产品体验。' },
+  { type: 'heading', text: '6. 知识产权' },
+  { type: 'paragraph', text: '所有内容归本公司所有，禁止未经授权使用。' },
+  { type: 'heading', text: '7. 免责声明' },
+  { type: 'paragraph', text: '因AI输出导致的后果由用户自行承担。' },
+  { type: 'heading', text: '8. 法律适用' },
+  { type: 'paragraph', text: '适用所在地法律。' },
+  { type: 'heading', text: '9. 联系方式' },
+  { type: 'paragraph', text: '内测阶段请通过产品测试邀请渠道联系我们。' },
+];
+
+export default function UserAgreementScreen() {
+  return <LegalDocumentScreen blocks={USER_AGREEMENT_BLOCKS} title="用户协议" />;
+}

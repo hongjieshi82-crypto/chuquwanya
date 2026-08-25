@@ -1,0 +1,59 @@
+:root {
+  --font-display:
+    Inter, "PingFang SC", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji,
+    Segoe UI Symbol, Noto Color Emoji;
+  --font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;
+  --font-rounded: 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif;
+  --font-serif: Georgia, 'Times New Roman', serif;
+
+  /* 移动端安全区 · 默认灵动岛机型（iPhone 14 Pro+） */
+  --safe-top: 59px;
+  --safe-bottom: 34px;
+}
+
+/* 真机 H5 / PWA：env 覆盖设计稿默认值 */
+@supports (padding-top: env(safe-area-inset-top)) {
+  :root {
+    --safe-top: env(safe-area-inset-top);
+    --safe-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Web 预览：?device=notch 刘海屏 / ?device=se 无刘海 */
+:root[data-device-profile='notch'],
+:root[data-device-model='iphone-14'],
+:root[data-device-model='iphone-15'],
+:root[data-device-model='iphone-16'],
+:root[data-device-model='iphone-13'] {
+  --safe-top: 47px;
+  --safe-bottom: 34px;
+}
+
+:root[data-device-profile='classic'],
+:root[data-device-model='iphone-se-3'],
+:root[data-device-model='android-default'] {
+  --safe-top: 20px;
+  --safe-bottom: 0px;
+}
+
+:root[data-device-profile='dynamic-island'] .dynamic-island-preview {
+  display: block;
+}
+
+:root[data-device-profile='notch'] .dynamic-island-preview,
+:root[data-device-profile='classic'] .dynamic-island-preview {
+  display: none;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+  background: #f4f4f4;
+}
+
+body {
+  overflow-y: auto;
+}

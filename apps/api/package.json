@@ -1,0 +1,49 @@
+{
+  "name": "@lazyde/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/src/server.js",
+    "build": "tsc -p tsconfig.json",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "node --import tsx --test test/**/*.test.ts",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "vectors:sync:activities": "tsx scripts/syncActivityVectors.ts",
+    "images:localize:blind-box": "tsx scripts/localizeBlindBoxCoverImages.ts",
+    "images:fallback:blind-box": "tsx scripts/fallbackBlindBoxCoverImages.ts",
+    "data:sync:scenic": "tsx scripts/syncScenicActivitiesFromAmap.ts",
+    "data:import:dianping-scenic": "tsx scripts/importDianpingScenicActivities.ts"
+  },
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "dependencies": {
+    "@qdrant/js-client-rest": "^1.14.0",
+    "alipay-sdk": "^4.14.0",
+    "bcryptjs": "^3.0.3",
+    "chromadb": "^3.5.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "helmet": "^8.2.0",
+    "jsonwebtoken": "^9.0.3",
+    "mysql2": "^3.22.5",
+    "nodemailer": "^9.0.3",
+    "openai": "^4.104.0",
+    "pino-http": "^11.0.0",
+    "tencentcloud-sdk-nodejs": "^4.1.261",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^26.0.1",
+    "@types/nodemailer": "^8.0.1",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
+  }
+}

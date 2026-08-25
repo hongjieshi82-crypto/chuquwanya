@@ -1,0 +1,755 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#F3F0FF" />
+    <title>懒得动 · H5 与 APP 系统一致高保真</title>
+    <style>
+      :root {
+        --ink: #181433;
+        --text: #3f3a62;
+        --muted: #7c77a3;
+        --placeholder: #aaa5c8;
+        --canvas: #f3f0ff;
+        --paper: #f8f7ff;
+        --surface: #ffffff;
+        --primary: #7565f6;
+        --primary-dark: #5c4de0;
+        --primary-light: #9d8cff;
+        --primary-soft: #eeeafe;
+        --sunset: #ff8f73;
+        --sunset-soft: #fff0ea;
+        --price: #7565f6;
+        --border: #e9e4fa;
+        --shadow: 0 12px 32px rgba(90, 72, 188, 0.1);
+        --shadow-lg: 0 18px 44px rgba(90, 72, 188, 0.16);
+        --safe-top: 59px;
+        --safe-bottom: 34px;
+        --island-w: 126px;
+        --island-h: 37px;
+        --island-top: 11px;
+        --pad: 16px;
+      }
+
+      /* 真机 H5 打开时用 env 覆盖设计稿默认值 */
+      @supports (padding-top: env(safe-area-inset-top)) {
+        :root {
+          --safe-top: max(59px, env(safe-area-inset-top));
+          --safe-bottom: max(34px, env(safe-area-inset-bottom));
+        }
+      }
+
+      * { box-sizing: border-box; }
+      html { background: #e8e8e8; color: var(--ink); font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif; }
+      body { min-height: 100vh; margin: 0; }
+      button { color: inherit; font: inherit; cursor: pointer; border: 0; background: none; }
+
+      .board { min-height: 100vh; padding: 48px 32px 64px; background: #ececec; }
+      .board-head { max-width: 1200px; margin: 0 auto 36px; }
+      .board-kicker { margin: 0 0 10px; color: var(--primary); font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+      .board h1 { margin: 0; font-size: clamp(28px, 4vw, 48px); letter-spacing: -.04em; }
+      .board-desc { max-width: 640px; margin: 14px 0 0; color: var(--muted); font-size: 15px; line-height: 1.65; }
+      .screens { display: grid; grid-template-columns: repeat(auto-fit, minmax(390px, 1fr)); gap: 40px 32px; max-width: 1340px; margin: 0 auto; }
+      .screen-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+      .screen-name { color: #5a5648; font-size: 13px; font-weight: 750; }
+      .phone {
+        position: relative;
+        width: 390px;
+        height: 844px;
+        overflow: hidden;
+        border: 8px solid #141820;
+        border-radius: 48px;
+        background: var(--canvas);
+        box-shadow: 0 28px 70px rgba(20, 24, 32, 0.22);
+      }
+
+      /* 灵动岛（iPhone 14 Pro+ 设计基准：126×37，距顶 11px） */
+      .phone::before {
+        position: absolute;
+        z-index: 40;
+        top: var(--island-top);
+        left: 50%;
+        width: var(--island-w);
+        height: var(--island-h);
+        border-radius: 20px;
+        background: #141820;
+        content: "";
+        transform: translateX(-50%);
+        pointer-events: none;
+      }
+
+      /* 顶部安全区示意（内容不得侵入） */
+      .phone::after {
+        position: absolute;
+        z-index: 25;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: var(--safe-top);
+        border-bottom: 1px dashed rgba(8, 145, 178, 0.12);
+        content: "";
+        pointer-events: none;
+      }
+
+      .viewport {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden auto;
+        background: var(--canvas);
+        scrollbar-width: none;
+        padding-top: 0;
+      }
+      .viewport::-webkit-scrollbar { display: none; }
+      .hidden { display: none !important; }
+
+      /* ── APP Shell（与 app-shell.tsx 一致）── */
+      .app-nav { display: flex; align-items: center; justify-content: space-between; min-height: 56px; padding: 8px var(--pad) 12px; padding-top: calc(var(--safe-top) + 8px); background: var(--surface); border-bottom: 1px solid var(--border); }
+      .brand-name { color: var(--primary); font-size: 22px; font-weight: 900; }
+      .brand-sub { color: var(--muted); font-size: 12px; margin-left: 6px; }
+      .trip-btn { background: var(--primary-soft); color: var(--primary); border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 800; }
+      .search-header { background: var(--primary); padding: 12px var(--pad) 20px; }
+      .city-name { color: #fff; font-size: 16px; font-weight: 800; }
+      .search-box { display: flex; align-items: center; gap: 8px; height: 44px; background: #fff; border-radius: 8px; padding: 0 16px; margin-top: 12px; box-shadow: var(--shadow); color: var(--placeholder); font-size: 14px; }
+      .category-panel { display: flex; justify-content: space-between; background: #fff; margin: -12px var(--pad) 0; border-radius: 12px; padding: 16px 8px; box-shadow: var(--shadow); position: relative; z-index: 2; }
+      .category-item { width: 18%; text-align: center; }
+      .category-icon { width: 48px; height: 48px; border-radius: 12px; margin: 0 auto 6px; display: grid; place-items: center; font-size: 22px; background: var(--primary-soft); }
+      .category-label { font-size: 12px; color: var(--text); }
+      .banner { width: 280px; height: 88px; border-radius: 12px; padding: 16px; color: #fff; flex-shrink: 0; position: relative; background: var(--primary); }
+      .banner-badge { position: absolute; top: 8px; right: 8px; background: var(--sunset); color: #fff; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; }
+      .product-card { display: flex; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: var(--shadow); margin-bottom: 10px; }
+      .product-img { width: 110px; height: 110px; background: var(--primary-light); position: relative; }
+      .hot-badge { position: absolute; top: 6px; left: 6px; background: var(--sunset); color: #fff; font-size: 10px; padding: 2px 5px; border-radius: 4px; font-weight: 800; }
+      .price-num { color: var(--price); font-size: 22px; font-weight: 900; }
+      .price-label { color: var(--muted); font-size: 11px; }
+      .app-content { flex: 1; padding: 0 var(--pad) calc(24px + var(--safe-bottom)); }
+      .app-shell { display: flex; flex-direction: column; min-height: 100%; background: var(--canvas); }
+
+      .inner-nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 56px;
+        padding: 8px var(--pad) 12px;
+        padding-top: calc(var(--safe-top) + 8px);
+        background: var(--canvas);
+      }
+      .inner-nav .title { color: var(--ink); font-size: 17px; font-weight: 900; }
+      .back-circle { width: 52px; height: 52px; border-radius: 50%; display: inline-grid; place-items: center; background: rgba(255,255,255,.82); color: var(--ink); box-shadow: 0 14px 32px rgba(84,70,175,.12); font-size: 0; line-height: 1; flex-shrink: 0; }
+      .back-circle::before { content: ""; width: 17px; height: 17px; border-left: 2.6px solid currentColor; border-bottom: 2.6px solid currentColor; transform: rotate(45deg); margin-left: 6px; }
+      .back-circle.on-hero { background: rgba(255,255,255,.88); color: var(--ink); box-shadow: 0 14px 34px rgba(24,20,51,.16); }
+
+      /* ── 首页模块（与 index.tsx 一致）── */
+      .home-page { display: flex; flex-direction: column; gap: 16px; padding-top: 4px; }
+      .city-picker { color: var(--ink); font-size: 17px; font-weight: 900; padding: 4px 0; }
+      .search-bar { height: 44px; border-radius: 12px; background: var(--paper); display: flex; align-items: center; padding: 0 16px; color: var(--muted); font-size: 15px; font-weight: 600; }
+      .hero-card { position: relative; min-height: 280px; border-radius: 20px; overflow: hidden; background: var(--primary-dark); box-shadow: var(--shadow-lg); }
+      .hero-card::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(34,211,238,.35) 0%, rgba(14,116,144,.92) 100%); }
+      .hero-card::after { content: ""; position: absolute; right: -20px; top: 40px; width: 180px; height: 180px; border-radius: 50%; background: rgba(255,255,255,.08); }
+      .hero-inner { position: relative; z-index: 1; display: flex; flex-direction: column; justify-content: flex-end; min-height: 280px; padding: 16px; gap: 8px; }
+      .hero-tag { align-self: flex-start; background: var(--sunset-soft); color: var(--sunset); font-size: 11px; font-weight: 800; padding: 5px 10px; border-radius: 8px; }
+      .hero-title { color: #fff; font-size: 24px; font-weight: 900; letter-spacing: -.02em; margin: 0; }
+      .hero-meta { color: rgba(255,255,255,.82); font-size: 13px; font-weight: 700; margin: 0; }
+      .hero-route { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+      .hero-dot { width: 8px; height: 8px; border-radius: 50%; background: #fff; }
+      .hero-line { width: 120px; height: 2px; background: rgba(255,255,255,.55); border-radius: 1px; }
+      .hero-cta { color: #fff; font-size: 15px; font-weight: 800; margin-top: 4px; }
+      .section-head { display: flex; align-items: center; justify-content: space-between; }
+      .section-title { color: var(--ink); font-size: 20px; font-weight: 900; margin: 0; }
+      .section-link { color: var(--primary); font-size: 13px; font-weight: 800; }
+      .h-scroll { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+      .h-scroll::-webkit-scrollbar { display: none; }
+      .nearby-card { flex-shrink: 0; width: 132px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 12px; box-shadow: var(--shadow); }
+      .nearby-thumb { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; font-size: 20px; margin-bottom: 8px; }
+      .nearby-name { color: var(--ink); font-size: 15px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .mini-tag { display: inline-block; margin-top: 6px; padding: 3px 8px; border-radius: 8px; font-size: 11px; font-weight: 800; }
+      .nearby-dist { color: var(--muted); font-size: 11px; font-weight: 700; margin-top: 6px; }
+      .theme-card { flex-shrink: 0; width: 88px; text-align: center; }
+      .theme-icon { width: 72px; height: 72px; border-radius: 16px; display: grid; place-items: center; font-size: 28px; margin: 0 auto 8px; box-shadow: var(--shadow); }
+      .theme-name { color: var(--text); font-size: 13px; font-weight: 800; }
+      .route-card { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 12px; box-shadow: var(--shadow); }
+      .route-thumb { width: 72px; height: 72px; border-radius: 12px; flex-shrink: 0; position: relative; overflow: hidden; }
+      .route-thumb-inner { position: absolute; right: 0; bottom: 0; width: 70%; height: 70%; border-top-left-radius: 12px; opacity: .85; }
+      .route-code { color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .04em; }
+      .route-title { color: var(--ink); font-size: 17px; font-weight: 900; margin: 2px 0; }
+      .route-meta { color: var(--muted); font-size: 13px; font-weight: 600; }
+      .route-arrow { color: var(--primary); font-size: 20px; font-weight: 900; }
+      .dest-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow); }
+      .dest-cover { height: 140px; position: relative; }
+      .dest-cover-inner { position: absolute; right: 0; bottom: 0; width: 55%; height: 55%; background: rgba(255,255,255,.22); border-top-left-radius: 20px; }
+      .dest-tag { position: absolute; left: 12px; bottom: 12px; padding: 4px 8px; border-radius: 8px; font-size: 11px; font-weight: 800; }
+      .dest-body { padding: 12px; }
+      .dest-title { color: var(--ink); font-size: 17px; font-weight: 900; margin: 0 0 4px; }
+      .dest-sub { color: var(--muted); font-size: 13px; font-weight: 600; margin: 0; }
+      .mystery-card { margin: 0 20px; padding: 18px; border-radius: 32px; background: linear-gradient(145deg, #fff8ec 0%, #f2ecff 52%, #eaf4ff 100%); border: 1px solid rgba(255,255,255,.9); box-shadow: var(--shadow-lg); overflow: hidden; position: relative; }
+      .mystery-card::before { content: ""; position: absolute; right: -44px; top: -34px; width: 156px; height: 156px; border-radius: 50%; background: rgba(117,101,246,.16); }
+      .mystery-card::after { content: ""; position: absolute; left: -36px; bottom: 44px; width: 128px; height: 128px; border-radius: 50%; background: rgba(255,211,106,.28); }
+      .mystery-kicker { position: relative; z-index: 1; display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; font-weight: 900; letter-spacing: .12em; }
+      .mystery-stage { position: relative; z-index: 1; display: grid; grid-template-columns: 1fr 1.16fr 1fr; align-items: center; gap: 10px; margin-top: 18px; }
+      .mystery-tile { height: 126px; border-radius: 26px; display: grid; place-items: center; border: 2px solid rgba(117,101,246,.14); background: rgba(255,255,255,.42); color: rgba(24,20,51,.48); font-size: 34px; font-weight: 900; box-shadow: inset 0 0 0 1px rgba(255,255,255,.38); }
+      .mystery-tile.main { height: 148px; background: rgba(255,255,255,.9); color: var(--ink); box-shadow: 0 18px 38px rgba(90,72,188,.14); }
+      .mystery-question { font-size: 56px; line-height: 1; font-weight: 900; }
+      .mystery-reveal { display: inline-flex; margin-top: 12px; padding: 7px 12px; border-radius: 999px; background: var(--primary-dark); color: #fff; font-size: 12px; font-weight: 900; }
+      .mystery-action { position: relative; z-index: 1; width: 100%; height: 54px; margin-top: 18px; border-radius: 28px; background: var(--primary); color: #fff; box-shadow: 0 10px 24px rgba(117,101,246,.3); font-size: 19px; font-weight: 900; }
+      .mystery-note { position: relative; z-index: 1; margin: 14px 0 0; color: var(--muted); text-align: center; font-size: 13px; font-weight: 800; }
+      .quick-draw { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--paper); border: 1px solid var(--border); border-radius: 16px; padding: 16px; }
+      .quick-draw-title { color: var(--ink); font-size: 17px; font-weight: 900; margin: 0; }
+      .quick-draw-sub { color: var(--muted); font-size: 13px; margin: 4px 0 0; max-width: 220px; line-height: 1.35; }
+      .quick-draw-btn { background: var(--primary); color: #fff; border-radius: 999px; padding: 10px 16px; font-size: 13px; font-weight: 900; white-space: nowrap; }
+      .home-nav { display: flex; align-items: flex-end; justify-content: space-between; min-height: calc(var(--safe-top) + 72px); padding: calc(var(--safe-top) + 12px) 20px 12px; background: var(--canvas); }
+      .home-logo-title { color: var(--ink); font-size: 17px; font-weight: 900; letter-spacing: -.04em; }
+      .home-logo-sub { margin-top: 1px; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+      .community-section { margin: 0 20px; display: flex; flex-direction: column; gap: 14px; }
+      .community-tabs { display: flex; gap: 22px; overflow-x: auto; padding-right: 20px; scrollbar-width: none; }
+      .community-tabs::-webkit-scrollbar { display: none; }
+      .community-tab { position: relative; min-height: 36px; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 15px; font-weight: 800; white-space: nowrap; }
+      .community-tab.on { color: var(--ink); font-size: 16px; font-weight: 900; }
+      .community-tab.on::after { content: ""; position: absolute; left: 1px; right: 1px; bottom: 0; height: 3px; border-radius: 99px; background: var(--primary); }
+      .community-waterfall { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+      .community-column { display: flex; flex-direction: column; gap: 12px; }
+      .feed-item { display: flex; flex-direction: column; gap: 8px; padding: 0; border-radius: 20px; background: transparent; border: 0; box-shadow: 0 12px 28px rgba(84,70,175,.18); overflow: visible; }
+      .feed-cover { position: relative; display: grid; place-items: center; overflow: hidden; border-radius: 18px; box-shadow: none; }
+      .feed-cover::after { content: ""; position: absolute; right: -24px; top: 22px; width: 92px; height: 92px; border-radius: 50%; background: rgba(255,255,255,.28); }
+      .feed-emoji { position: relative; z-index: 1; font-size: 38px; }
+      .feed-tag { position: absolute; left: 10px; bottom: 10px; z-index: 2; padding: 4px 8px; border-radius: 999px; background: rgba(255,255,255,.88); color: var(--primary); font-size: 10px; font-weight: 900; }
+      .feed-title { padding: 2px 12px 0; color: var(--ink); font-size: 14px; line-height: 20px; font-weight: 900; }
+      .feed-meta { display: flex; align-items: center; gap: 5px; padding: 0 12px 12px; }
+      .feed-avatar { width: 21px; height: 21px; border-radius: 50%; display: grid; place-items: center; background: var(--primary-soft); color: var(--primary); font-size: 10px; font-weight: 900; flex-shrink: 0; }
+      .feed-author { min-width: 0; flex: 1; color: var(--muted); font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .feed-like-icon { width: 12px; height: 12px; fill: var(--muted); flex-shrink: 0; }
+      .feed-like { color: var(--muted); font-size: 11px; font-weight: 800; }
+      .app-bottom-tab { position: absolute; left: 12px; right: 12px; bottom: calc(var(--safe-bottom) + 12px); z-index: 30; height: 65px; display: grid; grid-template-columns: repeat(3, 1fr); align-items: center; border-radius: 26px; background: rgba(255,255,255,.92); border: 1px solid rgba(255,255,255,.95); box-shadow: 0 14px 42px rgba(84,70,175,.18); }
+      .app-bottom-tab .tab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--muted); font-size: 9px; font-weight: 900; line-height: 12px; }
+      .app-bottom-tab .tab.on { color: var(--primary); }
+      .app-bottom-tab .ico { width: 30px; height: 26px; display: grid; place-items: center; font-size: 18px; line-height: 1; }
+      .draw-page { min-height: 100%; padding: 12px 20px 120px; background: var(--canvas); display: flex; flex-direction: column; gap: 16px; }
+      .draw-topbar { min-height: 70px; display: flex; align-items: center; justify-content: space-between; }
+      .draw-logo { display: flex; align-items: center; gap: 8px; color: var(--ink); font-size: 17px; font-weight: 900; }
+      .draw-logo-mark { width: 31px; height: 31px; border-radius: 11px; display: grid; place-items: center; background: var(--primary); color: #fff; transform: rotate(-5deg); }
+      .draw-eyebrow { align-self: flex-start; padding: 7px 11px; border-radius: 999px; background: #ffd36a; color: var(--ink); font-size: 12px; font-weight: 900; }
+      .draw-title { margin: 0; color: var(--ink); font-size: 40px; line-height: 44px; letter-spacing: -1px; font-weight: 900; }
+      .draw-title span { color: var(--primary); }
+      .draw-copy { margin: 0; color: var(--muted); font-size: 15px; line-height: 25px; }
+      .draw-location { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; padding: 12px; border-radius: 22px; background: #fff; box-shadow: var(--shadow); }
+      .draw-location-main { display: flex; align-items: center; gap: 12px; }
+      .draw-pin { width: 42px; height: 42px; border-radius: 16px; display: grid; place-items: center; background: var(--primary-soft); color: var(--primary); font-size: 18px; }
+      .draw-tiny { color: var(--muted); font-size: 11px; font-weight: 700; }
+      .draw-strong { margin-top: 3px; color: var(--ink); font-size: 14px; font-weight: 900; }
+      .draw-change { color: var(--primary); font-size: 12px; font-weight: 900; }
+      .mood-scene { position: relative; height: 238px; margin-top: 8px; overflow: hidden; border-radius: 34px; background: #e9fbf3; }
+      .mood-cloud { position: absolute; top: 42px; left: 36px; width: 112px; height: 46px; border-radius: 28px; background: rgba(255,255,255,.85); }
+      .mood-hill { position: absolute; left: -32px; bottom: -34px; width: 260px; height: 128px; border-radius: 90px; background: #8eddb8; }
+      .mood-hill.two { left: 142px; bottom: -44px; background: #6fceaa; }
+      .mood-person { position: absolute; right: 58px; bottom: 78px; width: 34px; height: 58px; border-radius: 18px; background: var(--primary); border: 6px solid var(--canvas); }
+      .mood-tag { position: absolute; left: 18px; bottom: 18px; padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,.86); color: var(--ink); font-size: 13px; font-weight: 900; }
+      .trust-row { display: flex; gap: 8px; }
+      .trust-item { flex: 1; text-align: center; padding: 10px 8px; border-radius: 999px; background: rgba(255,255,255,.62); color: var(--muted); font-size: 12px; font-weight: 900; }
+      .action-bottom { position: absolute; left: 20px; right: 20px; bottom: calc(var(--safe-bottom) + 92px); height: 52px; border-radius: 999px; background: var(--primary); color: #fff; box-shadow: 0 10px 24px rgba(117,101,246,.3); font-size: 15px; font-weight: 900; }
+      .otter-mini { position: relative; width: 104px; height: 118px; margin: 0 auto 8px; }
+      .otter-mini::before { content: ""; position: absolute; left: 13px; right: 13px; bottom: 10px; height: 92px; border-radius: 48px; background: #fff; border: 2px solid rgba(117,101,246,.12); }
+      .otter-ear { position: absolute; top: 16px; width: 24px; height: 38px; border-radius: 18px; background: var(--primary-light); }
+      .otter-ear.left { left: 18px; transform: rotate(-12deg); }
+      .otter-ear.right { right: 18px; transform: rotate(12deg); }
+      .otter-face { position: absolute; left: 28px; top: 36px; width: 50px; height: 34px; border-radius: 20px; background: var(--paper); }
+      .otter-face::before { content: "••"; position: absolute; left: 11px; top: 8px; color: var(--ink); letter-spacing: 14px; font-size: 18px; line-height: 1; }
+      .otter-face::after { content: ""; position: absolute; left: 22px; top: 20px; width: 10px; height: 7px; border-radius: 5px; background: var(--ink); }
+      .empty-card { padding: 24px; border-radius: 30px; background: #fff; border: 1px solid rgba(255,255,255,.86); text-align: center; box-shadow: var(--shadow); }
+      .empty-card h3 { margin: 0; color: var(--ink); font-size: 16px; font-weight: 900; }
+      .empty-card p { margin: 8px 0 18px; color: var(--muted); font-size: 14px; line-height: 22px; }
+      .profile-page { padding: 14px 16px 120px; background: var(--canvas); display: flex; flex-direction: column; gap: 12px; }
+      .profile-hero-new { display: flex; align-items: center; gap: 8px; padding: 0; }
+      .profile-avatar-new { width: 76px; height: 50px; object-fit: contain; display: block; }
+      .vip-recharge-card { position: relative; min-height: 88px; padding: 14px 16px; border-radius: 24px; display: flex; align-items: center; gap: 12px; overflow: hidden; background: linear-gradient(135deg, #FDF2CF 0%, #F6EEED 33%, #F3ECF9 67%, #DDF7FF 100%); color: var(--ink); border: 1px solid rgba(255,255,255,.88); box-shadow: 0 16px 38px rgba(117,101,246,.16); }
+      .vip-ticket-icon { position: relative; z-index: 1; width: 48px; height: 48px; display: grid; place-items: center; border-radius: 18px; background: rgba(255,255,255,.68); color: var(--primary); font-size: 28px; transform: rotate(-10deg); flex-shrink: 0; box-shadow: 0 10px 22px rgba(117,101,246,.12); }
+      .vip-recharge-main { position: relative; z-index: 1; flex: 1; min-width: 0; }
+      .vip-recharge-title { color: var(--ink); font-size: 18px; font-weight: 900; letter-spacing: 0; }
+      .vip-recharge-sub { margin-top: 6px; color: var(--muted); font-size: 13px; line-height: 19px; font-weight: 800; }
+      .vip-recharge-btn { position: relative; z-index: 1; margin-left: auto; padding: 10px 15px; border-radius: 999px; background: var(--primary); color: #fff; font-size: 13px; font-weight: 900; white-space: nowrap; box-shadow: 0 10px 22px rgba(117,101,246,.26); }
+      .checkin-new { padding: 16px 18px 18px; border-radius: 30px; background: #fff; box-shadow: var(--shadow); }
+      .checkin-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+      .checkin-title { color: var(--ink); font-size: 18px; line-height: 24px; font-weight: 900; }
+      .checkin-status { color: var(--primary-dark); font-size: 14px; line-height: 20px; font-weight: 900; white-space: nowrap; }
+      .week-row { display: flex; justify-content: space-between; gap: 8px; margin-top: 18px; }
+      .day { flex: 1; max-width: 52px; aspect-ratio: 1; border-radius: 999px; display: grid; place-items: center; background: rgba(248,247,255,.78); border: 2px solid rgba(117,101,246,.1); color: var(--muted); font-size: 14px; line-height: 20px; font-weight: 900; }
+      .day.signed { background: var(--primary-soft); border-color: var(--primary-light); color: var(--primary); }
+      .day.today { background: #fff; border: 3px solid var(--primary-dark); color: var(--primary-dark); }
+      .checkin-check-icon { width: 17px; height: 17px; fill: currentColor; }
+      .action-list-new { border-radius: 24px; overflow: hidden; background: #fff; box-shadow: var(--shadow); }
+      .action-list-new .row { min-height: 48px; display: flex; align-items: center; gap: 12px; padding: 6px 16px; border-bottom: 1px solid var(--border); color: var(--ink); font-size: 14px; font-weight: 900; }
+      .action-list-new .row:last-child { border-bottom: 0; }
+      .action-list-new .ico { width: 24px; height: 24px; display: grid; place-items: center; color: var(--primary); }
+      .action-list-new .arrow { margin-left: auto; color: var(--placeholder); font-size: 24px; }
+
+      /* ── 内页通用 ── */
+      .btn-primary { display: flex; width: 100%; min-height: 48px; align-items: center; justify-content: center; border-radius: 12px; background: var(--primary); box-shadow: 0 8px 24px rgba(8,145,178,.32); color: #fff; font-size: 15px; font-weight: 800; }
+      .btn-secondary { display: flex; width: 100%; min-height: 48px; align-items: center; justify-content: center; border: 1.5px solid var(--primary); border-radius: 12px; background: var(--surface); color: var(--primary); font-size: 15px; font-weight: 800; }
+      .tag { display: inline-flex; padding: 4px 8px; border-radius: 8px; font-size: 11px; font-weight: 700; }
+      .tag.sunset { background: var(--sunset-soft); color: var(--sunset); }
+      .tag.green { background: var(--primary-soft); color: var(--primary-dark); }
+      .fixed-cta { position: sticky; bottom: 0; padding: 12px 0 calc(12px + var(--safe-bottom)); background: linear-gradient(0deg, var(--canvas) 70%, rgba(244,244,244,0)); }
+      .fixed-bar { position: sticky; bottom: 0; display: flex; gap: 10px; align-items: stretch; padding: 12px var(--pad) calc(12px + var(--safe-bottom)); background: #fff; border-top: 1px solid var(--border); box-shadow: 0 -2px 12px rgba(0,0,0,.06); }
+      .fixed-bar .price-block { min-width: 72px; display: flex; flex-direction: column; justify-content: center; }
+      .fixed-bar .price-block .lbl { color: var(--muted); font-size: 11px; }
+      .fixed-bar .price-block .num { color: var(--price); font-size: 22px; font-weight: 900; }
+      .fixed-bar .cta { flex: 1; }
+      .step-track { height: 4px; border-radius: 4px; background: var(--border); overflow: hidden; margin: 8px 0 12px; }
+      .step-fill { height: 100%; background: var(--primary); border-radius: 4px; }
+      .panel { background: #fff; border-radius: 12px; padding: 16px; box-shadow: var(--shadow); margin-bottom: 12px; }
+      .panel-title { color: var(--primary); font-size: 12px; font-weight: 900; margin-bottom: 12px; }
+      .choice-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+      .choice-label { width: 100%; color: var(--text); font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+      .choice-pill { padding: 8px 14px; border-radius: 8px; background: var(--paper); color: var(--text); font-size: 13px; font-weight: 700; border: 1px solid var(--border); }
+      .choice-pill.on { background: var(--primary-soft); color: var(--primary); border-color: var(--primary); font-weight: 800; }
+      .tip-banner { background: var(--sunset-soft); border-radius: 8px; padding: 12px; font-size: 12px; color: var(--text); line-height: 1.5; margin-bottom: 12px; }
+      .result-cover { height: 140px; background: linear-gradient(135deg, var(--primary-light), var(--primary)); position: relative; }
+      .result-hot { position: absolute; top: 12px; left: 12px; background: var(--sunset); color: #fff; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; }
+      .order-card { display: flex; gap: 12px; background: #fff; border-radius: 12px; padding: 12px; box-shadow: var(--shadow); margin-bottom: 10px; }
+      .order-thumb { width: 56px; height: 56px; border-radius: 8px; background: var(--primary-light); flex-shrink: 0; }
+      .order-status { font-size: 11px; font-weight: 800; padding: 4px 8px; border-radius: 4px; background: var(--primary-soft); color: var(--text); white-space: nowrap; }
+      .detail-hero { min-height: 200px; padding: calc(var(--safe-top) + 8px) 16px 24px; color: #fff; background: linear-gradient(135deg, var(--primary-light), var(--primary)); }
+      .detail-info { margin: -16px 16px 0; background: #fff; border-radius: 12px; padding: 16px; box-shadow: var(--shadow); position: relative; z-index: 2; }
+      .meta-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+      .meta-cell { flex: 1 1 45%; }
+      .meta-cell .lbl { color: var(--muted); font-size: 11px; }
+      .meta-cell .val { color: var(--ink); font-size: 14px; font-weight: 800; margin-top: 2px; }
+      .map-page { position: relative; flex: 1; min-height: 360px; background: linear-gradient(180deg, #eaf3fe, #ddeef8); }
+      .map-pin { position: absolute; width: 14px; height: 14px; border-radius: 50%; border: 2px solid #fff; box-shadow: var(--shadow); transform: translate(-50%,-50%); }
+      .map-sheet { background: #fff; border-radius: 16px 16px 0 0; padding: 12px 16px calc(12px + var(--safe-bottom)); box-shadow: 0 -4px 16px rgba(0,0,0,.08); }
+      .profile-header { display: flex; align-items: center; gap: 12px; padding: 8px 0 16px; }
+      .profile-avatar { width: 64px; height: 64px; border-radius: 50%; background: var(--primary); color: #fff; display: grid; place-items: center; font-size: 26px; font-weight: 900; }
+      .profile-stats { display: flex; background: #fff; border-radius: 12px; padding: 16px 0; box-shadow: var(--shadow); margin-bottom: 12px; }
+      .profile-stats .cell { flex: 1; text-align: center; }
+      .profile-stats .num { color: var(--primary); font-size: 22px; font-weight: 900; }
+      .profile-stats .lbl { color: var(--muted); font-size: 11px; margin-top: 4px; font-weight: 600; }
+      .menu-panel { background: #fff; border-radius: 12px; overflow: hidden; box-shadow: var(--shadow); }
+      .menu-row { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 700; }
+      .menu-row:last-child { border-bottom: 0; }
+      .menu-hint { margin-left: auto; color: var(--muted); font-size: 12px; font-weight: 600; }
+      .onboard-screen { min-height: 100%; background: var(--canvas); display: flex; flex-direction: column; padding: calc(var(--safe-top) + 8px) 16px calc(16px + var(--safe-bottom)); }
+      .onboard-art { width: 100%; height: 280px; border-radius: 16px; display: grid; place-items: center; font-size: 72px; color: #fff; margin-top: 24px; }
+      .onboard-dots { display: flex; justify-content: center; gap: 8px; margin: 16px 0; }
+      .onboard-dot { width: 8px; height: 8px; border-radius: 4px; background: var(--border); }
+      .onboard-dot.on { width: 20px; background: var(--primary); }
+
+      /* ── 登录 / 注册 ── */
+      .login-page { position: relative; min-height: 100%; display: flex; flex-direction: column; align-items: center; padding: calc(var(--safe-top) + 50px) 28px calc(var(--safe-bottom) + 24px); background: radial-gradient(circle at 18% 10%, rgba(255,211,106,.28) 0, rgba(255,211,106,0) 34%), radial-gradient(circle at 82% 18%, rgba(117,101,246,.14) 0, rgba(117,101,246,0) 30%), linear-gradient(180deg, #dffbff 0%, #f3f0ff 60%, #fff8ec 100%); overflow: hidden; }
+      .login-page::before { content: ""; position: absolute; left: -82px; bottom: 124px; width: 230px; height: 230px; border-radius: 50%; background: rgba(255,255,255,.38); }
+      .login-page::after { content: ""; position: absolute; right: -72px; top: 116px; width: 168px; height: 168px; border-radius: 50%; background: rgba(117,101,246,.10); }
+      .login-brand { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; margin-top: 44px; }
+      .login-illustration { position: relative; width: 136px; height: 118px; display: grid; place-items: center; }
+      .login-bucket { position: relative; width: 116px; height: 88px; border-radius: 20px 20px 48px 48px; background: rgba(255,255,255,.94); border: 3px solid var(--ink); box-shadow: 0 16px 34px rgba(90,72,188,.13); transform: rotate(-4deg); display: grid; place-items: center; color: var(--ink); font-size: 36px; font-weight: 950; }
+      .login-bucket::before { content: ""; position: absolute; left: 20px; right: 20px; top: -18px; height: 38px; border: 4px solid var(--ink); border-bottom: 0; border-radius: 38px 38px 0 0; transform: rotate(8deg); }
+      .login-bucket::after { content: ""; position: absolute; right: 18px; top: 18px; width: 28px; height: 16px; border-radius: 999px; background: var(--primary-light); transform: rotate(-24deg); box-shadow: -52px 22px 0 -5px #fff, -50px 22px 0 -2px var(--ink); }
+      .login-pin { position: absolute; right: 12px; top: 10px; width: 28px; height: 28px; border-radius: 10px; display: grid; place-items: center; background: #56d3ff; border: 3px solid var(--ink); color: #fff; font-size: 14px; transform: rotate(14deg); }
+      .login-title { margin-top: 18px; color: var(--ink); font-size: 30px; line-height: 1; font-weight: 950; letter-spacing: -.04em; }
+      .login-title-mark { width: 74px; height: 10px; margin-top: 5px; border-radius: 999px; background: linear-gradient(90deg, rgba(86,211,255,0), #56d3ff 42%, var(--primary-light)); transform: rotate(-10deg); }
+      .login-form { position: relative; z-index: 1; width: 100%; margin-top: 44px; display: flex; flex-direction: column; gap: 14px; }
+      .login-field { height: 62px; display: flex; align-items: center; gap: 10px; padding: 0 18px; border-radius: 31px; background: rgba(255,255,255,.92); border: 1px solid rgba(255,255,255,.96); box-shadow: 0 12px 30px rgba(84,70,175,.11); }
+      .login-field.code { padding-right: 14px; }
+      .login-input { min-width: 0; flex: 1; height: 100%; border: 0; outline: 0; background: transparent; color: var(--ink); font-size: 16px; font-weight: 800; }
+      .login-input::placeholder { color: #b9b5cf; font-weight: 800; }
+      .login-code-btn { flex-shrink: 0; padding: 9px 12px; border-radius: 999px; background: var(--primary-soft); color: var(--primary); font-size: 13px; font-weight: 900; }
+      .login-submit { width: 100%; height: 62px; margin-top: 28px; border-radius: 31px; background: var(--ink); color: #fff; font-size: 18px; font-weight: 950; box-shadow: 0 18px 42px rgba(24,20,51,.25); }
+      .login-agree { position: relative; z-index: 1; width: 100%; display: grid; grid-template-columns: 20px 1fr; gap: 10px; align-items: flex-start; margin-top: 18px; padding: 0 8px; }
+      .login-check { width: 18px; height: 18px; margin-top: 2px; border-radius: 50%; background: #fff; border: 2px solid #d8d3ee; box-shadow: inset 0 0 0 3px rgba(255,255,255,.8); }
+      .login-agree-text { color: var(--muted); font-size: 12px; line-height: 19px; font-weight: 800; }
+      .login-agree-text span { color: var(--primary); }
+      .login-footer { position: relative; z-index: 1; margin-top: auto; color: rgba(124,119,163,.82); font-size: 12px; font-weight: 800; letter-spacing: .04em; }
+
+      .dest-hero { height: 240px; background: linear-gradient(180deg, transparent 40%, rgba(12,61,92,.52) 100%), linear-gradient(120deg, #67e8f9, #0891b2 50%, #0e7490); position: relative; margin: 0 calc(-1 * var(--pad)); }
+      .dest-hero-text { position: absolute; right: 16px; bottom: 20px; left: 16px; color: #fff; }
+      .dest-hero-text h2 { margin: 8px 0 0; font-size: 24px; font-weight: 900; line-height: 1.15; }
+      .chip-row { display: flex; gap: 8px; margin: 16px 0; overflow-x: auto; }
+      .chip { flex-shrink: 0; padding: 8px 14px; border-radius: 999px; background: var(--paper); font-size: 13px; font-weight: 700; color: var(--text); }
+      .chip.on { background: var(--primary); color: #fff; }
+      .section-text { color: var(--text); font-size: 14px; line-height: 1.6; margin: 0; }
+
+      .route-map { height: 200px; background: var(--paper); margin: 0 calc(-1 * var(--pad)); position: relative; }
+      .route-line { stroke: var(--primary); stroke-width: 2; fill: none; stroke-linecap: round; }
+      .route-pin { position: absolute; width: 12px; height: 12px; border: 2px solid #fff; border-radius: 50%; background: var(--primary); box-shadow: 0 2px 8px rgba(8,145,178,.4); }
+      .route-pin.a { top: 58%; left: 22%; } .route-pin.b { top: 38%; left: 52%; } .route-pin.c { top: 52%; left: 78%; }
+      .stats-row { display: flex; gap: 16px; color: var(--muted); font-size: 13px; margin-top: 8px; }
+      .stats-row strong { display: block; color: var(--ink); font-size: 20px; font-weight: 800; }
+      .timeline-item { display: flex; gap: 12px; margin-bottom: 16px; }
+      .timeline-dot { width: 28px; height: 28px; border-radius: 50%; background: var(--primary-soft); color: var(--primary); display: grid; place-items: center; font-size: 12px; font-weight: 800; flex-shrink: 0; }
+      .timeline-item h5 { margin: 0 0 2px; font-size: 14px; }
+      .timeline-item p { margin: 0; color: var(--muted); font-size: 12px; }
+
+      .activity-hero { height: 180px; background: linear-gradient(135deg, #ff8a65, #f4c976 60%, #22d3ee); margin: 0 calc(-1 * var(--pad)); position: relative; }
+      .activity-badge { position: absolute; top: 16px; left: 16px; padding: 6px 10px; border-radius: 8px; background: rgba(255,255,255,.92); color: var(--sunset); font-size: 11px; font-weight: 800; }
+      .price { color: var(--sunset); font-size: 28px; font-weight: 900; }
+      .form-field { margin-bottom: 10px; }
+      .form-field label { display: block; margin-bottom: 6px; color: var(--muted); font-size: 12px; font-weight: 700; }
+      .form-field input { width: 100%; height: 48px; padding: 0 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--canvas); font-size: 16px; }
+      .form-sheet { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+      .brand-hero { min-height: 844px; background: linear-gradient(180deg, rgba(12,61,92,.1), rgba(12,61,92,.62)), linear-gradient(145deg, #38bdf8, #0891b2 45%, #0e7490); display: flex; flex-direction: column; justify-content: flex-end; padding: 24px 24px calc(88px + var(--safe-bottom)); padding-top: calc(var(--safe-top) + 24px); }
+      .brand-hero h2 { color: #fff; font-size: 36px; font-weight: 950; margin: 16px 0 12px; line-height: 1.08; }
+      .brand-hero p { color: rgba(255,255,255,.82); font-size: 15px; margin: 0 0 20px; }
+    </style>
+  </head>
+  <body>
+    <div class="board" id="board">
+      <header class="board-head">
+        <p class="board-kicker">Current App Implementation · v0.6</p>
+        <h1>懒得动 · 当前代码实现设计稿</h1>
+        <p class="board-desc">首页已按当前 APP 代码同步：浅紫蓝系统色、顶部品牌栏、频道切换、双列瀑布流内容与悬浮底部 Tab。此 HTML 仅作为设计稿预览，不包含前后端逻辑。</p>
+      </header>
+
+      <div class="screens" id="screens">
+        <!-- 00 APP 首页 -->
+        <div class="screen-wrap" data-screen="home">
+          <span class="screen-name">00 · APP 首页（当前代码实现）</span>
+          <div class="phone"><div class="viewport">
+            <div class="app-shell">
+              <div class="home-nav">
+                <div>
+                  <div class="home-logo-title">懒得动</div>
+                  <div class="home-logo-sub">Smart weekend report</div>
+                </div>
+                <div></div>
+              </div>
+              <div class="home-page" style="padding-bottom:120px">
+                <section class="mystery-card">
+                  <div class="mystery-kicker">🌿 今日目的地等你揭晓</div>
+                  <div class="mystery-stage">
+                    <div class="mystery-tile">🌙</div>
+                    <div class="mystery-tile main">
+                      <div>
+                        <div class="mystery-question">?</div>
+                        <div class="mystery-reveal">点我揭晓</div>
+                      </div>
+                    </div>
+                    <div class="mystery-tile">✦</div>
+                  </div>
+                  <button class="mystery-action">✨ 揭开谜底</button>
+                  <p class="mystery-note">每周免费 3 次</p>
+                </section>
+                <section class="community-section">
+                  <div class="community-tabs">
+                    <div class="community-tab on">推荐</div>
+                    <div class="community-tab">附近</div>
+                    <div class="community-tab">City Walk</div>
+                    <div class="community-tab">低预算</div>
+                    <div class="community-tab">搭子</div>
+                    <div class="community-tab">雨天</div>
+                  </div>
+                  <div class="community-waterfall">
+                    <div class="community-column">
+                      <article class="feed-item">
+                        <div class="feed-cover" style="height:178px;background:#EAF4FF">
+                          <span class="feed-emoji">🌇</span>
+                          <span class="feed-tag">City Walk</span>
+                        </div>
+                        <div class="feed-title">苏州河落日路线，不赶场也能很好拍</div>
+                        <div class="feed-meta"><span class="feed-avatar">阿</span><span class="feed-author">阿眠</span><svg class="feed-like-icon" viewBox="0 0 1024 1024"><path d="M885.9 533.7c16.8-22.2 26.1-49.4 26.1-77.7 0-44.9-25.1-87.4-65.5-111.1a67.67 67.67 0 00-34.3-9.3H572.4l6-122.9c1.4-29.7-9.1-57.9-29.5-79.4A106.62 106.62 0 00471 99.9c-52 0-98 35-111.8 85.1l-85.9 311H144c-17.7 0-32 14.3-32 32v364c0 17.7 14.3 32 32 32h601.3c9.2 0 18.2-1.8 26.5-5.4 47.6-20.3 78.3-66.8 78.3-118.4 0-12.6-1.8-25-5.4-37 16.8-22.2 26.1-49.4 26.1-77.7 0-12.6-1.8-25-5.4-37 16.8-22.2 26.1-49.4 26.1-77.7-.2-12.6-2-25.1-5.6-37.1zM184 852V568h81v284h-81zm636.4-353l-21.9 19 13.9 25.4a56.2 56.2 0 016.9 27.3c0 16.5-7.2 32.2-19.6 43l-21.9 19 13.9 25.4a56.2 56.2 0 016.9 27.3c0 16.5-7.2 32.2-19.6 43l-21.9 19 13.9 25.4a56.2 56.2 0 016.9 27.3c0 22.4-13.2 42.6-33.6 51.8H329V564.8l99.5-360.5a44.1 44.1 0 0142.2-32.3c7.6 0 15.1 2.2 21.1 6.7 9.9 7.4 15.2 18.6 14.6 30.5l-9.6 198.4h314.4C829 418.5 840 436.9 840 456c0 16.5-7.2 32.1-19.6 43z"/></svg><span class="feed-like">326</span></div>
+                      </article>
+                      <article class="feed-item">
+                        <div class="feed-cover" style="height:132px;background:#DDF7EA">
+                          <span class="feed-emoji">👟</span>
+                          <span class="feed-tag">搭子</span>
+                        </div>
+                        <div class="feed-title">今晚想找两个人拼个城市漫游</div>
+                        <div class="feed-meta"><span class="feed-avatar">出</span><span class="feed-author">出门按钮</span><svg class="feed-like-icon" viewBox="0 0 1024 1024"><path d="M885.9 533.7c16.8-22.2 26.1-49.4 26.1-77.7 0-44.9-25.1-87.4-65.5-111.1a67.67 67.67 0 00-34.3-9.3H572.4l6-122.9c1.4-29.7-9.1-57.9-29.5-79.4A106.62 106.62 0 00471 99.9c-52 0-98 35-111.8 85.1l-85.9 311H144c-17.7 0-32 14.3-32 32v364c0 17.7 14.3 32 32 32h601.3c9.2 0 18.2-1.8 26.5-5.4 47.6-20.3 78.3-66.8 78.3-118.4 0-12.6-1.8-25-5.4-37 16.8-22.2 26.1-49.4 26.1-77.7 0-12.6-1.8-25-5.4-37 16.8-22.2 26.1-49.4 26.1-77.7-.2-12.6-2-25.1-5.6-37.1zM184 852V568h81v284h-81zm636.4-353l-21.9 19 13.9 25.4a56.2 56.2 0 016.9 27.3c0 16.5-7.2 32.2-19.6 43l-21.9 19 13.9 25.4a56.2 56.2 0 016.9 27.3c0 16.5-7.2 32.2-19.6 43l-21.9 19 13.9 25.4a56.2 56.2 0 016.9 27.3c0 22.4-13.2 42.6-33.6 51.8H329V564.8l99.5-360.5a44.1 44.1 0 0142.2-32.3c7.6 0 15.1 2.2 21.1 6.7 9.9 7.4 15.2 18.6 14.6 30.5l-9.6 198.4h314.4C829 418.5 840 436.9 840 456c0 16.5-7.2 32.1-19.6 43z"/></svg><span class="feed-like">74</span></div>
+                      </article>
+                    </div>
+                    <div class="community-column">
+                      <article class="feed-item">
+                        <div class="feed-cover" style="height:150px;background:#FFF2C7">
+                          <span class="feed-emoji">☕️</span>
+                          <span class="feed-tag">低预算</span>
+                        </div>
+                        <div class="feed-title">楼下咖啡 + 公园躺平，低电量周末也算出门</div>
+                        <div class="feed-meta"><span class="feed-avatar">周</span><span class="feed-author">周末逃跑中</span><svg class="feed-like-icon" viewBox="0 0 1024 1024"><path d="M885.9 533.7c16.8-22.2 26.1-49.4 26.1-77.7 0-44.9-25.1-87.4-65.5-111.1a67.67 67.67 0 00-34.3-9.3H572.4l6-122.9c1.4-29.7-9.1-57.9-29.5-79.4A106.62 106.62 0 00471 99.9c-52 0-98 35-111.8 85.1l-85.9 311H144c-17.7 0-32 14.3-32 32v364c0 17.7 14.3 32 32 32h601.3c9.2 0 18.2-1.8 26.5-5.4 47.6-20.3 78.3-66.8 78.3-118.4 0-12.6-1.8-25-5.4-37 16.8-22.2 26.1-49.4 26.1-77.7 0-12.6-1.8-25-5.4-37 16.8-22.2 26.1-49.4 26.1-77.7-.2-12.6-2-25.1-5.6-37.1zM184 852V568h81v284h-81zm636.4-353l-21.9 19 13.9 25.4a56.2 56.2 0 016.9 27.3c0 16.5-7.2 32.2-19.6 43l-21.9 19 13.9 25.4a56.2 56.2 0 016.9 27.3c0 16.5-7.2 32.2-19.6 43l-21.9 19 13.9 25.4a56.2 56.2 0 016.9 27.3c0 22.4-13.2 42.6-33.6 51.8H329V564.8l99.5-360.5a44.1 44.1 0 0142.2-32.3c7.6 0 15.1 2.2 21.1 6.7 9.9 7.4 15.2 18.6 14.6 30.5l-9.6 198.4h314.4C829 418.5 840 436.9 840 456c0 16.5-7.2 32.1-19.6 43z"/></svg><span class="feed-like">188</span></div>
+                      </article>
+                      <article class="feed-item">
+                        <div class="feed-cover" style="height:170px;background:#EEE9FF">
+                          <span class="feed-emoji">🌧️</span>
+                          <span class="feed-tag">Plan B</span>
+                        </div>
+                        <div class="feed-title">下雨天备用方案：展馆 + 热汤面</div>
+                        <div class="feed-meta"><span class="feed-avatar">懒</span><span class="feed-author">懒得计划</span><svg class="feed-like-icon" viewBox="0 0 1024 1024"><path d="M885.9 533.7c16.8-22.2 26.1-49.4 26.1-77.7 0-44.9-25.1-87.4-65.5-111.1a67.67 67.67 0 00-34.3-9.3H572.4l6-122.9c1.4-29.7-9.1-57.9-29.5-79.4A106.62 106.62 0 00471 99.9c-52 0-98 35-111.8 85.1l-85.9 311H144c-17.7 0-32 14.3-32 32v364c0 17.7 14.3 32 32 32h601.3c9.2 0 18.2-1.8 26.5-5.4 47.6-20.3 78.3-66.8 78.3-118.4 0-12.6-1.8-25-5.4-37 16.8-22.2 26.1-49.4 26.1-77.7 0-12.6-1.8-25-5.4-37 16.8-22.2 26.1-49.4 26.1-77.7-.2-12.6-2-25.1-5.6-37.1zM184 852V568h81v284h-81zm636.4-353l-21.9 19 13.9 25.4a56.2 56.2 0 016.9 27.3c0 16.5-7.2 32.2-19.6 43l-21.9 19 13.9 25.4a56.2 56.2 0 016.9 27.3c0 16.5-7.2 32.2-19.6 43l-21.9 19 13.9 25.4a56.2 56.2 0 016.9 27.3c0 22.4-13.2 42.6-33.6 51.8H329V564.8l99.5-360.5a44.1 44.1 0 0142.2-32.3c7.6 0 15.1 2.2 21.1 6.7 9.9 7.4 15.2 18.6 14.6 30.5l-9.6 198.4h314.4C829 418.5 840 436.9 840 456c0 16.5-7.2 32.1-19.6 43z"/></svg><span class="feed-like">96</span></div>
+                      </article>
+                    </div>
+                  </div>
+                </section>
+                <div class="app-bottom-tab">
+                  <div class="tab on"><span class="ico">⌂</span>首页</div>
+                  <div class="tab"><span class="ico">✓</span>日历</div>
+                  <div class="tab"><span class="ico">♙</span>我的</div>
+                </div>
+              </div>
+            </div>
+          </div></div>
+        </div>
+
+        <!-- 01 玩法详情 -->
+        <div class="screen-wrap" data-screen="activity">
+          <span class="screen-name">01 · 玩法详情</span>
+          <div class="phone"><div class="viewport">
+            <div class="app-shell">
+              <div class="detail-hero"><button class="back-circle on-hero" type="button" aria-label="返回"></button><div style="margin-top:24px;font-size:12px;opacity:.85">上海 · 徐汇</div><h2 style="margin:6px 0 0;font-size:28px;font-weight:900">愚园路 City Walk</h2></div>
+              <div class="detail-info">
+                <p style="margin:0;color:var(--text);font-size:14px;line-height:1.6">沿梧桐老路逛小店、喝咖啡，适合第一次轻探索。</p>
+                <div class="meta-grid">
+                  <div class="meta-cell"><div class="lbl">时长</div><div class="val">约 3 小时</div></div>
+                  <div class="meta-cell"><div class="lbl">预算</div><div class="val">¥80 左右</div></div>
+                  <div class="meta-cell"><div class="lbl">人数</div><div class="val">1–4 人</div></div>
+                  <div class="meta-cell"><div class="lbl">环境</div><div class="val">室外</div></div>
+                </div>
+              </div>
+              <div class="app-content" style="padding-top:12px">
+                <div class="panel"><div class="panel-title">玩法介绍</div><p class="section-text">从江苏路地铁站出发，途经愚园路历史街区，可在多家独立咖啡馆停留。</p></div>
+                <div class="panel"><div class="panel-title">步骤指引</div><div class="timeline-item"><span class="timeline-dot">1</span><div><h5>江苏路地铁站 2 号口集合</h5></div></div><div class="timeline-item"><span class="timeline-dot">2</span><div><h5>愚园路主街漫步</h5></div></div></div>
+                <div style="height:80px"></div>
+              </div>
+              <div class="fixed-bar"><div class="price-block"><span class="lbl">预估</span><span class="num">¥80</span></div><div class="cta"><button class="btn-primary">加入我的行程</button></div></div>
+            </div>
+          </div></div>
+        </div>
+
+        <!-- 02 偏好填写 -->
+        <div class="screen-wrap" data-screen="preferences">
+          <span class="screen-name">02 · 填写出行偏好</span>
+          <div class="phone"><div class="viewport">
+            <div class="app-shell">
+              <div class="app-nav"><div><span class="brand-name">懒得动</span><span class="brand-sub">探索</span></div><button class="trip-btn">行程</button></div>
+              <div class="app-content" style="padding-top:8px">
+                <div style="display:flex;justify-content:space-between;align-items:center"><button class="back-circle" type="button" aria-label="返回"></button><span style="color:var(--muted);font-size:12px">第 2 / 3 步</span></div>
+                <h2 style="margin:8px 0 0;font-size:18px;font-weight:900">填写出行偏好</h2>
+                <div class="step-track"><div class="step-fill" style="width:66%"></div></div>
+                <p style="color:var(--muted);font-size:14px;margin:0 0 12px">已填好常用选项，点选即可修改。</p>
+                <div class="panel"><div class="panel-title">必填信息</div>
+                  <div class="choice-row"><span class="choice-label">出行人数</span><span class="choice-pill">1 人</span><span class="choice-pill on">2 人</span><span class="choice-pill">3–4 人</span></div>
+                  <div class="choice-row"><span class="choice-label">游玩时长</span><span class="choice-pill">2 小时内</span><span class="choice-pill on">半天</span><span class="choice-pill">全天</span></div>
+                  <div class="choice-row"><span class="choice-label">预算上限</span><span class="choice-pill on">¥100</span><span class="choice-pill">¥200</span><span class="choice-pill">¥500</span></div>
+                </div>
+                <div class="tip-banner">💡 可选偏好填得越细，推荐越准；也可保持默认。</div>
+                <div class="panel"><div class="panel-title">可选偏好</div>
+                  <div class="choice-row"><span class="choice-label">想要的感觉</span><span class="choice-pill on">随便</span><span class="choice-pill">放松</span><span class="choice-pill">刺激</span></div>
+                </div>
+                <div style="height:72px"></div>
+              </div>
+              <div class="fixed-bar" style="display:block"><button class="btn-primary">开始智能推荐</button></div>
+            </div>
+          </div></div>
+        </div>
+
+        <!-- 03 推荐结果 -->
+        <div class="screen-wrap" data-screen="draw">
+          <span class="screen-name">03 · 行动盲盒入口（当前代码实现）</span>
+          <div class="phone"><div class="viewport">
+            <div class="app-shell">
+              <div class="draw-page">
+                <div class="draw-topbar">
+                  <div class="draw-logo"><span class="draw-logo-mark">懒</span><span>懒得动</span></div>
+                </div>
+                <div class="draw-eyebrow">✦ 本地周末玩乐盲盒</div>
+                <h2 class="draw-title">今天去哪玩？<br /><span>别纠结，让我来。</span></h2>
+                <p class="draw-copy">给我 30 秒说说偏好，我替你做一个值得出门的决定。</p>
+                <div class="draw-location">
+                  <div class="draw-location-main">
+                    <div class="draw-pin">⌖</div>
+                    <div><div class="draw-tiny">当前城市</div><div class="draw-strong">上海 · 静安区</div></div>
+                  </div>
+                  <div class="draw-change">切换</div>
+                </div>
+                <div class="mood-scene">
+                  <div class="mood-cloud"></div>
+                  <div class="mood-hill"></div>
+                  <div class="mood-hill two"></div>
+                  <div class="mood-person"></div>
+                  <div class="mood-tag">今天，去看点没看过的 ✨</div>
+                </div>
+                <div class="trust-row">
+                  <div class="trust-item">3 次结果机会</div>
+                  <div class="trust-item">无需做攻略</div>
+                  <div class="trust-item">随时可退出</div>
+                </div>
+                <button class="action-bottom">帮我决定去哪玩 →</button>
+                <div class="app-bottom-tab">
+                  <div class="tab"><span class="ico">⌂</span>首页</div>
+                  <div class="tab"><span class="ico">✓</span>日历</div>
+                  <div class="tab"><span class="ico">♙</span>我的</div>
+                </div>
+              </div>
+            </div>
+          </div></div>
+        </div>
+
+        <!-- 04 我的行程 -->
+        <div class="screen-wrap" data-screen="todos">
+          <span class="screen-name">04 · 我的行程</span>
+          <div class="phone"><div class="viewport">
+            <div class="app-shell">
+              <div class="draw-page" style="padding:16px 16px 120px">
+                <div style="display:flex;align-items:center;justify-content:space-between">
+                  <h2 style="margin:0;color:var(--ink);font-size:18px;font-weight:900">我的行程</h2>
+                  <button style="background:var(--primary);color:#fff;border-radius:999px;padding:8px 14px;font-size:12px;font-weight:800">＋ 新推荐</button>
+                </div>
+                <div class="empty-card">
+                  <div class="otter-mini"><span class="otter-ear left"></span><span class="otter-ear right"></span><span class="otter-face"></span></div>
+                  <h3>还没有每日行动</h3>
+                  <p>去首页抽取一个周末玩法，让小懒陪你点亮今天的路线。</p>
+                  <button class="btn-primary">去发现</button>
+                </div>
+                <div class="app-bottom-tab">
+                  <div class="tab"><span class="ico">⌂</span>首页</div>
+                  <div class="tab on"><span class="ico">✓</span>日历</div>
+                  <div class="tab"><span class="ico">♙</span>我的</div>
+                </div>
+              </div>
+            </div>
+          </div></div>
+        </div>
+
+        <!-- 05 地图探索 -->
+        <div class="screen-wrap" data-screen="map">
+          <span class="screen-name">05 · 地图探索</span>
+          <div class="phone"><div class="viewport">
+            <div class="app-shell" style="display:flex;flex-direction:column;height:100%">
+              <div class="inner-nav"><button class="back-circle" type="button" aria-label="返回"></button><span class="title">探索地图</span><span style="width:52px"></span></div>
+              <div class="map-page">
+                <div class="search-box" style="position:absolute;top:12px;left:16px;right:16px;z-index:2;margin:0;box-shadow:var(--shadow)">🔍 搜索附近玩法、路线</div>
+                <span class="map-pin" style="left:28%;top:42%;background:var(--primary)"></span>
+                <span class="map-pin" style="left:52%;top:58%;background:var(--primary-light)"></span>
+                <span class="map-pin" style="left:68%;top:35%;background:var(--sunset)"></span>
+                <span class="map-pin" style="left:38%;top:68%;background:var(--primary)"></span>
+                <button style="position:absolute;right:16px;bottom:16px;width:40px;height:40px;border-radius:20px;background:#fff;color:var(--primary);box-shadow:var(--shadow-lg);font-weight:900">⌖</button>
+              </div>
+              <div class="map-sheet">
+                <div style="width:36px;height:4px;border-radius:2px;background:var(--border);margin:0 auto 12px"></div>
+                <div class="chip-row" style="margin:0 0 10px"><span class="chip on">全部</span><span class="chip">徒步</span><span class="chip">城市</span><span class="chip">摄影</span></div>
+                <div style="font-weight:900;margin-bottom:8px">附近推荐 · 4 个地点</div>
+                <div class="order-card" style="margin-bottom:8px"><div class="order-thumb"></div><div style="flex:1"><div style="font-weight:900">西岸美术馆</div><div style="color:#666;font-size:12px">城市 · 1.2km</div></div><span style="color:#999">›</span></div>
+                <button class="btn-primary" style="margin-top:8px">在高德查看 西岸美术馆</button>
+              </div>
+            </div>
+          </div></div>
+        </div>
+
+        <!-- 06 我的 -->
+        <div class="screen-wrap" data-screen="profile">
+          <span class="screen-name">06 · 我的</span>
+          <div class="phone"><div class="viewport">
+            <div class="app-shell" style="background:var(--canvas)">
+              <div class="profile-page">
+                <section class="profile-hero-new">
+                  <img class="profile-avatar-new" src="../../apps/client/assets/images/home-brand-logo.png" alt="懒得动" />
+                </section>
+                <section class="vip-recharge-card">
+                  <div class="vip-ticket-icon">🎟</div>
+                  <div class="vip-recharge-main">
+                    <div class="vip-recharge-title">懒得动 VIP 月卡</div>
+                    <div class="vip-recharge-sub">解锁更多 AI 规划次数和专属路线</div>
+                  </div>
+                  <div class="vip-recharge-btn">立即开通</div>
+                </section>
+                <section class="checkin-new">
+                  <div class="checkin-head"><div class="checkin-title">本周签到</div><div class="checkin-status">已签 2 天 · 还差 5 天得 +1次</div></div>
+                  <div class="week-row"><span class="day">一</span><span class="day">二</span><span class="day signed"><svg class="checkin-check-icon" viewBox="64 64 896 896"><path d="M912 190h-69.9c-9.8 0-19.1 4.5-25.1 12.2L404.7 724.5 207 474a32 32 0 00-25.1-12.2H112c-6.7 0-10.4 7.7-6.3 12.9l273.9 347c12.8 16.2 37.4 16.2 50.3 0l488.4-618.9c4.1-5.1.4-12.8-6.3-12.8z"/></svg></span><span class="day signed today"><svg class="checkin-check-icon" viewBox="64 64 896 896"><path d="M912 190h-69.9c-9.8 0-19.1 4.5-25.1 12.2L404.7 724.5 207 474a32 32 0 00-25.1-12.2H112c-6.7 0-10.4 7.7-6.3 12.9l273.9 347c12.8 16.2 37.4 16.2 50.3 0l488.4-618.9c4.1-5.1.4-12.8-6.3-12.8z"/></svg></span><span class="day">五</span><span class="day">六</span><span class="day">日</span></div>
+                </section>
+                <section class="action-list-new">
+                  <div class="row"><span class="ico">行</span>加入行程<span class="arrow">›</span></div>
+                  <div class="row"><span class="ico">醒</span>行程提醒<span class="arrow">›</span></div>
+                  <div class="row"><span class="ico">发</span>发布管理<span class="arrow">›</span></div>
+                </section>
+                <section class="action-list-new">
+                  <div class="row"><span class="ico">馈</span>意见反馈<span class="arrow">›</span></div>
+                  <div class="row"><span class="ico">赞</span>给个好评<span class="arrow">›</span></div>
+                </section>
+                <div class="app-bottom-tab">
+                  <div class="tab"><span class="ico">⌂</span>首页</div>
+                  <div class="tab"><span class="ico">✓</span>日历</div>
+                  <div class="tab on"><span class="ico">♙</span>我的</div>
+                </div>
+              </div>
+            </div>
+          </div></div>
+        </div>
+
+        <!-- 07 登录 / 注册 -->
+        <div class="screen-wrap" data-screen="login">
+          <span class="screen-name">07 · 登录 / 注册（手机号验证码）</span>
+          <div class="phone"><div class="viewport">
+            <div class="login-page">
+              <section class="login-brand">
+                <div class="login-illustration">
+                  <div class="login-bucket">懒</div>
+                  <div class="login-pin">⌖</div>
+                </div>
+                <div class="login-title">懒得动</div>
+                <div class="login-title-mark"></div>
+              </section>
+              <section class="login-form">
+                <label class="login-field">
+                  <input class="login-input" type="tel" placeholder="请输入手机号..." />
+                </label>
+                <label class="login-field code">
+                  <input class="login-input" type="text" placeholder="请输入验证码..." />
+                  <button class="login-code-btn" type="button">获取验证码</button>
+                </label>
+                <button class="login-submit" type="button">登录 / 注册</button>
+              </section>
+              <section class="login-agree">
+                <span class="login-check"></span>
+                <div class="login-agree-text">已阅读并同意 <span>《用户协议》</span><span>《隐私政策》</span><span>《AI 功能使用须知》</span></div>
+              </section>
+              <div class="login-footer">未注册手机号将自动创建账号</div>
+            </div>
+          </div></div>
+        </div>
+
+        <!-- 08 我的收藏 -->
+        <div class="screen-wrap" data-screen="favorites">
+          <span class="screen-name">08 · 我的收藏</span>
+          <div class="phone"><div class="viewport">
+            <div class="app-shell">
+              <div class="app-nav"><div><span class="brand-name">懒得动</span><span class="brand-sub">探索</span></div><button class="trip-btn">行程</button></div>
+              <div class="app-content" style="padding-top:8px">
+                <button class="back-circle" type="button" aria-label="返回" style="margin-bottom:12px"></button>
+                <h2 style="margin:8px 0;font-size:18px;font-weight:900">我的收藏</h2>
+                <p style="color:#666;font-size:14px;margin:0 0 12px">共 4 条，路线与目的地都在这里。</p>
+                <div class="chip-row" style="margin-bottom:12px"><span class="chip on">全部</span><span class="chip">路线</span><span class="chip">目的地</span></div>
+                <div class="product-card"><div class="product-img"><span class="hot-badge">热销</span></div><div style="padding:12px;flex:1"><div style="font-weight:900">莫干山竹林小径</div><div style="color:#666;font-size:12px;margin-top:4px">16km · 轻松 · 2.5h</div><div style="color:#999;font-size:11px;margin-top:2px">浙江 · 湖州</div><div class="price-num" style="margin-top:6px">¥299<span class="price-label">起/人</span></div></div></div>
+                <div class="product-card"><div class="product-img" style="background:#eaf3fe"></div><div style="padding:12px;flex:1"><div style="font-weight:900">安吉竹海</div><div style="color:#666;font-size:12px;margin-top:4px">⭐ 4.9 · 2.3万条评价</div><div style="color:#999;font-size:11px;margin-top:2px">浙江 · 湖州</div><div class="price-num" style="margin-top:6px">¥198<span class="price-label">起</span></div></div></div>
+              </div>
+            </div>
+          </div></div>
+        </div>
+
+        <!-- 09 关于懒得动 -->
+        <div class="screen-wrap" data-screen="about">
+          <span class="screen-name">09 · 关于懒得动</span>
+          <div class="phone"><div class="viewport">
+            <div class="app-shell">
+              <div class="app-nav"><div><span class="brand-name">懒得动</span><span class="brand-sub">探索</span></div><button class="trip-btn">行程</button></div>
+              <div class="app-content" style="padding-top:8px">
+                <button class="back-circle" type="button" aria-label="返回" style="margin-bottom:14px"></button>
+                <h2 style="margin:0 0 12px;font-size:18px;font-weight:900">关于懒得动</h2>
+                <div style="background:var(--primary);border-radius:24px;padding:24px;text-align:center;color:#fff;margin-bottom:12px"><div style="font-size:32px;font-weight:900">懒得动</div><div style="opacity:.85;font-size:12px;margin-top:4px">v0.6</div><div style="margin-top:12px;font-weight:700">今天去哪玩？别纠结，让我来。</div></div>
+                <div class="panel"><div class="panel-title">懒得动 · 当前系统风格</div><p class="section-text">根据当前 APP 代码整理：浅紫蓝底色、圆润卡片、行动盲盒、行程管理和个人中心。</p></div>
+                <div class="menu-panel" style="margin-top:12px"><div class="menu-row">隐私政策<span class="menu-hint">›</span></div><div class="menu-row">用户协议<span class="menu-hint">›</span></div></div>
+              </div>
+            </div>
+          </div></div>
+        </div>
+
+      </div>
+    </div>
+    <script>
+      (function () {
+        var screen = new URLSearchParams(location.search).get("screen");
+        if (!screen) return;
+        document.querySelector(".board-head").classList.add("hidden");
+        document.querySelectorAll(".screen-wrap").forEach(function (w) {
+          if (w.dataset.screen !== screen) w.classList.add("hidden");
+        });
+        document.querySelector(".board").style.padding = "24px";
+        document.querySelector(".screens").style.gridTemplateColumns = "1fr";
+        document.querySelector(".screens").style.justifyItems = "center";
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,45 @@
+import { LegalDocumentScreen, type LegalBlock } from '@/components/legal-document-screen';
+
+const PRIVACY_POLICY_BLOCKS: LegalBlock[] = [
+  { type: 'paragraph', text: '生效日期：2026年8月17日' },
+  { type: 'paragraph', text: '本政策说明我们如何收集、使用与保护用户信息。' },
+  { type: 'heading', text: '1. 信息收集' },
+  { type: 'item', text: '用于维持游客会话的匿名设备标识' },
+  { type: 'item', text: '用户主动选择的城市、位置、时间、预算和心情偏好' },
+  { type: 'item', text: '方案生成、重选、加入计划、开始与完成等使用记录' },
+  { type: 'item', text: '用户自愿提交的完成感受与可选现场照片' },
+  { type: 'heading', text: '2. AI数据使用' },
+  { type: 'subheading', text: '2.1 使用范围' },
+  { type: 'paragraph', text: '为生成出行方案，必要的偏好与候选地点信息可能发送给已配置的AI服务供应商处理。' },
+  { type: 'subheading', text: '2.2 位置权限' },
+  { type: 'paragraph', text: '仅在用户主动点击定位并授权后读取当前位置，也可以手动输入出发地。' },
+  { type: 'heading', text: '3. 信息使用目的' },
+  { type: 'item', text: '提供服务' },
+  { type: 'item', text: '优化产品' },
+  { type: 'item', text: '安全风控' },
+  { type: 'item', text: '合规要求' },
+  { type: 'heading', text: '4. 信息共享' },
+  { type: 'paragraph', text: '仅在以下情况共享：' },
+  { type: 'item', text: '用户授权' },
+  { type: 'item', text: '服务供应商' },
+  { type: 'item', text: '法律要求' },
+  { type: 'item', text: '安全保护' },
+  { type: 'heading', text: '5. 数据安全' },
+  { type: 'paragraph', text: '采用行业标准保护措施，但不保证绝对安全。' },
+  { type: 'heading', text: '6. 用户权利' },
+  { type: 'item', text: '访问数据' },
+  { type: 'item', text: '更正或删除已提交的信息' },
+  { type: 'item', text: '撤回位置、相册等系统权限' },
+  { type: 'heading', text: '7. 本地存储' },
+  { type: 'paragraph', text: '用于保存匿名设备标识和最近一次方案，以便恢复使用进度。' },
+  { type: 'heading', text: '8. 未成年人保护' },
+  { type: 'paragraph', text: '需监护人同意使用。' },
+  { type: 'heading', text: '9. 政策更新' },
+  { type: 'paragraph', text: '可能随时更新并公告。' },
+  { type: 'heading', text: '10. 联系方式' },
+  { type: 'paragraph', text: '内测阶段请通过产品测试邀请渠道联系我们。' },
+];
+
+export default function PrivacyPolicyScreen() {
+  return <LegalDocumentScreen blocks={PRIVACY_POLICY_BLOCKS} title="隐私政策" />;
+}

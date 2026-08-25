@@ -1,0 +1,24 @@
+{
+  "name": "lazyde",
+  "version": "0.1.0",
+  "private": true,
+  "description": "懒得动 Web / iOS / Android 多端初版项目",
+  "scripts": {
+    "dev:client": "npm --prefix apps/client run start",
+    "dev:web": "npm --prefix apps/client run web",
+    "dev:web:https": "npm --prefix apps/client run web:https",
+    "dev:web:https:local": "npm --prefix apps/client run web:https:local",
+    "dev:api": "npm --prefix apps/api run dev",
+    "build:api": "npm --prefix apps/api run build",
+    "build:web": "npm --prefix apps/client run build:web",
+    "lint": "npm --prefix apps/client run lint && npm --prefix apps/api run lint",
+    "test": "npm --prefix apps/api run test",
+    "db:migrate": "npm --prefix apps/api run db:migrate",
+    "dev:qdrant": "bash scripts/start-qdrant.sh",
+    "data:sync:scenic": "npm --prefix apps/api run data:sync:scenic --",
+    "data:import:dianping-scenic": "npm --prefix apps/api run data:import:dianping-scenic --"
+  },
+  "engines": {
+    "node": ">=24 <25"
+  }
+}

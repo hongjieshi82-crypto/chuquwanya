@@ -1,0 +1,24 @@
+# Dependencies and builds
+node_modules/
+dist/
+coverage/
+.expo/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Runtime files
+*.log
+*.pid
+.tools/
+uploads/
+apps/api/uploads/
+apps/api/certs/
+*.pem
+
+# Editor and operating system files
+.DS_Store
+.idea/
+.vscode/
