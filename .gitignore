@@ -23,3 +23,6 @@ apps/api/certs/
 .DS_Store
 .idea/
 .vscode/
+
+# Local interview deck; publish separately with the personal website.
+apps/client/public/portfolio/
