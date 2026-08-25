@@ -1,9 +1,14 @@
 FROM node:24-bookworm-slim AS build
 
+ARG NPM_REGISTRY=https://registry.npmmirror.com
 WORKDIR /app
 
 COPY apps/api/package.json apps/api/package-lock.json ./apps/api/
-RUN npm --prefix apps/api ci
+RUN npm config set registry "$NPM_REGISTRY" \
+  && npm config set fetch-retries 5 \
+  && npm config set fetch-retry-mintimeout 20000 \
+  && npm config set fetch-retry-maxtimeout 120000 \
+  && npm --prefix apps/api ci --legacy-peer-deps
 
 COPY apps/api ./apps/api
 COPY database ./database
