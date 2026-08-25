@@ -14,11 +14,13 @@ VIP、支付、短信和社区不在第一版上线范围内。
 
 - Ubuntu 22.04 / 24.04 64 位
 - 2 vCPU
-- 4 GB 内存（同时运行 Chroma 时建议 4 GB）
+- 2 GB 内存可运行低内存 API + MySQL；同时运行 Chroma 时建议 4 GB
 - 40 GB 系统盘
 - 安全组暂时只放行 SSH 22；有域名后再放行 80/443
 
 MySQL 3306、API 3001 和 Chroma 8000 均不对公网开放。
+
+2 GB 机型已在 Compose 中将 MySQL 限制为 512 MB、API 限制为 384 MB；请不要启动 `vector` profile。
 
 ## 2. 准备生产环境变量
 

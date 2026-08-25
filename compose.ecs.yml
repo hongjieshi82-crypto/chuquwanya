@@ -12,6 +12,12 @@ services:
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_0900_ai_ci
+      - --innodb-buffer-pool-size=134217728
+      - --innodb-log-buffer-size=8388608
+      - --max-connections=30
+      - --performance-schema=OFF
+    mem_limit: 512m
+    pids_limit: 200
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
@@ -34,6 +40,7 @@ services:
       DB_HOST: mysql
       DB_PORT: 3306
       CHROMA_URL: http://chroma:8000
+      NODE_OPTIONS: --max-old-space-size=256
     depends_on:
       mysql:
         condition: service_healthy
@@ -43,6 +50,8 @@ services:
       - api_uploads:/app/apps/api/uploads
     networks:
       - backend
+    mem_limit: 384m
+    pids_limit: 200
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/api/v1/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 30s
