@@ -83,7 +83,18 @@ export function resolveApiMediaUrl(value: string | null | undefined) {
     return null;
   }
 
+  const runtimePagesBasePath = typeof window !== 'undefined' && window.location.hostname.endsWith('github.io')
+    ? `/${window.location.pathname.split('/').filter(Boolean)[0] ?? ''}`
+    : '';
+  const pagesBasePath = process.env.EXPO_GITHUB_PAGES_BASE_URL || runtimePagesBasePath;
+  const isFrontendAsset = Platform.OS === 'web' && (
+    trimmed.startsWith('/media/') ||
+    trimmed.startsWith('/assets/') ||
+    Boolean(pagesBasePath && trimmed.startsWith(`${pagesBasePath}/`))
+  );
+
   if (
+    isFrontendAsset ||
     trimmed.startsWith('http://') ||
     trimmed.startsWith('https://') ||
     trimmed.startsWith('data:') ||
