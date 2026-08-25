@@ -63,7 +63,7 @@ export const DISCOVER_DESTINATIONS = [
 ] as const;
 
 export const BRAND_COPY = {
-  name: '懒得动',
+  name: '粗来玩鸭！',
   sub: '发现你的下一段旅程',
   slogan: '世界很大，马上出发。',
   features: '发现路线 · 规划行程 · 分享探索',
@@ -147,7 +147,7 @@ export const PROFILE_STATS = [
 ] as const;
 
 export const PROFILE_MENU = [
-  { id: 'about', icon: 'info' as AppIconName, label: '关于懒得动', hint: 'v0.5' },
+  { id: 'about', icon: 'info' as AppIconName, label: '关于粗来玩鸭！', hint: 'v0.5' },
 ] as const;
 
 export const FAVORITE_TABS = ['全部', '路线', '目的地'] as const;
@@ -201,7 +201,7 @@ export const FAVORITE_ITEMS = [
 
 export const ABOUT_INFO = {
   version: 'v0.5',
-  tagline: '关于懒得动 · 携程风格探索主题',
+  tagline: '关于粗来玩鸭！ · 携程风格探索主题',
   description: '帮你发现路线、智能推荐玩法、管理行程。',
   links: [
     { id: 'privacy', label: '隐私政策' },

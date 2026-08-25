@@ -313,7 +313,7 @@ async function createTripPoster(
 
   context.fillStyle = '#7565f6';
   context.font = '900 25px PingFang SC, Microsoft YaHei, sans-serif';
-  context.fillText('懒得动  ·  WEEKEND ORACLE', 70, 1540);
+  context.fillText('粗来玩鸭！  ·  WEEKEND ORACLE', 70, 1540);
   context.fillStyle = '#8c8598';
   context.font = '500 22px PingFang SC, Microsoft YaHei, sans-serif';
   context.fillText('少做选择题，只给一个现在能出发的方案。', 590, 1540);
@@ -446,6 +446,7 @@ export default function PcBoxOpenScreen() {
         token: {
           colorPrimary: openToken.primary,
           colorInfo: openToken.primary,
+          colorTextLightSolid: openToken.ink,
           colorText: openToken.ink,
           colorTextSecondary: openToken.text,
           colorTextTertiary: openToken.muted,
@@ -461,7 +462,7 @@ export default function PcBoxOpenScreen() {
           Button: {
             borderRadius: radii.pill,
             controlHeightLG: 52,
-            primaryShadow: '0 12px 28px rgba(90, 72, 188, 0.24)',
+            primaryShadow: '0 12px 28px rgba(77, 111, 22, 0.24)',
           },
           Card: {
             borderRadiusLG: radii['2xl'],
@@ -625,6 +626,7 @@ export function PcBoxResultScreen() {
         token: {
           colorPrimary: openToken.primary,
           colorInfo: openToken.primary,
+          colorTextLightSolid: openToken.ink,
           colorText: openToken.ink,
           colorTextSecondary: openToken.text,
           colorTextTertiary: openToken.muted,
@@ -640,7 +642,7 @@ export function PcBoxResultScreen() {
           Button: {
             borderRadius: radii.pill,
             controlHeightLG: 48,
-            primaryShadow: '0 10px 24px rgba(117, 101, 246, 0.30)',
+            primaryShadow: '0 10px 24px rgba(126, 166, 31, 0.28)',
           },
           Card: {
             borderRadiusLG: radii.xl,
@@ -782,7 +784,7 @@ function PcBoxResult({
   ].filter((reason): reason is string => Boolean(reason));
 
   const shareResult = async () => {
-    const text = `我在懒得动抽到了「${activity.title}」，${activity.summary}`;
+    const text = `我在粗来玩鸭！抽到了「${activity.title}」，${activity.summary}`;
 
     try {
       if (navigator.share) {
@@ -804,7 +806,7 @@ function PcBoxResult({
     setIsSavingPoster(true);
     try {
       const blob = await createTripPoster(activity, recommendation, recommendationReasons, activitySteps);
-      const fileName = `懒得动-${activity.cityName}-${activity.title}.jpg`;
+      const fileName = `粗来玩鸭！-${activity.cityName}-${activity.title}.jpg`;
       const objectUrl = URL.createObjectURL(blob);
       if (isWechatMobile) {
         if (wechatPreview) {
@@ -851,7 +853,7 @@ function PcBoxResult({
             <Tag>⏱ {formatDuration(activity.durationMinutes)}</Tag>
             <Tag>💰 {formatBudget(activity.budgetYuan)}</Tag>
             <Tag>📍 {formatDistanceMetric(activity.distanceKm, recommendation?.constraintSummary.distance)}</Tag>
-            <Tag color="purple">✨ {recommendation?.display.badge ?? '为你精选'}</Tag>
+            <Tag>✨ {recommendation?.display.badge ?? '为你精选'}</Tag>
           </Space>
         </div>
       </Card>
@@ -915,7 +917,7 @@ function PcBoxResult({
             <Card
               className="pc-box-result-card"
               title="为什么推荐你来这里"
-              extra={<Tag color="purple">AI 匹配依据</Tag>}>
+              extra={<Tag>AI 匹配依据</Tag>}>
               <Space className="pc-box-result-reasons" orientation="vertical" size={12}>
                 {recommendationReasons.map((reason, index) => (
                   <div className="pc-box-result-reason" key={`reason-${index}`}>
@@ -1029,7 +1031,7 @@ function PcBoxPrintSheet({
     <section className="pc-box-print-sheet" aria-label="单页行程 PDF">
       <header className="pc-print-header">
         <div>
-          <strong>懒得动</strong>
+          <strong>粗来玩鸭！</strong>
           <span>WEEKEND ORACLE</span>
         </div>
         <p>AI TRAVEL DROP · {activity.cityName.toUpperCase()}</p>
@@ -1193,7 +1195,7 @@ const pcBoxOpenCss = `
   min-height: calc(100dvh - 76px);
   padding: 48px 40px 64px;
   background:
-    radial-gradient(circle at 16% 18%, rgba(117, 101, 246, 0.14), transparent 30%),
+    radial-gradient(circle at 16% 18%, rgba(126, 166, 31, 0.14), transparent 30%),
     radial-gradient(circle at 84% 20%, rgba(142, 200, 255, 0.15), transparent 28%),
     radial-gradient(circle at 72% 82%, rgba(157, 140, 255, 0.12), transparent 34%),
     linear-gradient(135deg, ${openToken.primarySoft}, ${openToken.canvas});
@@ -1208,7 +1210,7 @@ const pcBoxOpenCss = `
   border: 1px solid rgba(255, 255, 255, 0.72);
   border-radius: 36px;
   background: rgba(255, 255, 255, 0.72);
-  box-shadow: 0 28px 70px rgba(90, 72, 188, 0.16);
+  box-shadow: 0 28px 70px rgba(77, 111, 22, 0.16);
   backdrop-filter: blur(16px);
   transition: opacity 280ms ease, transform 280ms ease, filter 280ms ease;
 }
@@ -1246,7 +1248,7 @@ const pcBoxOpenCss = `
   background: linear-gradient(135deg, ${openToken.primary}, ${openToken.primaryLight});
   font-size: 13px;
   font-weight: 900;
-  box-shadow: 0 8px 22px rgba(117, 101, 246, 0.24);
+  box-shadow: 0 8px 22px rgba(126, 166, 31, 0.24);
 }
 
 .pc-box-open-copy {
@@ -1367,10 +1369,10 @@ const pcBoxOpenCss = `
   position: absolute;
   left: 50%;
   top: 50%;
-  border: 1px solid rgba(117, 101, 246, 0.22);
+  border: 1px solid rgba(126, 166, 31, 0.22);
   border-radius: 50%;
   transform: translate(-50%, -50%) rotate(-12deg);
-  box-shadow: 0 0 24px rgba(117, 101, 246, 0.12);
+  box-shadow: 0 0 24px rgba(126, 166, 31, 0.12);
 }
 
 .pc-box-open-orbit-one {
@@ -1429,7 +1431,7 @@ const pcBoxOpenCss = `
     linear-gradient(90deg, transparent 42%, rgba(142, 200, 255, 0.9) 43% 57%, transparent 58%),
     linear-gradient(145deg, ${openToken.primaryLight}, ${openToken.primary} 52%, ${openToken.primaryDark});
   box-shadow:
-    0 22px 48px rgba(90, 72, 188, 0.28),
+    0 22px 48px rgba(77, 111, 22, 0.28),
     inset 0 0 0 1px rgba(255, 255, 255, 0.28);
   transform-style: preserve-3d;
 }
@@ -1445,7 +1447,7 @@ const pcBoxOpenCss = `
   background:
     linear-gradient(90deg, transparent 42%, rgba(142, 200, 255, 0.94) 43% 57%, transparent 58%),
     linear-gradient(145deg, ${openToken.primaryLight}, ${openToken.primary});
-  box-shadow: 0 12px 24px rgba(90, 72, 188, 0.22);
+  box-shadow: 0 12px 24px rgba(77, 111, 22, 0.22);
   transform-origin: 50% 100%;
 }
 
@@ -1513,7 +1515,7 @@ const pcBoxOpenCss = `
   opacity: 0;
   background:
     radial-gradient(circle, rgba(255,255,255,.76), rgba(255,211,106,.28) 36%, transparent 66%),
-    conic-gradient(from 20deg, transparent, rgba(142,200,255,.7), transparent, rgba(117,101,246,.42), transparent);
+    conic-gradient(from 20deg, transparent, rgba(142,200,255,.7), transparent, rgba(126,166,31,.42), transparent);
 }
 
 .pc-box-open-burst {
@@ -1522,7 +1524,7 @@ const pcBoxOpenCss = `
   height: 440px;
   border-radius: 50%;
   opacity: 0;
-  background: radial-gradient(circle, rgba(255,255,255,.96), rgba(255,211,106,.52) 22%, rgba(117,101,246,.16) 52%, transparent 70%);
+  background: radial-gradient(circle, rgba(255,255,255,.96), rgba(255,211,106,.52) 22%, rgba(126,166,31,.16) 52%, transparent 70%);
   transform: translate(-50%, -50%) scale(.24);
 }
 
@@ -1749,7 +1751,7 @@ const pcBoxOpenCss = `
   width: 310px;
   height: 78px;
   border-radius: 50%;
-  background: radial-gradient(ellipse, rgba(98,71,218,.36), rgba(117,101,246,.12) 48%, transparent 74%);
+  background: radial-gradient(ellipse, rgba(98,71,218,.36), rgba(126,166,31,.12) 48%, transparent 74%);
   filter: blur(10px);
   animation: pcLootFloorBreath 2.2s ease-in-out infinite;
 }
@@ -2033,7 +2035,7 @@ const pcBoxOpenCss = `
   width: var(--charge-progress, 0%);
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #7867ff, #78e8ff 54%, #c9ff62);
+  background: linear-gradient(90deg, #c9ff62, #78e8ff 58%, #ff795e);
   box-shadow: 0 0 16px rgba(120,232,255,.7);
   transition: width 45ms linear;
 }
@@ -2187,8 +2189,12 @@ const pcBoxOpenCss = `
 }
 
 .pc-drop-card-front strong {
-  align-self: center;
-  justify-self: center;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1em;
+  display: block;
+  text-align: center;
   color: transparent;
   background: linear-gradient(145deg, #fff, #78e8ff 48%, #c9ff62);
   background-clip: text;
@@ -2198,6 +2204,8 @@ const pcBoxOpenCss = `
   font-weight: 500;
   line-height: 1;
   text-shadow: 0 0 42px rgba(120,232,255,.16);
+  transform: translate(-50%, -50%);
+  transform-origin: center;
 }
 
 .pc-drop-card-front i {
@@ -2227,7 +2235,7 @@ const pcBoxOpenCss = `
 .pc-drop-card-back {
   padding: 24px;
   color: #171520;
-  background: linear-gradient(145deg, #c9ff62, #78e8ff 48%, #aa72ff);
+  background: linear-gradient(145deg, #c9ff62, #78e8ff 52%, #ff795e);
   opacity: 0;
   transform: rotateY(82deg);
   display: flex;
@@ -2402,7 +2410,7 @@ const pcBoxOpenCss = `
 @keyframes pcDropRingReverse { to { transform: translate(-50%,-50%) rotate(-338deg); } }
 @keyframes pcDropBurst { 0% { opacity: 0; transform: translate(-50%,-50%) scale(.3) rotate(-8deg); } 24% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%,-50%) scale(1.8) rotate(15deg); } }
 @keyframes pcDropShockwave { 0% { opacity: 0; transform: translate(-50%,-50%) scale(.4); } 22% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%,-50%) scale(2.25); } }
-@keyframes pcDropRarity { to { background: linear-gradient(90deg,#7867ff,#78e8ff); box-shadow: 0 0 12px rgba(120,232,255,.4); } }
+@keyframes pcDropRarity { to { background: linear-gradient(90deg,#c9ff62,#78e8ff); box-shadow: 0 0 12px rgba(120,232,255,.4); } }
 @keyframes pcDropRarityFinal { 0% { transform: scaleX(.3); } 70% { transform: scaleX(1.12); background: #c9ff62; box-shadow: 0 0 18px rgba(201,255,98,.76); } 100% { transform: scaleX(1); background: #c9ff62; box-shadow: 0 0 13px rgba(201,255,98,.56); } }
 
 @media (max-width: 899px) {
@@ -2670,7 +2678,7 @@ const pcBoxResultCss = `
 .pc-box-result-empty .ant-card {
   border-radius: ${radii.xl}px;
   text-align: center;
-  box-shadow: 0 16px 36px rgba(90, 72, 188, .1);
+  box-shadow: 0 16px 36px rgba(77, 111, 22, .1);
 }
 
 .pc-box-result-empty h3.ant-typography {
@@ -2689,7 +2697,7 @@ const pcBoxResultCss = `
   border: 0;
   border-radius: 24px;
   background: ${openToken.primaryDark};
-  box-shadow: 0 20px 48px rgba(90, 72, 188, .18);
+  box-shadow: 0 20px 48px rgba(77, 111, 22, .18);
 }
 
 .pc-box-result-hero .ant-card-body {
@@ -2772,7 +2780,7 @@ const pcBoxResultCss = `
   margin-top: 16px;
   border: 1px solid rgba(232, 225, 255, .9);
   border-radius: ${radii.lg}px;
-  box-shadow: 0 10px 24px rgba(90, 72, 188, .08);
+  box-shadow: 0 10px 24px rgba(77, 111, 22, .08);
 }
 
 .pc-box-result-toolbar .ant-card-body {
@@ -2798,7 +2806,7 @@ const pcBoxResultCss = `
 .pc-box-result-card.ant-card {
   border: 1px solid rgba(232, 225, 255, .92);
   border-radius: 20px;
-  box-shadow: 0 12px 28px rgba(90, 72, 188, .08);
+  box-shadow: 0 12px 28px rgba(77, 111, 22, .08);
 }
 
 .pc-box-result-card .ant-card-head {
@@ -2875,7 +2883,7 @@ const pcBoxResultCss = `
   height: 44px;
   border-radius: ${radii.pill}px;
   color: ${openToken.primaryDark};
-  border-color: rgba(117, 101, 246, .28);
+  border-color: rgba(126, 166, 31, .28);
   background: ${openToken.surface};
   font-weight: 800;
 }

@@ -32,7 +32,7 @@ const pcPlaceCss = `
   min-height: calc(100dvh - 76px);
   padding: 42px clamp(24px, 5vw, 72px) 76px;
   background:
-    radial-gradient(circle at 12% 8%, rgba(117,101,246,.16), transparent 28%),
+    radial-gradient(circle at 12% 8%, rgba(126,166,31,.16), transparent 28%),
     radial-gradient(circle at 88% 20%, rgba(142,200,255,.16), transparent 28%),
     linear-gradient(180deg, #F5F2FF 0%, #FBFAFF 48%, #FFFFFF 100%);
 }
@@ -104,7 +104,7 @@ export default function PcPlaceScreen() {
   const mapUrl = useMemo(() => (activity ? buildMapUrl(activity) : ''), [activity]);
 
   return (
-    <ConfigProvider theme={{ token: { colorPrimary: palette.primary, borderRadius: radii.lg } }}>
+    <ConfigProvider theme={{ token: { colorPrimary: palette.primary, colorTextLightSolid: palette.ink, borderRadius: radii.lg } }}>
       <style>{pcPlaceCss}</style>
       <main className="pc-place-page">
         {loading ? (

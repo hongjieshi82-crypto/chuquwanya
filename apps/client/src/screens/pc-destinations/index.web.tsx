@@ -582,10 +582,10 @@ const pcDestinationsCss = `
 .pc-destinations-relaxed-note {
   margin: -6px 0 22px;
   padding: 14px 17px;
-  border: 1px solid rgba(117,101,246,.16);
+  border: 1px solid rgba(126,166,31,.16);
   border-radius: 14px;
   color: #6f687f;
-  background: linear-gradient(90deg, rgba(117,101,246,.08), rgba(120,232,255,.06));
+  background: linear-gradient(90deg, rgba(126,166,31,.08), rgba(120,232,255,.06));
   display: flex;
   align-items: center;
   gap: 12px;

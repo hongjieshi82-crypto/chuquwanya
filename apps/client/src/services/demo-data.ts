@@ -236,7 +236,7 @@ const baseActivities: Activity[] = [
     coverImageUri: assetUri(beijingOlympicForestImage),
     steps: ['从南门入园', '任选一条林间支路', '在湖边休息并拍一张照片'],
     tips: ['穿舒适的鞋', '傍晚光线更柔和'],
-    accentColor: '#7867ff',
+    accentColor: '#C9FF62',
   },
   {
     id: 1002,
@@ -262,7 +262,7 @@ const baseActivities: Activity[] = [
     coverImageUri: assetUri(shanghaiImage),
     steps: ['武康大楼集合', '收集五种街区颜色', '随机挑一家小店休息'],
     tips: ['工作日上午人更少', '注意不影响沿街居民'],
-    accentColor: '#aa72ff',
+    accentColor: '#78E8FF',
   },
   {
     id: 1003,
@@ -527,7 +527,7 @@ const additionalActivities: Activity[] = [
     district: '渝中区', address: '山城巷传统风貌区', latitude: 29.5549, longitude: 106.5702,
     coverImageUri: chongqingImage,
     steps: ['从山城巷进入步道', '寻找三种空间反转', '在江景平台结束路线'],
-    tips: ['台阶较多，穿防滑鞋', '雨天调整为较短路线'], accentColor: '#AA72FF',
+    tips: ['台阶较多，穿防滑鞋', '雨天调整为较短路线'], accentColor: '#FF795E',
   }),
   createCityActivity({
     id: 1017, cityId: 16, cityName: '厦门',

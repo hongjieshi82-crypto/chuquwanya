@@ -10,6 +10,7 @@ export const antdTheme = {
   brand_error: palette.error,
   color_link: palette.primary,
   color_text_base: palette.ink,
+  color_text_base_inverse: palette.ink,
   color_text_caption: palette.muted,
   color_text_placeholder: palette.placeholder,
   color_text_paragraph: palette.text,

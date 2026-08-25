@@ -27,7 +27,7 @@ const themes: Record<string, ThemeConfig> = {
     lead: '更少排队打卡，更多沿途、建筑、风景和城市记忆。',
     image: demoCityImageUris.hangzhou,
     color: '#6752D8',
-    glow: 'rgba(117,101,246,.28)',
+    glow: 'rgba(126,166,31,.28)',
     features: ['锁定城市与人文风格', '优先自然风景与历史街区', '适合慢速度的半日出行'],
     examples: ['在胡同随机拐三次', '绕湖走一段陌生的路', '沿海等一次日落'],
   },
@@ -36,7 +36,7 @@ const themes: Record<string, ThemeConfig> = {
     title: '不设终点，让城市带你走一段',
     lead: '少一点必须完成，多一点临时起意和路上的意外。',
     image: demoPlaceImageUris.beijingOlympicForest,
-    color: '#7565F6',
+    color: '#C9FF62',
     glow: 'rgba(142,200,255,.34)',
     features: ['以周边和探索心情为主', '随机路线与微型挑战', '不满意可以换一个方向'],
     examples: ['去公园盲走四十分钟', '坐一站没坐过的轮渡', '用三座桥串起一条路'],
@@ -65,7 +65,7 @@ const themes: Record<string, ThemeConfig> = {
 
 const themeCss = `
 .pc-theme-page { min-height: calc(100dvh - 76px); padding: 42px clamp(24px,5vw,72px) 76px; background: linear-gradient(180deg,#F7F4FF,#FFF); }
-.pc-theme-shell { --theme-color:#7565F6; --theme-glow:rgba(117,101,246,.3); width:min(100%,1180px); margin:0 auto; }
+.pc-theme-shell { --theme-color:#C9FF62; --theme-glow:rgba(126,166,31,.3); width:min(100%,1180px); margin:0 auto; }
 .pc-theme-back.ant-btn { margin-bottom:18px; color:${palette.text}; font-weight:800; }
 .pc-theme-hero { position:relative; min-height:570px; overflow:hidden; border-radius:40px; background:#1D1739; box-shadow:0 32px 78px rgba(35,25,87,.24); }
 .pc-theme-photo { position:absolute; inset:0 0 0 48%; width:52%; height:100%; object-fit:cover; opacity:.8; mask-image:linear-gradient(90deg,transparent,#000 34%); -webkit-mask-image:linear-gradient(90deg,transparent,#000 34%); }

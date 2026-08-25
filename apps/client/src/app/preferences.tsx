@@ -1175,7 +1175,7 @@ const styles = StyleSheet.create({
     width: 210,
     height: 210,
     borderRadius: 105,
-    backgroundColor: 'rgba(117,101,246,0.16)',
+    backgroundColor: 'rgba(126,166,31,0.16)',
   },
   revealGlowTwo: {
     position: 'absolute',

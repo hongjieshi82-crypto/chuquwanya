@@ -133,7 +133,7 @@ ensurePcBrowserApis();
 type StaticAsset = number | { uri: string };
 type PcImageSource = StaticAsset | string;
 
-const brandLogo = require('../../../assets/images/home-brand-logo.png') as StaticAsset;
+const brandLogo = require('../../../assets/images/chuquwanya-logo.png') as StaticAsset;
 const westLakeImage = require('../../../assets/images/pc-hero-west-lake.jpg') as StaticAsset;
 const shenzhenBayImage = require('../../../assets/images/pc-hero-shenzhen-bay.jpg') as StaticAsset;
 const beijingImage = demoCityImageUris.beijing;
@@ -183,8 +183,8 @@ const pcToken = {
   duneSoft: palette.duneSoft,
   seafoam: palette.seafoam,
   seafoamSoft: palette.seafoamSoft,
-  shadow: '0 18px 44px rgba(90, 72, 188, 0.14)',
-  cardShadow: '0 12px 32px rgba(90, 72, 188, 0.10)',
+  shadow: '0 18px 44px rgba(77, 111, 22, 0.14)',
+  cardShadow: '0 12px 32px rgba(77, 111, 22, 0.10)',
 };
 
 const sceneImages = [beijingImage, shanghaiImage, hangzhouImage, shenzhenImage, tianjinImage, yantaiImage] as const;
@@ -527,8 +527,8 @@ export default function PcLandingScreen() {
       animate('[data-anime="nav"]', {
         y: [0, -2],
         boxShadow: [
-          '0 0 0 rgba(90, 72, 188, 0)',
-          '0 10px 32px rgba(90, 72, 188, 0.14)',
+          '0 0 0 rgba(77, 111, 22, 0)',
+          '0 10px 32px rgba(77, 111, 22, 0.14)',
         ],
         backgroundColor: [
           'rgba(255, 255, 255, 0.82)',
@@ -568,6 +568,7 @@ export default function PcLandingScreen() {
         token: {
           colorPrimary: pcToken.primary,
           colorInfo: pcToken.primary,
+          colorTextLightSolid: pcToken.ink,
           colorSuccess: pcToken.seafoam,
           colorWarning: pcToken.dune,
           colorError: palette.error,
@@ -587,7 +588,7 @@ export default function PcLandingScreen() {
           Button: {
             borderRadius: radii.pill,
             controlHeightLG: 48,
-            primaryShadow: '0 10px 24px rgba(117, 101, 246, 0.30)',
+            primaryShadow: '0 10px 24px rgba(126, 166, 31, 0.28)',
           },
           Card: {
             borderRadiusLG: radii.lg,
@@ -774,7 +775,7 @@ export default function PcLandingScreen() {
                           }
                           cover={<img src={imageUri(item.image)} alt={item.title} loading="lazy" decoding="async" />}>
                           <Flex justify="space-between" align="center">
-                            <Tag color="purple">{item.tag}</Tag>
+                            <Tag>{item.tag}</Tag>
                             <Text type="secondary">
                               <HeartOutlined /> 热度 {item.popularity}
                             </Text>
@@ -887,7 +888,7 @@ export default function PcLandingScreen() {
             <Flex justify="space-between" align="center" wrap="wrap" gap={16}>
               <Space>
                 <img src={assetUri(brandLogo)} alt="" />
-                <Text strong>懒得动 · 旅行盲盒规划师</Text>
+                <Text strong>粗来玩鸭！ · 旅行盲盒规划师</Text>
               </Space>
               <Text type="secondary">开盲盒，去未知，玩出新鲜感，攻略全省心</Text>
             </Flex>
@@ -1108,7 +1109,7 @@ const pcCss = `
   background:
     radial-gradient(circle at 100% 0%, rgba(142, 200, 255, 0.14), transparent 34%),
     rgba(255, 255, 255, 0.96);
-  box-shadow: 0 24px 68px rgba(90, 72, 188, 0.14);
+  box-shadow: 0 24px 68px rgba(77, 111, 22, 0.14);
   backdrop-filter: blur(18px);
 }
 
@@ -1193,7 +1194,7 @@ const pcCss = `
   cursor: pointer;
   font-size: 15px;
   font-weight: 800;
-  box-shadow: 0 8px 20px rgba(90, 72, 188, 0.08);
+  box-shadow: 0 8px 20px rgba(77, 111, 22, 0.08);
 }
 
 .pc-location-chip.ant-btn .pc-icon {
@@ -1301,13 +1302,13 @@ const pcCss = `
 }
 
 .pc-option-tags .ant-tag-checkable-group-item.ant-tag:hover {
-  border-color: rgba(117, 101, 246, 0.45);
+  border-color: rgba(126, 166, 31, 0.45);
   color: ${pcToken.primaryDark};
   transform: translateY(-1px);
 }
 
 .pc-option-tags .ant-tag-checkable-group-item.ant-tag:focus-visible {
-  outline: 3px solid rgba(117, 101, 246, 0.2);
+  outline: 3px solid rgba(126, 166, 31, 0.2);
   outline-offset: 2px;
 }
 
@@ -1315,7 +1316,7 @@ const pcCss = `
   border-color: transparent;
   background: linear-gradient(135deg, ${pcToken.primary} 0%, ${palette.primaryLight} 100%);
   color: ${pcToken.surface};
-  box-shadow: 0 10px 24px rgba(117, 101, 246, 0.22);
+  box-shadow: 0 10px 24px rgba(126, 166, 31, 0.22);
 }
 
 .pc-option-tags .ant-tag-checkable-group-item.ant-tag-checkable-checked:hover {
@@ -1345,7 +1346,7 @@ const pcCss = `
   padding: 24px 28px;
   border: 1px solid rgba(222, 215, 255, 0.9);
   border-radius: ${radii.xl}px;
-  background: linear-gradient(135deg, rgba(117, 101, 246, 0.08), rgba(142, 200, 255, 0.12));
+  background: linear-gradient(135deg, rgba(126, 166, 31, 0.08), rgba(142, 200, 255, 0.12));
 }
 
 .pc-match-summary {
@@ -1385,7 +1386,7 @@ const pcCss = `
   border: 0;
   border-radius: ${radii.pill}px;
   background: linear-gradient(135deg, ${pcToken.primary} 0%, ${pcToken.primaryDark} 100%);
-  box-shadow: 0 16px 34px rgba(117, 101, 246, 0.28);
+  box-shadow: 0 16px 34px rgba(126, 166, 31, 0.28);
   color: ${pcToken.surface};
   font-size: 18px;
   font-weight: 900;
@@ -1572,7 +1573,7 @@ const pcCss = `
   border: 0;
   border-radius: ${radii['2xl']}px;
   background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 16px 36px rgba(90, 72, 188, 0.08);
+  box-shadow: 0 16px 36px rgba(77, 111, 22, 0.08);
 }
 
 .pc-trend-card .ant-card-body {
@@ -1636,13 +1637,13 @@ const pcCss = `
 }
 
 .pc-interactive-card.ant-card:hover {
-  border-color: rgba(117, 101, 246, 0.42);
+  border-color: rgba(126, 166, 31, 0.42);
   transform: translateY(-4px);
   box-shadow: 0 20px 44px rgba(83, 66, 174, 0.16);
 }
 
 .pc-interactive-card.ant-card:focus-visible {
-  outline: 3px solid rgba(117, 101, 246, 0.3);
+  outline: 3px solid rgba(126, 166, 31, 0.3);
   outline-offset: 4px;
 }
 
@@ -1768,7 +1769,7 @@ const pcCss = `
 .pc-final-card.ant-card {
   overflow: hidden;
   background:
-    linear-gradient(135deg, rgba(117, 101, 246, 0.12) 0%, rgba(142, 200, 255, 0.16) 48%, rgba(255, 255, 255, 0.96) 100%);
+    linear-gradient(135deg, rgba(126, 166, 31, 0.12) 0%, rgba(142, 200, 255, 0.16) 48%, rgba(255, 255, 255, 0.96) 100%);
 }
 
 .pc-final-card h1.ant-typography {
@@ -1998,8 +1999,8 @@ const pcCss = `
 /* 2026 visual refresh: a playable city-quest interface inspired by editorial motion sites. */
 .pc-page {
   --quest-ink: #11101c;
-  --quest-purple: #7867ff;
-  --quest-violet: #aa72ff;
+  --quest-purple: #6f9821;
+  --quest-violet: #ff795e;
   --quest-lime: #c9ff62;
   --quest-cyan: #78e8ff;
   --quest-paper: #f8f7fc;
@@ -2010,7 +2011,7 @@ const pcCss = `
   min-height: calc(100dvh - 76px);
   padding: clamp(38px, 5vw, 76px) 56px clamp(54px, 6vw, 92px);
   background:
-    radial-gradient(circle at 14% 20%, rgba(120, 103, 255, .34), transparent 32%),
+    radial-gradient(circle at 14% 20%, rgba(201, 255, 98, .24), transparent 32%),
     radial-gradient(circle at 83% 25%, rgba(120, 232, 255, .16), transparent 27%),
     radial-gradient(circle at 72% 84%, rgba(201, 255, 98, .1), transparent 23%),
     #11101c;

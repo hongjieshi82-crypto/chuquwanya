@@ -455,6 +455,7 @@ export default function PcBoxConfigScreen() {
         token: {
           colorPrimary: boxToken.primary,
           colorInfo: boxToken.primary,
+          colorTextLightSolid: boxToken.ink,
           colorText: boxToken.ink,
           colorTextSecondary: boxToken.text,
           colorTextTertiary: boxToken.muted,
@@ -470,7 +471,7 @@ export default function PcBoxConfigScreen() {
           Button: {
             borderRadius: radii.pill,
             controlHeightLG: 48,
-            primaryShadow: '0 10px 24px rgba(117, 101, 246, 0.30)',
+            primaryShadow: '0 10px 24px rgba(126, 166, 31, 0.28)',
           },
           Card: {
             borderRadiusLG: radii.xl,
@@ -686,7 +687,7 @@ const pcBoxCss = `
   gap: 28px;
   line-height: normal;
   background: rgba(255, 255, 255, 0.9);
-  border-bottom: 1px solid rgba(232, 225, 255, 0.86);
+  border-bottom: 1px solid rgba(225, 232, 213, 0.86);
   backdrop-filter: blur(18px);
 }
 
@@ -762,7 +763,7 @@ const pcBoxCss = `
   align-items: center;
   justify-content: center;
   background: rgba(255, 255, 255, 0.76);
-  box-shadow: 0 8px 20px rgba(90, 72, 188, 0.1);
+  box-shadow: 0 8px 20px rgba(77, 111, 22, 0.1);
 }
 
 .pc-box-title-icons span:nth-child(2) {
@@ -793,10 +794,10 @@ const pcBoxCss = `
 }
 
 .pc-box-section.ant-card {
-  border: 1px solid rgba(232, 225, 255, 0.78);
+  border: 1px solid rgba(225, 232, 213, 0.78);
   border-radius: ${radii['2xl']}px;
   background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 16px 42px rgba(90, 72, 188, 0.1);
+  box-shadow: 0 16px 42px rgba(77, 111, 22, 0.1);
 }
 
 .pc-box-section .ant-card-body {
@@ -850,9 +851,9 @@ const pcBoxCss = `
 .pc-box-city-select.ant-select { width: 100%; height: 48px; }
 .pc-box-city-select .ant-select-selector {
   padding-inline: 17px !important;
-  border: 1px solid rgba(39,31,82,.08) !important;
+  border: 1px solid rgba(53,66,38,.08) !important;
   border-radius: ${radii.pill}px !important;
-  background: #f4f2fa !important;
+  background: #F4F7EE !important;
   box-shadow: none !important;
   font-weight: 800;
 }
@@ -860,17 +861,17 @@ const pcBoxCss = `
 .pc-box-locate-button.ant-btn {
   height: 48px;
   padding-inline: 17px;
-  border: 1px solid rgba(120,103,255,.2);
+  border: 1px solid rgba(201,255,98,.2);
   border-radius: ${radii.pill}px;
-  color: #5b4bc6;
-  background: rgba(120,103,255,.07);
+  color: #4D6F16;
+  background: rgba(201,255,98,.07);
   font-weight: 850;
 }
 
 .pc-box-locate-button.ant-btn:hover {
-  border-color: rgba(120,103,255,.42) !important;
-  color: #4b3bb8 !important;
-  background: rgba(120,103,255,.12) !important;
+  border-color: rgba(201,255,98,.42) !important;
+  color: #4D6F16 !important;
+  background: rgba(201,255,98,.12) !important;
 }
 
 .pc-box-label {
@@ -895,7 +896,7 @@ const pcBoxCss = `
 }
 
 .pc-box-location-button.ant-btn:hover {
-  border-color: rgba(117, 101, 246, 0.42);
+  border-color: rgba(126, 166, 31, 0.42);
   background: ${boxToken.surface};
 }
 
@@ -913,7 +914,7 @@ const pcBoxCss = `
 
 .pc-box-location-hint {
   flex-shrink: 0;
-  color: #7768d8;
+  color: #6F9821;
   font-size: 12px;
   font-weight: 800;
 }
@@ -951,7 +952,7 @@ const pcBoxCss = `
 .pc-box-options .ant-tag-checkable-group-item.ant-tag-checkable-checked {
   background: linear-gradient(135deg, ${boxToken.primary}, ${boxToken.primaryDark});
   color: ${boxToken.surface};
-  box-shadow: 0 8px 20px rgba(117, 101, 246, 0.24);
+  box-shadow: 0 8px 20px rgba(126, 166, 31, 0.24);
 }
 
 .pc-box-group-surprise .pc-box-label {
@@ -1005,10 +1006,10 @@ const pcBoxCss = `
 .pc-box-action {
   margin-top: 34px;
   padding: 24px 28px;
-  border: 1px solid rgba(222, 215, 255, 0.9);
+  border: 1px solid rgba(203, 216, 185, 0.9);
   border-radius: ${radii['2xl']}px;
   background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 18px 44px rgba(90, 72, 188, 0.12);
+  box-shadow: 0 18px 44px rgba(77, 111, 22, 0.12);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1046,7 +1047,7 @@ const pcBoxCss = `
 }
 
 .pc-box-location-notice {
-  color: #5b4bc6;
+  color: #4D6F16;
   font-size: 12px;
   font-weight: 700;
   line-height: 1.55;
@@ -1059,7 +1060,7 @@ const pcBoxCss = `
 .pc-box-reroll-button.ant-btn {
   min-width: 210px;
   height: 56px;
-  border: 1px solid rgba(117, 101, 246, 0.44);
+  border: 1px solid rgba(126, 166, 31, 0.44);
   border-radius: ${radii.pill}px;
   background: ${boxToken.surface};
   color: ${boxToken.primaryDark};
@@ -1080,7 +1081,7 @@ const pcBoxCss = `
   border-radius: ${radii.pill}px;
   background: linear-gradient(135deg, ${boxToken.primary}, ${boxToken.primaryDark});
   color: ${boxToken.surface};
-  box-shadow: 0 14px 30px rgba(117, 101, 246, 0.28);
+  box-shadow: 0 14px 30px rgba(126, 166, 31, 0.28);
   font-size: 17px;
   font-weight: 900;
 }
@@ -1166,11 +1167,11 @@ const pcBoxCss = `
 .pc-box-page {
   --quest-lime: #c9ff62;
   --quest-cyan: #78e8ff;
-  --quest-purple: #7867ff;
+  --quest-purple: #6f9821;
   background:
-    radial-gradient(circle at 18% 2%, rgba(120,103,255,.34), transparent 25%),
+    radial-gradient(circle at 18% 2%, rgba(201,255,98,.34), transparent 25%),
     radial-gradient(circle at 83% 8%, rgba(120,232,255,.12), transparent 22%),
-    linear-gradient(180deg, #11101c 0, #171426 430px, #f6f4fb 430px, #fbfaff 100%);
+    linear-gradient(180deg, #11101c 0, #171426 430px, #F4F7EE 430px, #FAFBF7 100%);
 }
 
 .pc-box-page::before {
@@ -1242,10 +1243,10 @@ const pcBoxCss = `
 .pc-box-sections { gap: 18px; }
 
 .pc-box-section.ant-card {
-  border: 1px solid rgba(33,27,70,.08);
+  border: 1px solid rgba(53,66,38,.08);
   border-radius: 28px;
   background: rgba(255,255,255,.98);
-  box-shadow: 0 22px 60px rgba(36,27,79,.11);
+  box-shadow: 0 22px 60px rgba(77,111,22,.11);
 }
 
 .pc-box-section .ant-card-body { padding: 30px 34px 34px; }
@@ -1260,8 +1261,8 @@ const pcBoxCss = `
 
 .pc-box-location-button.ant-btn,
 .pc-box-options .ant-tag-checkable-group-item.ant-tag {
-  border: 1px solid rgba(39,31,82,.08);
-  background: #f4f2fa;
+  border: 1px solid rgba(53,66,38,.08);
+  background: #F4F7EE;
 }
 
 .pc-box-options .ant-tag-checkable-group-item.ant-tag-checkable-checked {
@@ -1273,9 +1274,9 @@ const pcBoxCss = `
 
 .pc-box-group-surprise .ant-tag-checkable-group-item.ant-tag-checkable-checked {
   border-color: var(--quest-purple);
-  color: #342578;
+  color: #4D6F16;
   background: linear-gradient(145deg, rgba(201,255,98,.34), rgba(120,232,255,.16));
-  box-shadow: 0 14px 34px rgba(83,66,174,.12);
+  box-shadow: 0 14px 34px rgba(77,111,22,.12);
 }
 
 .pc-box-action {
@@ -1303,7 +1304,7 @@ const pcBoxCss = `
 
 @media (max-width: 720px) {
   .pc-box-page {
-    background: linear-gradient(180deg, #11101c 0, #171426 380px, #f6f4fb 380px, #fbfaff 100%);
+    background: linear-gradient(180deg, #11101c 0, #171426 380px, #F4F7EE 380px, #FAFBF7 100%);
   }
   .pc-box-content { width: min(100% - 28px, 980px); padding-top: 38px; }
   .pc-box-title h1.ant-typography { font-size: 39px; }

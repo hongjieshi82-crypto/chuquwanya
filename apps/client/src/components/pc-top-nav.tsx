@@ -61,7 +61,7 @@ export const PC_TOP_NAV_KEYS = {
   ranking: 'ranking',
 } as const;
 
-const brandLogo = require('../../assets/images/home-brand-logo.png') as StaticAsset;
+const brandLogo = require('../../assets/images/chuquwanya-logo.png') as StaticAsset;
 
 const pcTopNavCss = `
 .pc-top-nav-menu.ant-menu-horizontal {
@@ -205,7 +205,7 @@ export function getPcTopNavItems({
 
 export function PcTopNav({
   brandHref = '/pc',
-  brandAriaLabel = '懒得动首页',
+  brandAriaLabel = '粗来玩鸭！首页',
   className,
   brandClassName,
   menuClassName,
@@ -315,8 +315,8 @@ export function PcTopNav({
       <style>{pcTopNavCss}</style>
       <Header className={className} data-anime={dataAnime} style={style}>
         <Link className={brandClassName} href={brandHref as Href} aria-label={brandAriaLabel}>
-          <img src={assetUri(brandLogo)} alt="懒得动" />
-          <span>懒得动</span>
+          <img src={assetUri(brandLogo)} alt="粗来玩鸭！" />
+          <span>粗来玩鸭！</span>
         </Link>
 
         <Menu

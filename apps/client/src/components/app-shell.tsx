@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web'
       ? ({
           backgroundImage:
-            'linear-gradient(180deg, rgba(243,240,255,0) 46%, #F3F0FF 78%), radial-gradient(ellipse at 51% 12%, rgba(255,255,255,0.62) 0%, rgba(255,255,255,0.28) 28%, rgba(255,255,255,0) 58%), linear-gradient(112deg, #D8F5FF 0%, #E9F1FF 43%, #FFF4CC 100%)',
+            'linear-gradient(180deg, rgba(244,247,238,0) 46%, #F4F7EE 78%), radial-gradient(ellipse at 51% 12%, rgba(255,255,255,0.62) 0%, rgba(255,255,255,0.28) 28%, rgba(255,255,255,0) 58%), linear-gradient(112deg, #E9FFD0 0%, #E8F7EE 43%, #FFF4CC 100%)',
         } as const)
       : {}),
   },
@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web'
       ? ({
           backgroundImage:
-            'linear-gradient(180deg, rgba(243,240,255,0) 46%, #F3F0FF 76%), radial-gradient(ellipse at 51% 16%, rgba(255,255,255,0.66) 0%, rgba(255,255,255,0.30) 30%, rgba(255,255,255,0) 60%), linear-gradient(112deg, #D8F5FF 0%, #E9F1FF 43%, #FFF4CC 100%)',
+            'linear-gradient(180deg, rgba(244,247,238,0) 46%, #F4F7EE 76%), radial-gradient(ellipse at 51% 16%, rgba(255,255,255,0.66) 0%, rgba(255,255,255,0.30) 30%, rgba(255,255,255,0) 60%), linear-gradient(112deg, #E9FFD0 0%, #E8F7EE 43%, #FFF4CC 100%)',
         } as const)
       : {}),
   },

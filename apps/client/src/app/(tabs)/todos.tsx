@@ -25,7 +25,7 @@ const STATUS_COLORS: Record<TodoStatus, string> = {
 };
 
 const EMPTY_MASCOT_IMAGE = require('../../../assets/images/weekly-empty-park-cat.png');
-const BRAND_LOGO = require('../../../assets/images/home-brand-logo.png');
+const BRAND_LOGO = require('../../../assets/images/chuquwanya-logo.png');
 
 export default function TodosScreen() {
   const router = useRouter();
@@ -87,7 +87,7 @@ export default function TodosScreen() {
         contentContainerStyle={[styles.page, { paddingBottom: tabBarHeight + spacing.lg }]}
         showsVerticalScrollIndicator={false}>
         <View style={styles.topbar}>
-          <Image accessibilityLabel="懒得动" resizeMode="contain" source={BRAND_LOGO} style={styles.logoImage} />
+          <Image accessibilityLabel="粗来玩鸭！" resizeMode="contain" source={BRAND_LOGO} style={styles.logoImage} />
         </View>
 
         {error ? <ErrorCard message={error} onRetry={loadTodos} /> : null}

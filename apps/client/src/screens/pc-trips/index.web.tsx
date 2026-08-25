@@ -247,7 +247,7 @@ export default function PcTripsScreen() {
   };
 
   return (
-    <ConfigProvider theme={{ token: { borderRadius: radii.lg, colorPrimary: palette.primary, fontFamily: 'Inter, PingFang SC, Microsoft YaHei, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif' } }}>
+    <ConfigProvider theme={{ token: { borderRadius: radii.lg, colorPrimary: palette.primary, colorTextLightSolid: palette.ink, fontFamily: 'Inter, PingFang SC, Microsoft YaHei, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif' } }}>
       <main className="pc-trips-page">
         <style>{tripsCss}</style>
         <div className="pc-trips-container">

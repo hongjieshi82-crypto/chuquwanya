@@ -1,27 +1,27 @@
 import { Platform } from 'react-native';
 
 /**
- * 懒得动 · 智能设备灵感视觉主题 v0.6
- * 参考图方向：浅紫蓝渐变、圆润白卡、可爱 IP、健康设备 App 的轻快感。
+ * 粗去玩鸭 · Acid Lime 品牌主题 v1.0
+ * 方向：荧光绿、墨黑、暖白，辅以电光青和珊瑚橙。
  */
 export const palette = {
-  // 背景 · 冰蓝紫柔光
-  canvas: '#F3F0FF',
+  // 背景 · 暖白与微绿纸感
+  canvas: '#F4F7EE',
   surface: '#FFFFFF',
-  paper: '#F8F7FF',
-  contour: '#E8E1FF',
+  paper: '#FAFBF7',
+  contour: '#E4EBD8',
 
-  // 文字 · 柔和深紫层级
-  ink: '#181433',
-  text: '#3F3A62',
-  muted: '#7C77A3',
-  placeholder: '#AAA5C8',
+  // 文字 · 墨黑与植物灰
+  ink: '#171B12',
+  text: '#3E4734',
+  muted: '#78806E',
+  placeholder: '#A4AD99',
 
-  // 主色 · 参考图紫蓝
-  primary: '#7565F6',
-  primaryDark: '#5C4DE0',
-  primaryLight: '#9D8CFF',
-  primarySoft: '#EEEAFE',
+  // 主色 · 任务荧光绿
+  primary: '#C9FF62',
+  primaryDark: '#4D6F16',
+  primaryLight: '#E3FFAD',
+  primarySoft: '#F2FFD8',
 
   // 辅助蓝阶 · 清透健康感
   sky: '#8EC8FF',
@@ -45,25 +45,25 @@ export const palette = {
   graySoft: '#F8F7FF',
 
   // 状态
-  success: '#43C888',
+  success: '#4BAF63',
   warning: '#FFAA43',
   error: '#F05B6B',
   errorSoft: '#FFE8EC',
-  info: '#7565F6',
+  info: '#2CA8BA',
 
   // 边框
-  border: '#E9E4FA',
-  borderStrong: '#D8CFF6',
+  border: '#E1E8D5',
+  borderStrong: '#CBD8B9',
   white: '#FFFFFF',
 
   /** 价格 / 强调数字专用 */
-  price: '#7565F6',
+  price: '#4D6F16',
 } as const;
 
 /**
  * 历史版本色值存档（仅供回溯对照，勿在新代码中引用）
  * v0.3 dusk: primary #5E4AE3 / v0.4 coastal: primary #0891B2
- * v0.5 ctrip: primary #0086F6 / v0.6 otter-device（当前）: primary #7565F6
+ * v0.5 ctrip: primary #0086F6 / v0.6 otter-device（当前）: primary #C9FF62
  */
 export const _legacyTokens = {
   /** v0.2 pine 旧版色值 */
@@ -265,7 +265,7 @@ export function contentStartYForProfile(profile: 'dynamic-island' | 'notch' | 'c
 
 export const shadows = {
   card: Platform.select({
-    web: { boxShadow: '0 12px 32px rgba(90, 72, 188, 0.10)' },
+    web: { boxShadow: '0 12px 32px rgba(77, 111, 22, 0.10)' },
     default: {
       shadowColor: '#5A48BC',
       shadowOpacity: 0.1,
@@ -275,7 +275,7 @@ export const shadows = {
     },
   }),
   elevated: Platform.select({
-    web: { boxShadow: '0 18px 44px rgba(90, 72, 188, 0.16)' },
+    web: { boxShadow: '0 18px 44px rgba(77, 111, 22, 0.16)' },
     default: {
       shadowColor: '#5A48BC',
       shadowOpacity: 0.16,
@@ -296,9 +296,9 @@ export const shadows = {
     },
   }),
   primaryButton: Platform.select({
-    web: { boxShadow: '0 10px 24px rgba(117, 101, 246, 0.30)' },
+    web: { boxShadow: '0 10px 24px rgba(126, 166, 31, 0.28)' },
     default: {
-      shadowColor: '#7565F6',
+      shadowColor: '#6F9821',
       shadowOpacity: 0.3,
       shadowRadius: 16,
       shadowOffset: { width: 0, height: 8 },

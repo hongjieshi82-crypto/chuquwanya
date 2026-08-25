@@ -141,7 +141,7 @@ const pcExperienceShellCss = `
   border: 0;
   border-radius: ${radii.pill}px;
   font-weight: 800;
-  box-shadow: 0 10px 24px rgba(117, 101, 246, 0.3);
+  box-shadow: 0 10px 24px rgba(126, 166, 31, 0.3);
   background: linear-gradient(135deg, ${shellToken.primary} 0%, ${palette.sky} 100%);
 }
 
@@ -268,6 +268,7 @@ export function PcExperienceShell({ children }: PropsWithChildren) {
         token: {
           colorPrimary: shellToken.primary,
           colorInfo: shellToken.primary,
+          colorTextLightSolid: shellToken.ink,
           colorText: shellToken.ink,
           colorTextSecondary: shellToken.text,
           colorTextTertiary: palette.muted,
@@ -283,7 +284,7 @@ export function PcExperienceShell({ children }: PropsWithChildren) {
           Button: {
             borderRadius: radii.pill,
             controlHeightLG: 48,
-            primaryShadow: '0 10px 24px rgba(117, 101, 246, 0.30)',
+            primaryShadow: '0 10px 24px rgba(126, 166, 31, 0.28)',
           },
         },
       }}>

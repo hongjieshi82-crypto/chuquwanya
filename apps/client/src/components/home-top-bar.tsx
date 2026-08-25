@@ -19,7 +19,7 @@ import { resolveCoordinatesAddress } from '@/lib/reverse-geocode';
 import { components, palette } from '@/theme';
 import type { City } from '@/types';
 
-const BRAND_LOGO = require('../../assets/images/home-brand-logo.png');
+const BRAND_LOGO = require('../../assets/images/chuquwanya-logo.png');
 const DEFAULT_CITY_LABEL = '选择城市';
 
 function normalizeCityText(value: string) {
@@ -111,7 +111,7 @@ export function HomeTopBar() {
     <View style={styles.nav} accessibilityLabel="首页顶部栏">
       <View style={styles.logoWrap}>
         <Image
-          accessibilityLabel="懒得动"
+          accessibilityLabel="粗来玩鸭！"
           resizeMode="contain"
           source={BRAND_LOGO}
           style={styles.logoImage}

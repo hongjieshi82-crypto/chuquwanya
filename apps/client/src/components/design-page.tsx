@@ -605,7 +605,7 @@ const sectionToneStyles = {
   default: {},
   primary: {
     backgroundColor: palette.primarySoft,
-    borderColor: 'rgba(117,101,246,0.16)',
+    borderColor: 'rgba(126,166,31,0.16)',
   },
   warm: {
     backgroundColor: palette.duneSoft,
@@ -756,7 +756,7 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web'
       ? ({
           backgroundImage:
-            'linear-gradient(180deg, rgba(243,240,255,0) 72%, #F3F0FF 100%), radial-gradient(ellipse at 51% 31%, rgba(255,255,255,0.70) 0%, rgba(255,255,255,0.36) 28%, rgba(255,255,255,0) 58%), linear-gradient(112deg, #D8F5FF 0%, #E9F1FF 43%, #FFF4CC 100%)',
+            'linear-gradient(180deg, rgba(244,247,238,0) 72%, #F4F7EE 100%), radial-gradient(ellipse at 51% 31%, rgba(255,255,255,0.70) 0%, rgba(255,255,255,0.36) 28%, rgba(255,255,255,0) 58%), linear-gradient(112deg, #E9FFD0 0%, #E8F7EE 43%, #FFF4CC 100%)',
         } as const)
       : {}),
   },
