@@ -67,6 +67,10 @@ npm run dev:web
 
 API 默认地址为 `http://localhost:3001/api/v1`，Web 默认由 Expo 开发服务提供。
 
+## ECS 部署
+
+仓库已提供 API + MySQL + 可选 Chroma 的 Docker Compose 生产配置。详见 [ECS 后端部署手册](docs/ECS_BACKEND_DEPLOYMENT.md)。
+
 ## 视觉方向
 
 - 以“粗去玩鸭”为对外品牌，保留紫色、奶油白和大圆角的轻游戏化视觉。

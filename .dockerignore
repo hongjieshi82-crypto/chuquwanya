@@ -1,0 +1,16 @@
+.git
+.github
+.expo
+.tools
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+**/uploads
+coverage
+design
+docs
+tmp
+*.log
+*.pem
+*.docx

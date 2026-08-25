@@ -1214,7 +1214,7 @@ export function createApp() {
         `SELECT id, name, code, province
          FROM cities
          WHERE is_active = TRUE
-         ORDER BY id`,
+         ORDER BY CASE WHEN name = '北京' THEN 0 ELSE 1 END, id`,
       );
       response.json({ data: rows });
     }),

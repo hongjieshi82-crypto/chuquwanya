@@ -1,0 +1,37 @@
+FROM node:24-bookworm-slim AS build
+
+WORKDIR /app
+
+COPY apps/api/package.json apps/api/package-lock.json ./apps/api/
+RUN npm --prefix apps/api ci
+
+COPY apps/api ./apps/api
+COPY database ./database
+
+RUN npm --prefix apps/api run build \
+  && npm --prefix apps/api prune --omit=dev --legacy-peer-deps
+
+FROM node:24-bookworm-slim AS runtime
+
+ENV NODE_ENV=production
+WORKDIR /app/apps/api
+
+COPY --from=build /app/apps/api/package.json /app/apps/api/package-lock.json ./
+COPY --from=build /app/apps/api/node_modules ./node_modules
+COPY --from=build /app/apps/api/dist ./dist
+COPY apps/api/assets ./assets
+COPY database /app/database
+COPY deploy/api-entrypoint.sh /usr/local/bin/chuqu-api-entrypoint
+
+RUN mkdir -p uploads \
+  && chown -R node:node /app/apps/api/uploads \
+  && chmod +x /usr/local/bin/chuqu-api-entrypoint
+
+USER node
+
+EXPOSE 3001
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:3001/api/v1/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+
+ENTRYPOINT ["chuqu-api-entrypoint"]

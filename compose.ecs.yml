@@ -1,0 +1,75 @@
+name: chuquwanya
+
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?MYSQL_DATABASE is required}
+      MYSQL_USER: ${MYSQL_USER:?MYSQL_USER is required}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    restart: unless-stopped
+    env_file:
+      - ${BACKEND_ENV_FILE:-./deploy/production.env}
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      CHROMA_URL: http://chroma:8000
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${API_BIND_PORT:-3001}:3001"
+    volumes:
+      - api_uploads:/app/apps/api/uploads
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/api/v1/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 45s
+
+  chroma:
+    image: chromadb/chroma:1.5.0
+    profiles: ["vector"]
+    restart: unless-stopped
+    volumes:
+      - chroma_data:/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v2/heartbeat')\""]
+      interval: 20s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  api_uploads:
+  chroma_data:
