@@ -674,7 +674,7 @@ export default function PcLandingScreen() {
                       key={item.id}
                       className={`pc-hero-photo-card pc-hero-photo-card-${index + 1}`}
                       data-anime="float-card">
-                      <img src={imageUri(item.image)} alt={`${item.title}实地景色`} />
+                      <img src={imageUri(item.image)} alt={`${item.title}实地景色`} loading="lazy" decoding="async" />
                       <figcaption>
                         <span>0{index + 1} / CITY DROP</span>
                         <strong>{item.title}</strong>
@@ -715,6 +715,8 @@ export default function PcLandingScreen() {
                             className="pc-trend-image"
                             src={imageUri(item.image)}
                             alt={item.title}
+                            loading="lazy"
+                            decoding="async"
                           />
                           <Title level={4}>{item.title}</Title>
                           <Paragraph>{item.desc}</Paragraph>
@@ -770,7 +772,7 @@ export default function PcLandingScreen() {
                               ),
                             )
                           }
-                          cover={<img src={imageUri(item.image)} alt={item.title} />}>
+                          cover={<img src={imageUri(item.image)} alt={item.title} loading="lazy" decoding="async" />}>
                           <Flex justify="space-between" align="center">
                             <Tag color="purple">{item.tag}</Tag>
                             <Text type="secondary">
@@ -822,7 +824,7 @@ export default function PcLandingScreen() {
                             )
                           }>
                           <Flex gap={18} align="stretch">
-                            <img className="pc-destination-img" src={imageUri(item.image)} alt={item.title} />
+                            <img className="pc-destination-img" src={imageUri(item.image)} alt={item.title} loading="lazy" decoding="async" />
                             <div className="pc-destination-body">
                               <Flex justify="space-between" align="center">
                                 <Tag color="geekblue">{item.tag}</Tag>
@@ -857,7 +859,7 @@ export default function PcLandingScreen() {
                 />
                 <div className="pc-process-layout">
                   <figure className="pc-process-visual">
-                    <img src={imageUri(yantaiImage)} alt="烟台海岸实景" />
+                    <img src={imageUri(yantaiImage)} alt="烟台海岸实景" loading="lazy" decoding="async" />
                     <div className="pc-process-visual-shade" />
                     <figcaption>
                       <span>INPUT → MATCH → REVEAL → GO</span>

@@ -789,7 +789,10 @@ export async function addTodo(input: {
     }),
     async () => {
       const items = await readDemoTodos();
-      const existing = items.find((item) => item.activityId === input.activityId && item.status !== 'cancelled');
+      // 已完成的行程是历史记录，不应阻止用户再次加入同一玩法。
+      const existing = items.find(
+        (item) => item.activityId === input.activityId && ['pending', 'in_progress'].includes(item.status),
+      );
       if (existing) return { id: existing.id, alreadyExists: true };
 
       const activity = demoActivities.find((item) => item.id === input.activityId) ?? demoCurrentDraw?.activity;

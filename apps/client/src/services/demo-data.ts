@@ -13,29 +13,35 @@ import type { Attraction, Destination, TravelTag } from '@/types/travel';
 type StaticAsset = number | string | { uri: string };
 
 const westLakeImage = require('../../assets/images/pc-hero-west-lake.jpg') as StaticAsset;
-const demoAssetBase = 'https://raw.githubusercontent.com/hongjieshi82-crypto/weekend-oracle/main/apps/api/assets';
-const beijingImage = `${demoAssetBase}/city-covers/beijing.jpg`;
-const shanghaiImage = `${demoAssetBase}/city-covers/shanghai.jpg`;
-const hangzhouImage = `${demoAssetBase}/city-covers/hangzhou.jpg`;
-const shenzhenImage = `${demoAssetBase}/city-covers/shenzhen.jpg`;
-const tianjinImage = `${demoAssetBase}/city-covers/tianjin.jpg`;
-const yantaiImage = `${demoAssetBase}/city-covers/yantai.jpg`;
-const beijingOlympicForestImage = `${demoAssetBase}/place-covers/beijing-olympic-forest.jpg`;
-const shenzhenLianhuashanImage = `${demoAssetBase}/place-covers/shenzhen-lianhuashan.jpg`;
-const tianjinFiveAvenuesImage = `${demoAssetBase}/place-covers/tianjin-five-avenues.jpg`;
-const commonsImageBase = 'https://commons.wikimedia.org/wiki/Special:Redirect/file';
-const qingdaoImage = `${commonsImageBase}/Qingdao%20%2831424840488%29.jpg?width=1600`;
-const nanjingImage = `${commonsImageBase}/%E5%8D%97%E4%BA%AC%E6%80%BB%E7%BB%9F%E5%BA%9C%E8%A5%BF%E8%8A%B1%E5%8E%852024.3.jpg?width=1600`;
-const wuhanImage = `${commonsImageBase}/Revolution%20of%201911%20Museum.jpg?width=1600`;
-const chengduImage = `${commonsImageBase}/%E9%9B%AA%E5%B1%B1%E4%B8%8B%E7%9A%84%E6%88%90%E9%83%BD%E5%B8%82%E5%A4%A9%E9%99%85%E7%BA%BF%20Chengdu%20skyline%20with%20snow%20capped%20mountains.jpg?width=1600`;
-const xianImage = `${commonsImageBase}/%E8%A5%BF%E5%AE%89%E9%92%9F%E6%A5%BC2020%20%281%29.jpg?width=1600`;
-const changshaImage = `${commonsImageBase}/%E7%88%B1%E6%99%9A%E4%BA%AD%EF%BC%88%E7%A7%8B-%E4%BE%A7%E9%9D%A2%EF%BC%89.jpg?width=1600`;
-const guangzhouImage = `${commonsImageBase}/Canton%20Tower%2020241027.jpg?width=1600`;
-const hefeiImage = `${commonsImageBase}/%E5%A4%A9%E9%B9%85%E6%B9%96.jpg?width=1600`;
-const chongqingImage = `${commonsImageBase}/Chongqing%20Nightscape.jpg?width=1600`;
-const xiamenImage = `${commonsImageBase}/Xiamen%20night%20cityscape%202018%20-%20Flickr%20-%20Jaykhuang.jpg?width=1600`;
-const jinanImage = `${commonsImageBase}/China%20Jinan%205196975.jpg?width=1600`;
-const kunmingImage = `${commonsImageBase}/%E4%BA%94%E5%8D%8E%E5%8C%BA%E4%B8%8E%E7%9B%98%E9%BE%99%E5%8C%BA%E5%A4%A9%E9%99%85%E7%BA%BF%20-%20%E8%88%AA%E6%8B%8D%20-%202025-05-16%2003.jpg?width=1600`;
+function bundledTravelImage(fileName: string) {
+  const configuredBasePath = process.env.EXPO_GITHUB_PAGES_BASE_URL ?? '';
+  if (typeof window === 'undefined') return `${configuredBasePath}/media/travel/${fileName}`;
+  const basePath = configuredBasePath || (window.location.pathname.startsWith('/weekend-oracle') ? '/weekend-oracle' : '');
+  return `${basePath}/media/travel/${fileName}`;
+}
+
+// 旅行图片随前端同源发布，避免手机端依赖 GitHub Raw / Wikimedia 跳转。
+const beijingImage = bundledTravelImage('beijing.jpg');
+const shanghaiImage = bundledTravelImage('shanghai.jpg');
+const hangzhouImage = bundledTravelImage('hangzhou.jpg');
+const shenzhenImage = bundledTravelImage('shenzhen.jpg');
+const tianjinImage = bundledTravelImage('tianjin.jpg');
+const yantaiImage = bundledTravelImage('yantai.jpg');
+const beijingOlympicForestImage = bundledTravelImage('beijing-olympic-forest.jpg');
+const shenzhenLianhuashanImage = bundledTravelImage('shenzhen-lianhuashan.jpg');
+const tianjinFiveAvenuesImage = bundledTravelImage('tianjin-five-avenues.jpg');
+const qingdaoImage = bundledTravelImage('qingdao.jpg');
+const nanjingImage = bundledTravelImage('nanjing.jpg');
+const wuhanImage = bundledTravelImage('wuhan.jpg');
+const chengduImage = bundledTravelImage('chengdu.jpg');
+const xianImage = bundledTravelImage('xian.jpg');
+const changshaImage = bundledTravelImage('changsha.jpg');
+const guangzhouImage = bundledTravelImage('guangzhou.jpg');
+const hefeiImage = bundledTravelImage('hefei.jpg');
+const chongqingImage = bundledTravelImage('chongqing.jpg');
+const xiamenImage = bundledTravelImage('xiamen.jpg');
+const jinanImage = bundledTravelImage('jinan.jpg');
+const kunmingImage = bundledTravelImage('kunming.jpg');
 
 export const demoCityImageUris = {
   beijing: beijingImage,

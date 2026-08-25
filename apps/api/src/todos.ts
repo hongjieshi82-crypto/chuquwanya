@@ -1584,8 +1584,12 @@ async function getWeeklyQuota(
     `INSERT INTO user_weekly_todo_usage (user_id, week_start_date, limit_count, used_count)
      SELECT ?, ?, ?, COUNT(*)
      FROM todos
-     WHERE user_id = ? AND week_start_date = ?
-     ON DUPLICATE KEY UPDATE limit_count = VALUES(limit_count)`,
+     WHERE user_id = ?
+       AND week_start_date = ?
+       AND status IN ('pending', 'in_progress')
+     ON DUPLICATE KEY UPDATE
+       limit_count = VALUES(limit_count),
+       used_count = VALUES(used_count)`,
     [userId, weekStartDate, entitlement.weeklyTodoLimit, userId, weekStartDate],
   );
 
@@ -1869,6 +1873,7 @@ export function registerTodoRoutes(app: Express) {
            WHERE user_id = ?
              AND activity_id = ?
              AND week_start_date = ?
+             AND status IN ('pending', 'in_progress')
            LIMIT 1`,
           [userId, input.activityId, weekStartDate],
         );

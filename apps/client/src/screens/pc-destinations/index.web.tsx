@@ -108,7 +108,7 @@ function DestinationCover({ item, className }: { item: DestinationItem; classNam
     );
   }
 
-  return <img className={className} src={src} alt={item.name} onError={() => setIsBroken(true)} />;
+  return <img className={className} src={src} alt={item.name} loading="lazy" decoding="async" onError={() => setIsBroken(true)} />;
 }
 
 function buildTreeData(items: DestinationItem[]): TreeNode[] {

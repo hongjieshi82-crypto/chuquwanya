@@ -161,6 +161,168 @@ function getResultCover(activity: Activity) {
   return Asset.fromModule(resultFallbackImage).uri;
 }
 
+function loadPosterImage(source: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.crossOrigin = 'anonymous';
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('目的地图片加载失败'));
+    image.src = source;
+  });
+}
+
+function drawCoverImage(
+  context: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+) {
+  const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
+  const sourceWidth = width / scale;
+  const sourceHeight = height / scale;
+  const sourceX = (image.naturalWidth - sourceWidth) / 2;
+  const sourceY = (image.naturalHeight - sourceHeight) / 2;
+  context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, x, y, width, height);
+}
+
+function wrapPosterText(
+  context: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  maxLines: number,
+) {
+  const characters = Array.from(text);
+  const lines: string[] = [];
+  let line = '';
+
+  characters.forEach((character) => {
+    const candidate = `${line}${character}`;
+    if (line && context.measureText(candidate).width > maxWidth) {
+      lines.push(line);
+      line = character;
+    } else {
+      line = candidate;
+    }
+  });
+  if (line) lines.push(line);
+
+  if (lines.length > maxLines) {
+    const visible = lines.slice(0, maxLines);
+    visible[maxLines - 1] = `${visible[maxLines - 1].slice(0, -1)}…`;
+    return visible;
+  }
+  return lines;
+}
+
+async function createTripPoster(
+  activity: Activity,
+  recommendation: DrawResult['recommendation'],
+  recommendationReasons: string[],
+  activitySteps: string[],
+) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1080;
+  canvas.height = 1600;
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('当前浏览器不支持生成行程图');
+
+  context.fillStyle = '#f6f3ff';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  const cover = await loadPosterImage(getResultCover(activity));
+  drawCoverImage(context, cover, 0, 0, canvas.width, 650);
+  const heroGradient = context.createLinearGradient(0, 140, 0, 650);
+  heroGradient.addColorStop(0, 'rgba(21, 17, 48, .04)');
+  heroGradient.addColorStop(1, 'rgba(21, 17, 48, .92)');
+  context.fillStyle = heroGradient;
+  context.fillRect(0, 0, canvas.width, 650);
+
+  context.fillStyle = '#c9ff62';
+  context.beginPath();
+  context.roundRect(70, 78, 250, 58, 29);
+  context.fill();
+  context.fillStyle = '#171522';
+  context.font = '700 27px PingFang SC, Microsoft YaHei, sans-serif';
+  context.fillText(`${activity.cityName} · ${activity.district}`, 96, 117);
+
+  context.fillStyle = '#fff';
+  context.font = '900 66px PingFang SC, Microsoft YaHei, sans-serif';
+  const titleLines = wrapPosterText(context, activity.title, 920, 2);
+  titleLines.forEach((line, index) => context.fillText(line, 70, 390 + index * 80));
+  const summaryY = 390 + titleLines.length * 80 + 18;
+  context.fillStyle = 'rgba(255,255,255,.86)';
+  context.font = '500 29px PingFang SC, Microsoft YaHei, sans-serif';
+  wrapPosterText(context, activity.summary, 920, 2)
+    .forEach((line, index) => context.fillText(line, 70, summaryY + index * 43));
+
+  const stats = [
+    ['建议时长', formatDuration(activity.durationMinutes)],
+    ['预计预算', formatBudget(activity.budgetYuan)],
+    ['距离参考', formatDistanceMetric(activity.distanceKm, recommendation?.constraintSummary.distance)],
+  ];
+  stats.forEach(([label, value], index) => {
+    const x = 70 + index * 320;
+    context.fillStyle = '#fff';
+    context.beginPath();
+    context.roundRect(x, 700, 292, 132, 28);
+    context.fill();
+    context.fillStyle = '#918ba2';
+    context.font = '600 23px PingFang SC, Microsoft YaHei, sans-serif';
+    context.fillText(label, x + 28, 744);
+    context.fillStyle = '#332b69';
+    context.font = '800 32px PingFang SC, Microsoft YaHei, sans-serif';
+    context.fillText(value, x + 28, 793);
+  });
+
+  context.fillStyle = '#171522';
+  context.font = '900 38px PingFang SC, Microsoft YaHei, sans-serif';
+  context.fillText('为什么推荐', 70, 920);
+  context.font = '500 27px PingFang SC, Microsoft YaHei, sans-serif';
+  context.fillStyle = '#625d6d';
+  let reasonY = 973;
+  recommendationReasons.slice(0, 2).forEach((reason) => {
+    context.fillStyle = '#7565f6';
+    context.beginPath();
+    context.arc(84, reasonY - 9, 10, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = '#625d6d';
+    wrapPosterText(context, reason, 900, 2).forEach((line, index) => {
+      context.fillText(line, 112, reasonY + index * 39);
+    });
+    reasonY += 95;
+  });
+
+  context.fillStyle = '#171522';
+  context.font = '900 38px PingFang SC, Microsoft YaHei, sans-serif';
+  context.fillText('今天怎么玩', 70, 1195);
+  activitySteps.slice(0, 3).forEach((step, index) => {
+    const y = 1245 + index * 88;
+    context.fillStyle = '#ede9ff';
+    context.beginPath();
+    context.roundRect(70, y - 40, 64, 64, 20);
+    context.fill();
+    context.fillStyle = '#6857e8';
+    context.font = '900 26px ui-monospace, monospace';
+    context.fillText(String(index + 1).padStart(2, '0'), 84, y + 1);
+    context.fillStyle = '#403a4f';
+    context.font = '600 27px PingFang SC, Microsoft YaHei, sans-serif';
+    wrapPosterText(context, step, 835, 1).forEach((line) => context.fillText(line, 165, y));
+  });
+
+  context.fillStyle = '#7565f6';
+  context.font = '900 25px PingFang SC, Microsoft YaHei, sans-serif';
+  context.fillText('懒得动  ·  WEEKEND ORACLE', 70, 1540);
+  context.fillStyle = '#8c8598';
+  context.font = '500 22px PingFang SC, Microsoft YaHei, sans-serif';
+  context.fillText('少做选择题，只给一个现在能出发的方案。', 590, 1540);
+
+  return await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('行程图生成失败')), 'image/jpeg', 0.9);
+  });
+}
+
 export default function PcBoxOpenScreen() {
   const router = useRouter();
   const { clearError, isBooting, startDraw } = useApp();
@@ -528,10 +690,7 @@ function PcBoxResultContent() {
             surpriseLevelLabel: '中度',
           },
         });
-      return {
-        ...draw,
-        activity: { ...draw.activity, coverImageUri: null },
-      };
+      return draw;
     },
     [preview],
   );
@@ -611,6 +770,7 @@ function PcBoxResult({
   const { message } = App.useApp();
   const { activity, attemptsRemaining, recommendation } = draw;
   const [isFavorite, setIsFavorite] = useState(false);
+  const [isSavingPoster, setIsSavingPoster] = useState(false);
   const activitySteps = activity.steps.length
     ? activity.steps
     : ['抵达后先熟悉周边环境', '按自己的节奏体验核心玩法', '留出时间休息和拍照'];
@@ -636,22 +796,50 @@ function PcBoxResult({
     }
   };
 
-  const exportResult = () => {
-    const previousTitle = document.title;
-    document.title = `懒得动-${activity.cityName}-${activity.title}`;
-    const restoreTitle = () => {
-      document.title = previousTitle;
-      window.removeEventListener('afterprint', restoreTitle);
-    };
-    window.addEventListener('afterprint', restoreTitle, { once: true });
-    window.requestAnimationFrame(() => window.print());
+  const saveResultPoster = async () => {
+    if (isSavingPoster) return;
+    const isWechatMobile = /MicroMessenger/i.test(navigator.userAgent) && /Mobile/i.test(navigator.userAgent);
+    // 微信会拦截异步完成后才打开的页面，需在用户点击时先预留图片页。
+    const wechatPreview = isWechatMobile ? window.open('', '_blank') : null;
+    setIsSavingPoster(true);
+    try {
+      const blob = await createTripPoster(activity, recommendation, recommendationReasons, activitySteps);
+      const fileName = `懒得动-${activity.cityName}-${activity.title}.jpg`;
+      const objectUrl = URL.createObjectURL(blob);
+      if (isWechatMobile) {
+        if (wechatPreview) {
+          wechatPreview.location.href = objectUrl;
+        } else {
+          window.location.href = objectUrl;
+        }
+        message.info('行程图已生成，长按图片即可保存到手机');
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+        return;
+      }
+
+      const download = document.createElement('a');
+      download.href = objectUrl;
+      download.download = fileName;
+      download.style.display = 'none';
+      document.body.appendChild(download);
+      download.click();
+      download.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 2_000);
+      message.success('彩色行程图已保存');
+    } catch (reason) {
+      wechatPreview?.close();
+      if (reason instanceof DOMException && reason.name === 'AbortError') return;
+      message.error(reason instanceof Error ? reason.message : '行程图生成失败，请稍后重试');
+    } finally {
+      setIsSavingPoster(false);
+    }
   };
 
   return (
     <main className="pc-box-result">
       <div className="pc-box-screen-content">
       <Card className="pc-box-result-hero" variant="borderless">
-        <img className="pc-box-result-cover" src={getResultCover(activity)} alt={activity.title} />
+        <img className="pc-box-result-cover" src={getResultCover(activity)} alt={activity.title} decoding="async" fetchPriority="high" />
         <div className="pc-box-result-cover-shade" />
         <div className="pc-box-result-hero-copy">
           <Tag className="pc-box-result-place" icon={<EnvironmentOutlined />}>
@@ -683,8 +871,8 @@ function PcBoxResult({
             <Button icon={<ShareAltOutlined />} onClick={() => void shareResult()}>
               分享
             </Button>
-            <Button icon={<DownloadOutlined />} onClick={exportResult}>
-              导出 PDF
+            <Button icon={<DownloadOutlined />} loading={isSavingPoster} onClick={() => void saveResultPoster()}>
+              保存行程图
             </Button>
           </Space>
           <Space wrap>
@@ -2558,11 +2746,12 @@ const pcBoxResultCss = `
   line-height: 1.14;
 }
 
-.pc-box-result-hero p.ant-typography {
+.pc-box-result-hero-copy > .ant-typography:not(h1) {
   margin: 12px 0 0;
-  color: rgba(255, 255, 255, .9);
+  color: rgba(255, 255, 255, .9) !important;
   font-size: 17px;
   font-weight: 600;
+  text-shadow: 0 2px 12px rgba(16, 12, 37, .45);
 }
 
 .pc-box-result-meta {
