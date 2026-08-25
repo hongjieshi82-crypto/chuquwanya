@@ -87,6 +87,7 @@ export function registerTravelRoutes(app: Express) {
           embeddingProvider: config.ai.embeddingProvider,
           qdrantUrl: config.ai.qdrant.url,
           chromaUrl: config.ai.chroma.url,
+          chromaEnabled: config.ai.chroma.enabled,
           chromaActivityCollection: config.ai.chroma.collections.activities,
           chromaAvailable,
         },

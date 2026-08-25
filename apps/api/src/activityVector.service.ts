@@ -224,7 +224,7 @@ export class ActivityVectorService {
   private collection: Collection | null = null;
 
   isConfigured() {
-    return embeddingService.isAvailable();
+    return config.ai.chroma.enabled && embeddingService.isAvailable();
   }
 
   get collectionName() {

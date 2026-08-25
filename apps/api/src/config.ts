@@ -38,6 +38,7 @@ const configSchema = z.object({
   QDRANT_API_KEY: z.string().optional(),
   CHROMA_URL: z.string().default("http://127.0.0.1:8000"),
   CHROMA_ACTIVITY_COLLECTION: z.string().min(1).default("activity_cards"),
+  CHROMA_ENABLED: booleanEnvSchema,
   RECOMMEND_CACHE_TTL: z.coerce.number().int().positive().default(900),
   AMAP_WEB_SERVICE_KEY: z.string().optional(),
   EMAIL_PROVIDER: z.enum(["mock", "smtp", "qq"]).default("mock"),
@@ -139,6 +140,7 @@ export const config = {
       },
     },
     chroma: {
+      enabled: parsed.data.CHROMA_ENABLED ?? true,
       url: parsed.data.CHROMA_URL,
       collections: {
         activities: parsed.data.CHROMA_ACTIVITY_COLLECTION,

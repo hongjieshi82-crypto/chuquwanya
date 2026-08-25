@@ -21,6 +21,7 @@ VIP、支付、短信和社区不在第一版上线范围内。
 MySQL 3306、API 3001 和 Chroma 8000 均不对公网开放。
 
 2 GB 机型已在 Compose 中将 MySQL 限制为 512 MB、API 限制为 384 MB；请不要启动 `vector` profile。
+生产模板默认设置 `CHROMA_ENABLED=false`，避免未运行 Chroma 时每次抽卡额外请求 Embedding 并等待超时。
 
 ## 2. 准备生产环境变量
 
@@ -71,6 +72,7 @@ curl http://127.0.0.1:3001/api/v1/travel/status
 当 ECS 内存不小于 4 GB 时：
 
 ```bash
+sed -i 's/^CHROMA_ENABLED=.*/CHROMA_ENABLED=true/' deploy/production.env
 docker compose \
   --profile vector \
   --env-file deploy/production.env \
