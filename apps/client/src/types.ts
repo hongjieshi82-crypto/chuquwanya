@@ -148,7 +148,7 @@ export type Preferences = {
   originAccuracyMeters?: number | null;
   originSource?: 'device' | 'manual' | null;
   destinationScope?: 'nearby' | 'province' | 'nationwide';
-  travelDuration?: '1-3days' | '3-5days' | '5-7days';
+  travelDuration?: 'same-day' | '1-2days' | '1-3days' | '3-5days' | '5-7days';
   clientSource?: 'mobile' | 'pc';
   destinationScopeLabel?: string | null;
   travelDurationLabel?: string | null;

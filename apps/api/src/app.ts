@@ -85,7 +85,7 @@ const preferencesSchema = z.object({
   originAccuracyMeters: z.number().min(0).max(100_000).nullable().optional(),
   originSource: z.enum(["device", "manual"]).nullable().optional(),
   destinationScope: z.enum(["nearby", "province", "nationwide"]).optional(),
-  travelDuration: z.enum(["1-3days", "3-5days", "5-7days"]).optional(),
+  travelDuration: z.enum(["same-day", "1-2days", "1-3days", "3-5days", "5-7days"]).optional(),
   clientSource: z.enum(["mobile", "pc"]).optional(),
   destinationScopeLabel: z.string().trim().min(1).max(24).nullable().optional(),
   travelDurationLabel: z.string().trim().min(1).max(24).nullable().optional(),

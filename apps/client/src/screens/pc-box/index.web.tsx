@@ -2,10 +2,10 @@ import CalendarOutlinedSvg from '@ant-design/icons-svg/es/asn/CalendarOutlined';
 import CompassOutlinedSvg from '@ant-design/icons-svg/es/asn/CompassOutlined';
 import EnvironmentOutlinedSvg from '@ant-design/icons-svg/es/asn/EnvironmentOutlined';
 import GiftOutlinedSvg from '@ant-design/icons-svg/es/asn/GiftOutlined';
-import ReloadOutlinedSvg from '@ant-design/icons-svg/es/asn/ReloadOutlined';
 import ThunderboltOutlinedSvg from '@ant-design/icons-svg/es/asn/ThunderboltOutlined';
 import type { AbstractNode, IconDefinition } from '@ant-design/icons-svg/es/types';
-import { Button, Card, ConfigProvider, Layout, Space, Tag, Typography } from 'antd';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Button, Card, ConfigProvider, Layout, Select, Space, Tag, Typography } from 'antd';
 import 'antd/dist/reset.css';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -15,10 +15,12 @@ import { requestDeviceCurrentPosition } from '@/lib/device-location';
 import { savePendingPcBoxDraw } from '@/lib/pc-box-open-state';
 import { resolveCoordinatesCity } from '@/lib/reverse-geocode';
 import { palette, radii } from '@/theme';
-import type { Preferences } from '@/types';
+import type { City, Preferences } from '@/types';
 
 const { Content } = Layout;
 const { Paragraph, Text, Title } = Typography;
+const PC_LOCATED_CITY_KEY = '@weekend-oracle/pc-located-city';
+const PC_LOCATED_CITY_TTL_MS = 24 * 60 * 60 * 1_000;
 
 type PcIconProps = SVGProps<SVGSVGElement> & {
   size?: number;
@@ -42,8 +44,10 @@ type PcLocatedCity = {
   latitude: number | null;
   longitude: number | null;
   accuracyMeters: number | null;
-  source: 'default' | 'device';
+  source: 'default' | 'device' | 'manual';
 };
+
+type StoredPcLocatedCity = PcLocatedCity & { savedAt: number };
 
 const boxToken = {
   canvas: palette.canvas,
@@ -66,7 +70,7 @@ const destinationScopeGroup: MatchPreferenceGroup = {
 
 const matchPreferenceGroups: MatchPreferenceGroup[] = [
   { key: 'partySize', label: '人数', options: ['1 人', '2 人', '多人'] },
-  { key: 'travelDuration', label: '旅游时间', options: ['1-3天', '3-5天', '5-7天'] },
+  { key: 'travelDuration', label: '旅游时间', options: ['当天', '1-2天', '3-5天', '5-7天'] },
   { key: 'budget', label: '预算', options: ['穷游', '平价', '舒适', '轻奢'] },
   { key: 'mood', label: '心情', options: ['放松', '探索', '热闹'] },
   {
@@ -84,7 +88,7 @@ const matchPreferenceGroups: MatchPreferenceGroup[] = [
 const initialMatchSelections: Record<string, string> = {
   partySize: '1 人',
   destinationScope: '周边',
-  travelDuration: '1-3天',
+  travelDuration: '当天',
   budget: '平价',
   mood: '放松',
   surpriseLevel: '中度',
@@ -98,12 +102,26 @@ const homepagePresetSelections: Record<string, Partial<Record<string, string>>> 
 };
 
 const defaultPcLocatedCity: PcLocatedCity = {
-  name: '上海',
+  name: '北京',
   latitude: null,
   longitude: null,
   accuracyMeters: null,
   source: 'default',
 };
+
+function findMatchingCity(cities: City[], locationName: string) {
+  const normalizedLocationName = locationName.trim().replace(/市$/, '');
+  return cities.find((city) => {
+    const cityName = city.name.trim().replace(/市$/, '');
+    const provinceName = city.province.trim().replace(/市$/, '');
+    return cityName === normalizedLocationName || provinceName === normalizedLocationName;
+  });
+}
+
+async function storePcLocatedCity(city: PcLocatedCity) {
+  const payload: StoredPcLocatedCity = { ...city, savedAt: Date.now() };
+  await AsyncStorage.setItem(PC_LOCATED_CITY_KEY, JSON.stringify(payload));
+}
 
 const partySizeValues: Record<string, number> = {
   '1 人': 1,
@@ -184,7 +202,6 @@ const CalendarOutlined = createPcIcon(CalendarOutlinedSvg);
 const CompassOutlined = createPcIcon(CompassOutlinedSvg);
 const EnvironmentOutlined = createPcIcon(EnvironmentOutlinedSvg);
 const GiftOutlined = createPcIcon(GiftOutlinedSvg);
-const ReloadOutlined = createPcIcon(ReloadOutlinedSvg);
 const ThunderboltOutlined = createPcIcon(ThunderboltOutlinedSvg);
 
 export default function PcBoxConfigScreen() {
@@ -192,10 +209,8 @@ export default function PcBoxConfigScreen() {
   const { preset } = useLocalSearchParams<{ preset?: string }>();
   const {
     cities,
-    currentDraw,
     selectedCityId,
     setSelectedCityId,
-    reroll,
     isBooting,
     clearError,
   } = useApp();
@@ -204,8 +219,8 @@ export default function PcBoxConfigScreen() {
   const [locatedCity, setLocatedCity] = useState<PcLocatedCity>(defaultPcLocatedCity);
   const [isLocatingCity, setIsLocatingCity] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [locationNotice, setLocationNotice] = useState<string | null>(null);
   const [isStartingDraw, setIsStartingDraw] = useState(false);
-  const [isRerolling, setIsRerolling] = useState(false);
   const [drawError, setDrawError] = useState<string | null>(null);
   const appliedPresetRef = useRef<string | null>(null);
 
@@ -215,24 +230,53 @@ export default function PcBoxConfigScreen() {
     if (!selections || appliedPresetRef.current === presetKey) return;
 
     appliedPresetRef.current = presetKey;
-    setMatchSelections((current) => ({ ...current, ...selections }));
+    setMatchSelections((current) => {
+      const next = { ...current };
+      Object.entries(selections).forEach(([key, value]) => {
+        if (typeof value === 'string') next[key] = value;
+      });
+      return next;
+    });
   }, [preset]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function restoreLocatedCity() {
+      const raw = await AsyncStorage.getItem(PC_LOCATED_CITY_KEY);
+      if (!raw || cancelled) return;
+      try {
+        const stored = JSON.parse(raw) as StoredPcLocatedCity;
+        if (
+          stored.source === 'default' ||
+          !stored.name ||
+          Date.now() - Number(stored.savedAt) > PC_LOCATED_CITY_TTL_MS
+        ) return;
+
+        setLocatedCity(stored);
+        const matchedCity = findMatchingCity(cities, stored.name);
+        if (matchedCity) setSelectedCityId(matchedCity.id);
+      } catch {
+        // Ignore stale local location data and keep the Beijing default.
+      }
+    }
+
+    void restoreLocatedCity();
+    return () => { cancelled = true; };
+  }, [cities, setSelectedCityId]);
 
   const goStart = useCallback(() => {
     if (isBooting || isStartingDraw) return;
 
     const partySize = partySizeValues[matchSelections.partySize] ?? 1;
     const budgetMax = resolveBudgetMax(matchSelections.budget);
-    const radiusKm = destinationRadiusValues[matchSelections.destinationScope] ?? null;
     const randomLevel = surpriseLevelValues[matchSelections.surpriseLevel] ?? 60;
-    const destinationScope =
-      destinationScopeValues[matchSelections.destinationScope] ?? 'nearby';
-    const normalizedLocationName = locatedCity.name.trim().replace(/市$/, '');
-    const originCity = cities.find((city) => {
-      const cityName = city.name.trim().replace(/市$/, '');
-      const provinceName = city.province.trim().replace(/市$/, '');
-      return cityName === normalizedLocationName || provinceName === normalizedLocationName;
-    });
+    const originCity = findMatchingCity(cities, locatedCity.name);
+    const selectedScopeLabel = originCity
+      ? matchSelections.destinationScope
+      : '全国';
+    const radiusKm = destinationRadiusValues[selectedScopeLabel] ?? null;
+    const destinationScope = destinationScopeValues[selectedScopeLabel] ?? 'nationwide';
     const drawCityId = originCity?.id ?? selectedCityId ?? cities[0]?.id ?? null;
 
     if (!drawCityId) {
@@ -253,16 +297,27 @@ export default function PcBoxConfigScreen() {
       originLatitude: locatedCity.latitude,
       originLongitude: locatedCity.longitude,
       originAccuracyMeters: locatedCity.accuracyMeters,
-      originSource: locatedCity.source === 'device' ? 'device' : null,
+      originSource:
+        locatedCity.source === 'device'
+          ? 'device'
+          : locatedCity.source === 'manual'
+            ? 'manual'
+            : null,
       destinationScope,
       travelDuration:
-        matchSelections.travelDuration === '3-5天'
+        matchSelections.travelDuration === '当天'
+          ? 'same-day'
+          : matchSelections.travelDuration === '1-2天'
+            ? '1-2days'
+            : matchSelections.travelDuration === '3-5天'
           ? '3-5days'
           : matchSelections.travelDuration === '5-7天'
             ? '5-7days'
-            : '1-3days',
+            : 'same-day',
       clientSource: 'pc',
-      destinationScopeLabel: matchSelections.destinationScope,
+      destinationScopeLabel: originCity
+        ? selectedScopeLabel
+        : `全国（从${locatedCity.name}出发）`,
       travelDurationLabel: matchSelections.travelDuration,
       budgetLabel: matchSelections.budget,
       surpriseLevelLabel: matchSelections.surpriseLevel,
@@ -272,9 +327,10 @@ export default function PcBoxConfigScreen() {
       setSelectedCityId(drawCityId);
     }
 
-    const summary = [destinationScopeGroup, ...matchPreferenceGroups]
-      .map((group) => matchSelections[group.key] ?? group.options[0])
-      .join(' · ');
+    const summary = [
+      originCity ? selectedScopeLabel : `全国（从${locatedCity.name}出发）`,
+      ...matchPreferenceGroups.map((group) => matchSelections[group.key] ?? group.options[0]),
+    ].join(' · ');
 
     if (!savePendingPcBoxDraw({ cityId: drawCityId, preferences, summary })) {
       setDrawError('浏览器暂时无法保存本次偏好，请刷新页面后重试。');
@@ -307,38 +363,37 @@ export default function PcBoxConfigScreen() {
     return () => window.removeEventListener('pc-box-start-draw', handleShellStart);
   }, [goStart]);
 
-  const goReroll = async () => {
-    if (
-      isBooting ||
-      isStartingDraw ||
-      isRerolling ||
-      !currentDraw ||
-      currentDraw.attemptsRemaining <= 0
-    ) {
-      return;
-    }
-
-    setDrawError(null);
-    clearError();
-    setIsRerolling(true);
-    try {
-      await reroll();
-      router.push('/draw');
-    } catch (reason) {
-      setDrawError(reason instanceof Error ? reason.message : '重新抽取失败，请稍后重试。');
-    } finally {
-      setIsRerolling(false);
-    }
-  };
-
   const handleLocateCity = async () => {
     if (isLocatingCity) return;
 
     setIsLocatingCity(true);
     setLocationError(null);
+    setLocationNotice(null);
     try {
       const coordinates = await requestDeviceCurrentPosition({ accuracy: 'balanced' });
-      const cityName = await resolveCoordinatesCity(coordinates);
+      let cityName = '当前位置';
+      try {
+        cityName = await resolveCoordinatesCity(coordinates);
+      } catch {
+        setLocatedCity({
+          name: cityName,
+          latitude: coordinates.latitude,
+          longitude: coordinates.longitude,
+          accuracyMeters: coordinates.accuracy,
+          source: 'device',
+        });
+        await storePcLocatedCity({
+          name: cityName,
+          latitude: coordinates.latitude,
+          longitude: coordinates.longitude,
+          accuracyMeters: coordinates.accuracy,
+          source: 'device',
+        });
+        setMatchSelections((previous) => ({ ...previous, destinationScope: '全国' }));
+        setLocationNotice('已获取定位坐标；配置高德地图 Web Key 后可显示具体城市，当前按全国探索。');
+        return;
+      }
+
       setLocatedCity({
         name: cityName,
         latitude: coordinates.latitude,
@@ -346,6 +401,21 @@ export default function PcBoxConfigScreen() {
         accuracyMeters: coordinates.accuracy,
         source: 'device',
       });
+      await storePcLocatedCity({
+        name: cityName,
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
+        accuracyMeters: coordinates.accuracy,
+        source: 'device',
+      });
+      const matchedCity = findMatchingCity(cities, cityName);
+      if (matchedCity) {
+        setSelectedCityId(matchedCity.id);
+        setLocationNotice(`已定位到${cityName}，可以直接生成当地玩法。`);
+      } else {
+        setMatchSelections((previous) => ({ ...previous, destinationScope: '全国' }));
+        setLocationNotice(`已定位到${cityName}。当前玩法库未收录该城市，已切换为全国探索。`);
+      }
     } catch (reason) {
       setLocationError(reason instanceof Error ? reason.message : '定位城市失败，请重试。');
     } finally {
@@ -359,6 +429,25 @@ export default function PcBoxConfigScreen() {
       [key]: option,
     }));
   };
+
+  const handleManualCitySelect = (cityId: number) => {
+    const city = cities.find((item) => item.id === cityId);
+    if (!city) return;
+    const nextLocatedCity: PcLocatedCity = {
+      name: city.name,
+      latitude: null,
+      longitude: null,
+      accuracyMeters: null,
+      source: 'manual',
+    };
+    setLocatedCity(nextLocatedCity);
+    setSelectedCityId(city.id);
+    setLocationError(null);
+    setLocationNotice(`已切换到${city.name}，将优先生成当地玩法。`);
+    void storePcLocatedCity(nextLocatedCity);
+  };
+
+  const locatedCityOption = findMatchingCity(cities, locatedCity.name);
 
   return (
     <ConfigProvider
@@ -398,14 +487,18 @@ export default function PcBoxConfigScreen() {
         <Layout className="pc-box-layout">
           <Content className="pc-box-content">
             <header className="pc-box-title">
+              <div className="pc-box-kicker">
+                <span aria-hidden="true" />
+                NEW QUEST / SETUP
+              </div>
               <div className="pc-box-title-icons" aria-hidden="true">
                 <span><ThunderboltOutlined size={22} /></span>
                 <span><CompassOutlined size={22} /></span>
                 <span><GiftOutlined size={22} /></span>
               </div>
-              <Title>开启你的专属旅行盲盒</Title>
+              <Title>配置你的周末任务</Title>
               <Paragraph>
-                告别攻略焦虑，让 AI 基于心情、预算和出发地生成可执行路线。少一点纠结，多一点马上出门的轻松感。
+                选好出发地、预算和心情，AI 会把它们组合成一条现在就能执行的城市冒险。
               </Paragraph>
             </header>
 
@@ -420,19 +513,32 @@ export default function PcBoxConfigScreen() {
                 <div className="pc-box-two-column">
                   <div className="pc-box-location">
                     <Text className="pc-box-label">出发地</Text>
-                    <Button
-                      className="pc-box-location-button"
-                      aria-label={`定位城市，当前为${locatedCity.name}`}
-                      icon={<EnvironmentOutlined size={18} />}
-                      loading={isLocatingCity}
-                      size="large"
-                      onClick={() => void handleLocateCity()}>
-                      <span className="pc-box-location-value">
-                        {isLocatingCity ? '正在定位城市…' : locatedCity.name}
-                      </span>
-                    </Button>
+                    <div className="pc-box-location-controls">
+                      <Select
+                        aria-label="选择出发城市"
+                        className="pc-box-city-select"
+                        options={cities.map((city) => ({ label: `${city.name} · ${city.province}`, value: city.id }))}
+                        placeholder={locatedCity.name}
+                        showSearch
+                        optionFilterProp="label"
+                        value={locatedCityOption?.id}
+                        onChange={handleManualCitySelect}
+                      />
+                      <Button
+                        className="pc-box-locate-button"
+                        aria-label={`定位当前位置，当前为${locatedCity.name}`}
+                        icon={<EnvironmentOutlined size={18} />}
+                        loading={isLocatingCity}
+                        size="large"
+                        onClick={() => void handleLocateCity()}>
+                        {locatedCity.source === 'device' ? '重新定位' : '定位当前位置'}
+                      </Button>
+                    </div>
                     {locationError ? (
                       <Text className="pc-box-error">{locationError}</Text>
+                    ) : null}
+                    {locationNotice ? (
+                      <Text className="pc-box-location-notice">{locationNotice}</Text>
                     ) : null}
                   </div>
                   <MatchOptionGroup
@@ -500,7 +606,7 @@ export default function PcBoxConfigScreen() {
                   type="primary"
                   size="large"
                   icon={<GiftOutlined />}
-                  disabled={isBooting || isRerolling}
+                  disabled={isBooting}
                   loading={isStartingDraw}
                   onClick={goStart}>
                   {isStartingDraw ? '正在抽取…' : '开启盲盒'}
@@ -671,7 +777,8 @@ const pcBoxCss = `
   font-weight: 900;
 }
 
-.pc-box-title p.ant-typography {
+.pc-box-title p.ant-typography,
+.pc-box-title div.ant-typography {
   max-width: 680px;
   margin: 14px auto 0;
   color: ${boxToken.text};
@@ -734,6 +841,38 @@ const pcBoxCss = `
   gap: 12px;
 }
 
+.pc-box-location-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.pc-box-city-select.ant-select { width: 100%; height: 48px; }
+.pc-box-city-select .ant-select-selector {
+  padding-inline: 17px !important;
+  border: 1px solid rgba(39,31,82,.08) !important;
+  border-radius: ${radii.pill}px !important;
+  background: #f4f2fa !important;
+  box-shadow: none !important;
+  font-weight: 800;
+}
+
+.pc-box-locate-button.ant-btn {
+  height: 48px;
+  padding-inline: 17px;
+  border: 1px solid rgba(120,103,255,.2);
+  border-radius: ${radii.pill}px;
+  color: #5b4bc6;
+  background: rgba(120,103,255,.07);
+  font-weight: 850;
+}
+
+.pc-box-locate-button.ant-btn:hover {
+  border-color: rgba(120,103,255,.42) !important;
+  color: #4b3bb8 !important;
+  background: rgba(120,103,255,.12) !important;
+}
+
 .pc-box-label {
   color: ${boxToken.ink};
   font-size: 14px;
@@ -766,9 +905,17 @@ const pcBoxCss = `
 
 .pc-box-location-value {
   min-width: 0;
+  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.pc-box-location-hint {
+  flex-shrink: 0;
+  color: #7768d8;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .pc-box-options.ant-tag-checkable-group {
@@ -898,6 +1045,13 @@ const pcBoxCss = `
   line-height: 1.5;
 }
 
+.pc-box-location-notice {
+  color: #5b4bc6;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
 .pc-box-action-buttons.ant-space {
   flex-shrink: 0;
 }
@@ -1006,5 +1160,157 @@ const pcBoxCss = `
   .pc-box-reroll-button.ant-btn {
     width: 100%;
   }
+}
+
+/* Quest setup visual language shared with the refreshed PC landing page. */
+.pc-box-page {
+  --quest-lime: #c9ff62;
+  --quest-cyan: #78e8ff;
+  --quest-purple: #7867ff;
+  background:
+    radial-gradient(circle at 18% 2%, rgba(120,103,255,.34), transparent 25%),
+    radial-gradient(circle at 83% 8%, rgba(120,232,255,.12), transparent 22%),
+    linear-gradient(180deg, #11101c 0, #171426 430px, #f6f4fb 430px, #fbfaff 100%);
+}
+
+.pc-box-page::before {
+  content: "";
+  position: absolute;
+  inset: 76px 0 auto;
+  height: 355px;
+  pointer-events: none;
+  opacity: .25;
+  background-image: radial-gradient(rgba(255,255,255,.3) .75px, transparent .75px);
+  background-size: 18px 18px;
+}
+
+.pc-box-content {
+  position: relative;
+  width: min(100% - 56px, 980px);
+  padding-top: 54px;
+}
+
+.pc-box-title { margin-bottom: 40px; }
+
+.pc-box-kicker {
+  width: fit-content;
+  min-height: 30px;
+  margin: 0 auto 18px;
+  padding: 0 12px;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 999px;
+  color: rgba(255,255,255,.65);
+  background: rgba(255,255,255,.06);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+
+.pc-box-kicker span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--quest-lime);
+  box-shadow: 0 0 14px rgba(201,255,98,.8);
+}
+
+.pc-box-title-icons { margin-bottom: 18px; color: var(--quest-cyan); }
+
+.pc-box-title-icons span {
+  border: 1px solid rgba(255,255,255,.13);
+  color: var(--quest-cyan);
+  background: rgba(255,255,255,.065);
+  box-shadow: none;
+}
+
+.pc-box-title h1.ant-typography {
+  color: #fff;
+  font-size: clamp(40px, 4vw, 58px);
+  letter-spacing: -.045em;
+}
+
+.pc-box-title p.ant-typography,
+.pc-box-title div.ant-typography {
+  color: rgba(255,255,255,.62);
+  font-size: 16px;
+}
+
+.pc-box-sections { gap: 18px; }
+
+.pc-box-section.ant-card {
+  border: 1px solid rgba(33,27,70,.08);
+  border-radius: 28px;
+  background: rgba(255,255,255,.98);
+  box-shadow: 0 22px 60px rgba(36,27,79,.11);
+}
+
+.pc-box-section .ant-card-body { padding: 30px 34px 34px; }
+
+.pc-box-section-icon {
+  border-radius: 15px;
+  color: #171520;
+  background: var(--quest-lime);
+}
+
+.pc-box-section-title { color: #171522; }
+
+.pc-box-location-button.ant-btn,
+.pc-box-options .ant-tag-checkable-group-item.ant-tag {
+  border: 1px solid rgba(39,31,82,.08);
+  background: #f4f2fa;
+}
+
+.pc-box-options .ant-tag-checkable-group-item.ant-tag-checkable-checked {
+  border-color: #171522;
+  color: #fff;
+  background: #171522;
+  box-shadow: 0 9px 22px rgba(23,21,34,.18);
+}
+
+.pc-box-group-surprise .ant-tag-checkable-group-item.ant-tag-checkable-checked {
+  border-color: var(--quest-purple);
+  color: #342578;
+  background: linear-gradient(145deg, rgba(201,255,98,.34), rgba(120,232,255,.16));
+  box-shadow: 0 14px 34px rgba(83,66,174,.12);
+}
+
+.pc-box-action {
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 26px;
+  color: #fff;
+  background: #171522;
+  box-shadow: 0 22px 60px rgba(23,21,34,.22);
+}
+
+.pc-box-summary-label { color: rgba(255,255,255,.46); }
+.pc-box-summary-value { color: #fff; }
+
+.pc-box-start-button.ant-btn {
+  border-radius: 16px;
+  color: #171520;
+  background: var(--quest-lime);
+  box-shadow: 0 14px 32px rgba(201,255,98,.18);
+}
+
+.pc-box-start-button.ant-btn:not(:disabled):hover {
+  color: #171520;
+  background: #dcff9b;
+}
+
+@media (max-width: 720px) {
+  .pc-box-page {
+    background: linear-gradient(180deg, #11101c 0, #171426 380px, #f6f4fb 380px, #fbfaff 100%);
+  }
+  .pc-box-content { width: min(100% - 28px, 980px); padding-top: 38px; }
+  .pc-box-title h1.ant-typography { font-size: 39px; }
+  .pc-box-title p.ant-typography,
+  .pc-box-title div.ant-typography { font-size: 14px; }
+  .pc-box-section .ant-card-body { padding: 24px 19px; }
+  .pc-box-location-controls { grid-template-columns: 1fr; }
+  .pc-box-locate-button.ant-btn { width: 100%; }
 }
 `;

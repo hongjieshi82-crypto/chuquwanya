@@ -1,11 +1,11 @@
 import { ArrowLeftOutlined, ArrowRightOutlined, CheckCircleFilled, GiftOutlined } from '@ant-design/icons';
-import { Asset } from 'expo-asset';
 import { Button, ConfigProvider, Space, Tag, Typography } from 'antd';
 import 'antd/dist/reset.css';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, type CSSProperties } from 'react';
 
 import { palette, radii } from '@/theme';
+import { demoCityImageUris, demoPlaceImageUris } from '@/services/demo-data';
 
 const { Paragraph, Title } = Typography;
 
@@ -13,7 +13,7 @@ type ThemeConfig = {
   eyebrow: string;
   title: string;
   lead: string;
-  image: number;
+  image: string;
   color: string;
   glow: string;
   features: string[];
@@ -25,7 +25,7 @@ const themes: Record<string, ThemeConfig> = {
     eyebrow: '风景人文',
     title: '从一座城市的山水与老故事开始',
     lead: '更少排队打卡，更多沿途、建筑、风景和城市记忆。',
-    image: require('../../../assets/images/pc-hero-west-lake.jpg'),
+    image: demoCityImageUris.hangzhou,
     color: '#6752D8',
     glow: 'rgba(117,101,246,.28)',
     features: ['锁定城市与人文风格', '优先自然风景与历史街区', '适合慢速度的半日出行'],
@@ -35,7 +35,7 @@ const themes: Record<string, ThemeConfig> = {
     eyebrow: '随心漫游',
     title: '不设终点，让城市带你走一段',
     lead: '少一点必须完成，多一点临时起意和路上的意外。',
-    image: require('../../../assets/images/blindbox-scene-park.png'),
+    image: demoPlaceImageUris.beijingOlympicForest,
     color: '#7565F6',
     glow: 'rgba(142,200,255,.34)',
     features: ['以周边和探索心情为主', '随机路线与微型挑战', '不满意可以换一个方向'],
@@ -45,7 +45,7 @@ const themes: Record<string, ThemeConfig> = {
     eyebrow: '结伴同行',
     title: '两个人不再互相问“去哪”',
     lead: '把选择交给盲盒，你们只需要决定要不要现在出发。',
-    image: require('../../../assets/images/blindbox-scene-picnic.png'),
+    image: demoCityImageUris.yantai,
     color: '#8A63E8',
     glow: 'rgba(255,178,109,.3)',
     features: ['自动设置双人出行', '兼顾聊天与共同体验', '避免过高强度和过长路线'],
@@ -55,7 +55,7 @@ const themes: Record<string, ThemeConfig> = {
     eyebrow: '寻味探购',
     title: '不看排名，只凭香味和直觉',
     lead: '在老街、菜市场和街角小店里，抽一份真正能吃到的城市烟火。',
-    image: require('../../../assets/images/blindbox-scene-cafe.png'),
+    image: demoCityImageUris.shanghai,
     color: '#A85E76',
     glow: 'rgba(255,139,106,.28)',
     features: ['平价预算和热闹心情', '优先街区、小店与本地味道', '保留过敏原和排队提醒'],
@@ -89,7 +89,7 @@ export default function PcThemeScreen() {
   const { preset } = useLocalSearchParams<{ preset?: string }>();
   const presetKey = typeof preset === 'string' && themes[preset] ? preset : 'theme';
   const config = themes[presetKey];
-  const imageUri = Asset.fromModule(config.image).uri;
+  const imageUri = config.image;
   const themeStyle = { '--theme-color': config.color, '--theme-glow': config.glow } as CSSProperties;
 
   useEffect(() => {

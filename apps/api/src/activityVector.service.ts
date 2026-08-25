@@ -19,7 +19,7 @@ export type ActivityVectorPreferences = {
   clientSource?: "mobile" | "pc";
   destinationScope?: "nearby" | "province" | "nationwide";
   destinationScopeLabel?: string | null;
-  travelDuration?: "1-3days" | "3-5days" | "5-7days";
+  travelDuration?: "same-day" | "1-2days" | "1-3days" | "3-5days" | "5-7days";
   travelDurationLabel?: string | null;
   budgetLabel?: string | null;
   surpriseLevelLabel?: string | null;
@@ -85,6 +85,8 @@ const destinationScopeLabels: Record<NonNullable<ActivityVectorPreferences["dest
 };
 
 const travelDurationLabels: Record<NonNullable<ActivityVectorPreferences["travelDuration"]>, string> = {
+  "same-day": "当天",
+  "1-2days": "1-2天",
   "1-3days": "1-3天",
   "3-5days": "3-5天",
   "5-7days": "5-7天",

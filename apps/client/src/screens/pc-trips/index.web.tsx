@@ -29,7 +29,7 @@ import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useApp } from '@/contexts/app-context';
-import { getTodos, startTodo } from '@/services/api';
+import { getTodos, startTodo, updateTodoStatus } from '@/services/api';
 import { palette, radii } from '@/theme';
 import type { Todo, TodoStatus } from '@/types';
 
@@ -128,11 +128,15 @@ function matchesFilter(item: Todo, filter: TripFilter) {
 
 function TripCard({
   item,
+  isCompleting,
   isStarting,
+  onComplete,
   onStart,
 }: {
   item: Todo;
+  isCompleting: boolean;
   isStarting: boolean;
+  onComplete: (item: Todo) => void;
   onStart: (item: Todo) => void;
 }) {
   const router = useRouter();
@@ -144,7 +148,7 @@ function TripCard({
   ];
 
   return (
-    <Card className="pc-trip-card" bordered={false}>
+    <Card className="pc-trip-card" variant="borderless">
       <div className="pc-trip-card-top">
         <div className="pc-trip-date"><span>{date.month}</span><b>{date.day}</b></div>
         <Space size={4} align="start">
@@ -162,9 +166,9 @@ function TripCard({
         <div className="pc-trip-meta-item"><ClockCircleOutlined /><span>{formatDuration(item.durationMinutes)} · <DollarOutlined /> {item.budgetYuan ? `预算 ¥${item.budgetYuan}` : '预算待定'}</span></div>
       </div>
       <div className="pc-trip-actions">
-        <Button className="pc-trip-detail" icon={<ArrowRightOutlined />} iconPosition="end" type="link" onClick={() => router.push(`/activity/${item.activityId}`)}>查看详情</Button>
+        <Button className="pc-trip-detail" icon={<ArrowRightOutlined />} iconPlacement="end" type="link" onClick={() => router.push(`/activity/${item.activityId}`)}>查看详情</Button>
         {item.status === 'pending' ? <Button className="pc-trip-start" icon={<PlayCircleOutlined />} loading={isStarting} type="primary" onClick={() => onStart(item)}>开始行程</Button> : null}
-        {item.status === 'in_progress' ? <Badge color="#1677ff" text="旅程进行中" /> : null}
+        {item.status === 'in_progress' ? <Button className="pc-trip-start" loading={isCompleting} type="primary" onClick={() => onComplete(item)}>完成行程</Button> : null}
         {item.status === 'completed' ? <Badge color="#52c41a" text="已留下回忆" /> : null}
       </div>
     </Card>
@@ -180,6 +184,7 @@ export default function PcTripsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [startingId, setStartingId] = useState<number | null>(null);
+  const [completingId, setCompletingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const loadTrips = useCallback(async (showRefresh = false) => {
@@ -227,6 +232,20 @@ export default function PcTripsScreen() {
     }
   };
 
+  const handleComplete = async (item: Todo) => {
+    if (!userId) return;
+    setCompletingId(item.id);
+    setError(null);
+    try {
+      await updateTodoStatus(item.id, 'completed', userId);
+      await loadTrips();
+    } catch (reason) {
+      setError(getErrorMessage(reason));
+    } finally {
+      setCompletingId(null);
+    }
+  };
+
   return (
     <ConfigProvider theme={{ token: { borderRadius: radii.lg, colorPrimary: palette.primary, fontFamily: 'Inter, PingFang SC, Microsoft YaHei, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif' } }}>
       <main className="pc-trips-page">
@@ -251,7 +270,7 @@ export default function PcTripsScreen() {
           </div>
 
           {loading ? <div className="pc-trips-loading"><Spin description="正在加载你的行程…" /></div> : null}
-          {!loading && visibleItems.length > 0 ? <div className="pc-trips-grid">{visibleItems.map((item) => <TripCard isStarting={startingId === item.id} item={item} key={item.id} onStart={(todo) => { void handleStart(todo); }} />)}</div> : null}
+          {!loading && visibleItems.length > 0 ? <div className="pc-trips-grid">{visibleItems.map((item) => <TripCard isCompleting={completingId === item.id} isStarting={startingId === item.id} item={item} key={item.id} onComplete={(todo) => { void handleComplete(todo); }} onStart={(todo) => { void handleStart(todo); }} />)}</div> : null}
           {!loading && visibleItems.length === 0 ? <Empty className="pc-trips-empty" description={filter === 'all' ? '还没有行程，去抽一个盲盒吧' : '这个分类里暂时没有行程'} image={Empty.PRESENTED_IMAGE_SIMPLE}><Button icon={<PlusOutlined />} type="primary" onClick={() => router.push('/box/config')}>创建新行程</Button></Empty> : null}
         </div>
       </main>

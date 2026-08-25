@@ -59,7 +59,6 @@ export const PC_TOP_NAV_KEYS = {
   blindBox: 'blind-box',
   attractions: 'attractions',
   ranking: 'ranking',
-  aiPlanner: 'ai-planner',
 } as const;
 
 const brandLogo = require('../../assets/images/home-brand-logo.png') as StaticAsset;
@@ -201,7 +200,6 @@ export function getPcTopNavItems({
     },
     { key: PC_TOP_NAV_KEYS.attractions, label: '可玩地点', href: '/destinations' },
     { key: PC_TOP_NAV_KEYS.ranking, label: '目的地榜单', href: `${sectionPrefix}目的地榜单` },
-    { key: PC_TOP_NAV_KEYS.aiPlanner, label: 'AI规划师', href: `${sectionPrefix}AI规划师` },
   ];
 }
 

@@ -75,7 +75,7 @@ function getDuration(item: DestinationItem) {
   const value = item.suitableDays ?? item.duration;
   if (typeof value === 'number') return `${value} 天`;
   if (typeof value === 'string' && value.trim()) return value.includes('天') ? value : `${value} 天`;
-  return '1-3 天';
+  return '当天 / 1-2 天';
 }
 
 function buildDestinationItem(
@@ -252,8 +252,11 @@ export default function PcDestinationsScreen() {
         (category === 'hot' && isHot(item)) ||
         (category === 'hidden' && item.normalizedTags.some((tag) => tag.includes('秘境'))) ||
         (category === 'seasonal' &&
-          (Boolean(item.bestSeason) || item.normalizedTags.some((tag) => /季|春|夏|秋|冬/.test(tag))));
-      const tagsMatch = selectedTags.every((tag) => item.normalizedTags.includes(tag));
+          ((!item.bestSeason?.includes('四季') && /季|春|夏|秋|冬/.test(item.bestSeason ?? '')) ||
+            item.normalizedTags.some((tag) => /限定|春日|秋日/.test(tag))));
+      const tagsMatch =
+        selectedTags.length === 0 ||
+        selectedTags.some((tag) => item.normalizedTags.includes(tag));
       return (!keyword || searchSource.includes(keyword)) && categoryMatch && tagsMatch;
     });
 
@@ -265,10 +268,65 @@ export default function PcDestinationsScreen() {
       const regular = result.filter((item) => !isHot(item));
       return [...hot, ...regular];
     }
+    if (selectedTags.length) {
+      return [...result].sort((left, right) => {
+        const matchCount = (item: DestinationItem) =>
+          selectedTags.filter((tag) => item.normalizedTags.includes(tag)).length;
+        return matchCount(right) - matchCount(left) || right.popularity - left.popularity;
+      });
+    }
     return result;
   }, [category, items, search, selectedTags]);
 
-  const visibleItems = filteredItems.slice(0, visibleCount);
+  const tagCounts = useMemo(
+    () => new Map(filterTags.map((tag) => [tag, items.filter((item) => item.normalizedTags.includes(tag)).length])),
+    [items],
+  );
+
+  const categoryOptions = useMemo(
+    () => quickCategories.map((option) => {
+      const count = items.filter((item) => {
+        if (option.value === 'all') return true;
+        if (option.value === 'hot') return isHot(item);
+        if (option.value === 'hidden') return item.normalizedTags.some((tag) => tag.includes('秘境'));
+        return (!item.bestSeason?.includes('四季') && /季|春|夏|秋|冬/.test(item.bestSeason ?? '')) ||
+          item.normalizedTags.some((tag) => /限定|春日|秋日/.test(tag));
+      }).length;
+      return {
+        value: option.value,
+        label: <span className="pc-destinations-filter-label">{option.label}<small>{loading ? '–' : count}</small></span>,
+      };
+    }),
+    [items, loading],
+  );
+
+  const relaxedItems = useMemo(() => {
+    if (
+      filteredItems.length ||
+      normalizeText(search) ||
+      (category === 'all' && selectedTags.length === 0)
+    ) return [];
+
+    return items
+      .map((item) => {
+        const tagScore = selectedTags.filter((tag) => item.normalizedTags.includes(tag)).length * 3;
+        const categoryScore =
+          (category === 'hot' && isHot(item)) ||
+          (category === 'hidden' && item.normalizedTags.some((tag) => tag.includes('秘境'))) ||
+          (category === 'seasonal' && !item.bestSeason?.includes('四季'))
+            ? 2
+            : 0;
+        return { item, score: tagScore + categoryScore };
+      })
+      .filter((entry) => entry.score > 0)
+      .sort((left, right) => right.score - left.score || right.item.popularity - left.item.popularity)
+      .slice(0, 6)
+      .map((entry) => entry.item);
+  }, [category, filteredItems, items, search, selectedTags]);
+
+  const isRelaxedMatch = filteredItems.length === 0 && relaxedItems.length > 0;
+  const resultItems = isRelaxedMatch ? relaxedItems : filteredItems;
+  const visibleItems = resultItems.slice(0, visibleCount);
   const resetFilters = () => {
     setSearch('');
     setCategory('all');
@@ -300,7 +358,7 @@ export default function PcDestinationsScreen() {
       originAccuracyMeters: null,
       originSource: null,
       destinationScope: 'nationwide',
-      travelDuration: '1-3days',
+      travelDuration: 'same-day',
     };
     savePendingPcBoxDraw({
       cityId: city.id,
@@ -367,7 +425,7 @@ export default function PcDestinationsScreen() {
         <section className="pc-destinations-content">
           <Card className="pc-destinations-filters">
             <Segmented
-              options={quickCategories as unknown as string[]}
+              options={categoryOptions}
               value={category}
               onChange={(value) => {
                 setVisibleCount(initialVisibleCount);
@@ -377,15 +435,27 @@ export default function PcDestinationsScreen() {
             <div className="pc-destinations-tag-row">
               {filterTags.map((tag) => (
                 <CheckableTag key={tag} checked={selectedTags.includes(tag)} onChange={(checked) => toggleTag(tag, checked)}>
-                  {tag}
+                  <span className="pc-destinations-filter-label">{tag}<small>{loading ? '–' : (tagCounts.get(tag) ?? 0)}</small></span>
                 </CheckableTag>
               ))}
             </div>
+            <Text className="pc-destinations-filter-hint">
+              {selectedTags.length
+                ? `已选择 ${selectedTags.length} 个灵感，命中标签越多的城市会排得越靠前。`
+                : '标签可以多选；我们按匹配程度排序，不会因为组合太细让结果突然归零。'}
+            </Text>
           </Card>
+
+          {isRelaxedMatch ? (
+            <div className="pc-destinations-relaxed-note">
+              <strong>这组条件暂时没有完全重合</strong>
+              <span>已经自动放宽一层，下面是最接近你灵感组合的城市。</span>
+            </div>
+          ) : null}
 
           <div className="pc-destinations-results-heading">
             <Title level={2}>发现目的地</Title>
-            <Text>共 {filteredItems.length} 个目的地</Text>
+            <Text>{isRelaxedMatch ? `相近推荐 ${resultItems.length} 个` : `共 ${resultItems.length} 个目的地`}</Text>
           </div>
 
           {loading ? (
@@ -421,7 +491,7 @@ export default function PcDestinationsScreen() {
                   </Card>
                 ))}
               </div>
-              {visibleCount < filteredItems.length ? <div className="pc-destinations-more"><Button type="primary" shape="round" onClick={() => setVisibleCount((count) => count + initialVisibleCount)}>查看更多目的地</Button></div> : null}
+              {visibleCount < resultItems.length ? <div className="pc-destinations-more"><Button type="primary" shape="round" onClick={() => setVisibleCount((count) => count + initialVisibleCount)}>查看更多目的地</Button></div> : null}
             </>
           ) : (
             <Empty description={<span><strong>没有找到匹配的目的地</strong><br />试试其他搜索关键词或调整筛选条件</span>}>
@@ -486,6 +556,42 @@ const pcDestinationsCss = `
 .pc-destinations-tag-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
 .pc-destinations-tag-row .ant-tag { margin: 0; padding: 4px 12px; border: 1px solid #E5E7EB; border-radius: 999px; color: #4B5563; background: #fff; }
 .pc-destinations-tag-row .ant-tag-checkable-checked { color: ${palette.primary}; border-color: ${palette.primary}; background: ${palette.primarySoft}; }
+.pc-destinations-filter-label { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.pc-destinations-filter-label small {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  color: #777184;
+  background: rgba(98,87,150,.09);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+}
+.pc-destinations-tag-row .ant-tag-checkable-checked small { color: #fff; background: ${palette.primary}; }
+.pc-destinations-filter-hint.ant-typography {
+  display: block;
+  margin-top: 13px;
+  color: #8a8498;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.pc-destinations-relaxed-note {
+  margin: -6px 0 22px;
+  padding: 14px 17px;
+  border: 1px solid rgba(117,101,246,.16);
+  border-radius: 14px;
+  color: #6f687f;
+  background: linear-gradient(90deg, rgba(117,101,246,.08), rgba(120,232,255,.06));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+.pc-destinations-relaxed-note strong { color: #5646c6; }
 .pc-destinations-results-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
 .pc-destinations-results-heading h2 { margin: 0; font-size: 24px; }.pc-destinations-results-heading .ant-typography { color: #6B7280; }
 .pc-destinations-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }

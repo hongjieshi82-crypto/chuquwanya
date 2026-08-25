@@ -29,9 +29,9 @@ import {
 } from 'antd';
 import 'antd/dist/reset.css';
 import { Asset } from 'expo-asset';
-import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { SVGProps } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { CSSProperties, SVGProps } from 'react';
 import { useApp } from '@/contexts/app-context';
 import { formatBudget, formatDistanceMetric, formatDuration } from '@/formatters';
 import {
@@ -40,13 +40,14 @@ import {
   type PendingPcBoxDraw,
 } from '@/lib/pc-box-open-state';
 import { ApiHttpError } from '@/services/api';
+import { createDemoDraw, demoCityImageUris } from '@/services/demo-data';
 import { palette, radii } from '@/theme';
 import type { Activity, DrawResult } from '@/types';
 
 const { Content } = Layout;
 const { Paragraph, Text, Title } = Typography;
 
-const MIN_OPENING_MS = 2_300;
+const MIN_OPENING_MS = 3_000;
 const EXIT_TRANSITION_MS = 280;
 
 type PcIconProps = SVGProps<SVGSVGElement> & {
@@ -165,6 +166,8 @@ export default function PcBoxOpenScreen() {
   const { clearError, isBooting, startDraw } = useApp();
   const [pendingDraw] = useState<PendingPcBoxDraw | null>(() => readPendingPcBoxDraw());
   const [attempt, setAttempt] = useState(0);
+  const [isCharging, setIsCharging] = useState(false);
+  const [chargeProgress, setChargeProgress] = useState(0);
   const [isOpening, setIsOpening] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const [drawError, setDrawError] = useState<string | null>(() =>
@@ -173,11 +176,13 @@ export default function PcBoxOpenScreen() {
   const startedAttemptRef = useRef<number | null>(null);
   const runIdRef = useRef(0);
   const mountedRef = useRef(true);
+  const chargeTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      if (chargeTimerRef.current !== null) window.clearInterval(chargeTimerRef.current);
     };
   }, []);
 
@@ -221,23 +226,41 @@ export default function PcBoxOpenScreen() {
     [clearError, router, startDraw],
   );
 
-  useEffect(() => {
-    if (isBooting || startedAttemptRef.current === attempt) return;
+  const activateDraw = () => {
+    if (
+      !pendingDraw ||
+      isBooting ||
+      isCharging ||
+      isOpening ||
+      startedAttemptRef.current === attempt
+    ) return;
 
-    startedAttemptRef.current = attempt;
-    if (!pendingDraw) {
-      return;
-    }
+    setDrawError(null);
+    setChargeProgress(0);
+    setIsCharging(true);
+    let progress = 0;
+    chargeTimerRef.current = window.setInterval(() => {
+      progress = Math.min(100, progress + 8);
+      setChargeProgress(progress);
+      if (progress < 100) return;
 
-    const runId = runIdRef.current + 1;
-    runIdRef.current = runId;
-    void executeDraw(pendingDraw, runId);
-  }, [attempt, executeDraw, isBooting, pendingDraw]);
+      if (chargeTimerRef.current !== null) window.clearInterval(chargeTimerRef.current);
+      chargeTimerRef.current = null;
+      setIsCharging(false);
+      startedAttemptRef.current = attempt;
+      const runId = runIdRef.current + 1;
+      runIdRef.current = runId;
+      window.navigator.vibrate?.([35, 30, 90]);
+      void executeDraw(pendingDraw, runId);
+    }, 55);
+  };
 
   const retryDraw = () => {
     if (!pendingDraw || isBooting || isOpening) return;
     setDrawError(null);
     setIsLeaving(false);
+    setChargeProgress(0);
+    startedAttemptRef.current = null;
     setAttempt((value) => value + 1);
   };
 
@@ -248,9 +271,12 @@ export default function PcBoxOpenScreen() {
 
   const statusText = isBooting
     ? '正在准备旅行数据…'
+    : isCharging
+      ? `能量注入 ${chargeProgress}%`
     : isOpening
-      ? '正在匹配目的地…'
-      : '准备开启';
+      ? '正在锁定城市任务…'
+      : '点击注入能量';
+  const chargeStyle = { '--charge-progress': `${chargeProgress}%` } as CSSProperties;
 
   return (
     <ConfigProvider
@@ -290,32 +316,41 @@ export default function PcBoxOpenScreen() {
         <Layout className="pc-box-open-layout">
           <Content className="pc-box-open-content">
             <Card
-              className={`pc-box-open-card${isOpening ? ' is-opening' : ''}${
+              className={`pc-box-open-card${isCharging ? ' is-charging' : ''}${isOpening ? ' is-opening' : ''}${
                 isLeaving ? ' is-leaving' : ''
               }`}
               variant="borderless">
               <Tag className="pc-box-open-badge" icon={<ThunderboltOutlined />}>
-                AI 旅行盲盒
+                WEEKEND DROP
               </Tag>
 
               <div className="pc-box-open-copy">
-                <Title>旅行盲盒</Title>
-                <Paragraph className="pc-box-open-subtitle">开启你的未知旅程</Paragraph>
+                <Title>抽取你的周末任务</Title>
+                <Paragraph className="pc-box-open-subtitle">
+                  {isCharging ? '能量正在聚合' : isOpening ? '城市信号高速汇聚' : '等待你的启动指令'}
+                </Paragraph>
                 <Text className="pc-box-open-quote">
-                  少一点攻略焦虑，多一点未知惊喜。
+                  聚合你的时间、预算与心情，解锁一张现在就能出发的任务卡。
                 </Text>
               </div>
 
               <div className="pc-box-open-action">
-                <Button
-                  className="pc-box-open-button"
-                  type="primary"
-                  size="large"
-                  icon={<GiftOutlined size={20} />}
-                  disabled={isBooting || isLeaving}
-                  loading={isBooting || isOpening}>
-                  {statusText}
-                </Button>
+                <div className={`pc-box-charge${isCharging ? ' is-charging' : ''}`} style={chargeStyle}>
+                  <Button
+                    className="pc-box-open-button"
+                    type="primary"
+                    size="large"
+                    icon={<ThunderboltOutlined size={20} />}
+                    disabled={isBooting || isCharging || isOpening || isLeaving || !pendingDraw}
+                    loading={isBooting}
+                    onClick={activateDraw}>
+                    {statusText}
+                  </Button>
+                  <span className="pc-box-charge-track"><i /></span>
+                  <Text className="pc-box-charge-hint">
+                    {isCharging ? '保持注意，目的地即将锁定' : '由你亲手启动这次抽取'}
+                  </Text>
+                </div>
 
                 {drawError ? (
                   <Alert
@@ -332,7 +367,7 @@ export default function PcBoxOpenScreen() {
                             type="primary"
                             icon={<ReloadOutlined />}
                             onClick={retryDraw}>
-                            重新开启
+                            重新蓄能
                           </Button>
                         ) : null}
                         <Button size="small" onClick={returnToConfig}>
@@ -366,97 +401,47 @@ export default function PcBoxOpenScreen() {
                   <span className="pc-box-open-stage-light" />
                 </div>
 
-                <div className="pc-loot-scene">
-                  <span className="pc-loot-burst" />
-                  <span className="pc-loot-shockwave" />
-                  <span className="pc-loot-floor-glow" />
+                <div className="pc-drop-scene">
+                  <span className="pc-drop-beam" />
+                  <span className="pc-drop-burst" />
+                  <span className="pc-drop-shockwave" />
+                  <span className="pc-drop-ring pc-drop-ring-one" />
+                  <span className="pc-drop-ring pc-drop-ring-two" />
+                  <span className="pc-drop-ring pc-drop-ring-three" />
+                  <span className="pc-drop-scan-line" />
 
-                  <svg
-                    className="pc-loot-chest"
-                    viewBox="0 0 360 330"
-                    role="presentation">
-                    <defs>
-                      <linearGradient id="loot-body" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0" stopColor="#A99BFF" />
-                        <stop offset="0.46" stopColor="#7461E9" />
-                        <stop offset="1" stopColor="#3E2A9B" />
-                      </linearGradient>
-                      <linearGradient id="loot-body-side" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0" stopColor="#4C35B0" />
-                        <stop offset="1" stopColor="#291B71" />
-                      </linearGradient>
-                      <linearGradient id="loot-lid" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0" stopColor="#C9C1FF" />
-                        <stop offset="0.42" stopColor="#8B79F4" />
-                        <stop offset="1" stopColor="#5943C8" />
-                      </linearGradient>
-                      <linearGradient id="loot-gold" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0" stopColor="#FFF1AE" />
-                        <stop offset="0.48" stopColor="#E9C96F" />
-                        <stop offset="1" stopColor="#B98B32" />
-                      </linearGradient>
-                      <radialGradient id="loot-gem" cx="38%" cy="28%" r="76%">
-                        <stop offset="0" stopColor="#FFFFFF" />
-                        <stop offset="0.2" stopColor="#D8D1FF" />
-                        <stop offset="0.56" stopColor="#8B78FF" />
-                        <stop offset="1" stopColor="#4B2AC3" />
-                      </radialGradient>
-                      <filter id="loot-shadow" x="-50%" y="-50%" width="200%" height="220%">
-                        <feDropShadow dx="0" dy="18" stdDeviation="16" floodColor="#2B176C" floodOpacity="0.34" />
-                      </filter>
-                      <filter id="loot-gem-glow" x="-120%" y="-120%" width="340%" height="340%">
-                        <feGaussianBlur stdDeviation="8" result="blur" />
-                        <feMerge>
-                          <feMergeNode in="blur" />
-                          <feMergeNode in="SourceGraphic" />
-                        </feMerge>
-                      </filter>
-                    </defs>
-
-                    <ellipse className="pc-loot-svg-shadow" cx="180" cy="296" rx="112" ry="19" />
-
-                    <g className="pc-loot-chest-body" filter="url(#loot-shadow)">
-                      <path d="M66 151 H294 V270 Q294 290 274 290 H86 Q66 290 66 270 Z" fill="url(#loot-body)" />
-                      <path d="M258 151 H294 V270 Q294 290 274 290 H258 Z" fill="url(#loot-body-side)" opacity="0.74" />
-                      <path d="M66 170 H294 V191 H66 Z" fill="url(#loot-gold)" />
-                      <path d="M91 191 H110 V290 H91 Z" fill="url(#loot-gold)" opacity="0.92" />
-                      <path d="M250 191 H269 V290 H250 Z" fill="url(#loot-gold)" opacity="0.78" />
-                      <path d="M70 266 H290 V278 Q290 290 276 290 H84 Q70 290 70 278 Z" fill="#392187" opacity="0.74" />
-                      <path d="M78 202 Q117 187 154 204 T230 201 T285 198" fill="none" stroke="#C9BEFF" strokeWidth="3" opacity="0.28" />
-                      <path d="M78 222 Q126 207 171 224 T284 218" fill="none" stroke="#E6E1FF" strokeWidth="2" opacity="0.18" />
-
-                      <g className="pc-loot-lock">
-                        <path d="M149 175 H211 V225 Q211 239 197 239 H163 Q149 239 149 225 Z" fill="url(#loot-gold)" />
-                        <path d="M180 184 L199 204 L180 229 L161 204 Z" fill="url(#loot-gem)" filter="url(#loot-gem-glow)" />
-                        <path d="M180 188 L193 203 L180 198 L167 203 Z" fill="#FFFFFF" opacity="0.5" />
-                      </g>
-                    </g>
-
-                    <g className="pc-loot-chest-lid" filter="url(#loot-shadow)">
-                      <path d="M56 142 Q58 77 115 56 Q180 31 245 56 Q302 77 304 142 Z" fill="url(#loot-lid)" />
-                      <path d="M68 126 Q78 82 124 67 Q180 49 236 67 Q282 82 292 126" fill="none" stroke="#E7E2FF" strokeWidth="5" opacity="0.44" />
-                      <path d="M56 132 H304 V161 H56 Z" fill="url(#loot-gold)" />
-                      <path d="M91 76 L111 68 V132 H91 Z" fill="url(#loot-gold)" opacity="0.92" />
-                      <path d="M249 68 L269 76 V132 H249 Z" fill="url(#loot-gold)" opacity="0.78" />
-                      <path d="M78 111 Q135 86 180 102 Q225 86 282 111" fill="none" stroke="#FFFFFF" strokeWidth="4" opacity="0.16" />
-                    </g>
-                  </svg>
-
-                  <div className="pc-loot-reward pc-loot-reward-compass">
-                    <CompassOutlined size={28} />
+                  <div className="pc-drop-photo-signals">
+                    <img className="pc-drop-photo pc-drop-photo-one" src={demoCityImageUris.beijing} alt="" />
+                    <img className="pc-drop-photo pc-drop-photo-two" src={demoCityImageUris.shanghai} alt="" />
+                    <img className="pc-drop-photo pc-drop-photo-three" src={demoCityImageUris.yantai} alt="" />
                   </div>
-                  <div className="pc-loot-reward pc-loot-reward-location">
-                    <EnvironmentOutlined size={28} />
+
+                  <div className="pc-drop-card">
+                    <div className="pc-drop-card-face pc-drop-card-front">
+                      <span className="pc-drop-card-index">DROP / 001</span>
+                      <strong>?</strong>
+                      <span className="pc-drop-card-label">DESTINATION LOCKED</span>
+                      <i><CompassOutlined size={18} /></i>
+                    </div>
+                    <div className="pc-drop-card-face pc-drop-card-back">
+                      <span className="pc-drop-card-index">CITY SIGNAL FOUND</span>
+                      <EnvironmentOutlined size={52} />
+                      <b>任务已解锁</b>
+                      <span className="pc-drop-card-label">READY TO REVEAL</span>
+                    </div>
                   </div>
-                  <div className="pc-loot-reward pc-loot-reward-spark">
-                    <ThunderboltOutlined size={28} />
-                  </div>
-                  <div className="pc-loot-rarity">
+
+                  <div className="pc-drop-rarity">
                     <span />
                     <span />
                     <span />
                     <span />
                   </div>
+                  <div className="pc-drop-coordinate">
+                    <span>LAT</span><b>••.••••</b>
+                    <span>LNG</span><b>•••.••••</b>
+                  </div>
+                  <span className="pc-drop-combo">SIGNAL CHAIN ×4</span>
                 </div>
               </div>
 
@@ -509,10 +494,48 @@ export function PcBoxResultScreen() {
 
 function PcBoxResultContent() {
   const router = useRouter();
+  const { preview } = useLocalSearchParams<{ preview?: string }>();
   const { addCurrentDrawToTodos, currentDraw, reroll } = useApp();
   const { message } = App.useApp();
   const [isRerolling, setIsRerolling] = useState(false);
   const [isAddingToPlan, setIsAddingToPlan] = useState(false);
+  const previewDraw = useMemo(
+    () => {
+      if (preview !== 'print') return null;
+      const draw = createDemoDraw({
+          userId: 900001,
+          cityId: 1,
+          preferences: {
+            partySize: 2,
+            durationMinutes: null,
+            budgetMax: 100,
+            mood: '放松',
+            randomLevel: 25,
+            category: '风景人文',
+            environment: 'outdoor',
+            radiusKm: null,
+            originName: '北京',
+            originLatitude: null,
+            originLongitude: null,
+            originAccuracyMeters: null,
+            originSource: 'manual',
+            destinationScope: 'nearby',
+            travelDuration: 'same-day',
+            clientSource: 'pc',
+            destinationScopeLabel: '周边',
+            travelDurationLabel: '当天',
+            budgetLabel: '平价',
+            surpriseLevelLabel: '中度',
+          },
+        });
+      return {
+        ...draw,
+        activity: { ...draw.activity, coverImageUri: null },
+      };
+    },
+    [preview],
+  );
+  const activeDraw = currentDraw ?? previewDraw;
 
   const handleReroll = async () => {
     if (!currentDraw || currentDraw.attemptsRemaining <= 0 || isRerolling) return;
@@ -546,9 +569,9 @@ function PcBoxResultContent() {
   return (
     <div className="pc-box-open-page">
       <style>{pcBoxResultCss}</style>
-      {currentDraw ? (
+      {activeDraw ? (
         <PcBoxResult
-          draw={currentDraw}
+          draw={activeDraw}
           isAddingToPlan={isAddingToPlan}
           isRerolling={isRerolling}
           onAddToPlan={() => void handleAddToPlan()}
@@ -614,11 +637,19 @@ function PcBoxResult({
   };
 
   const exportResult = () => {
-    window.print();
+    const previousTitle = document.title;
+    document.title = `懒得动-${activity.cityName}-${activity.title}`;
+    const restoreTitle = () => {
+      document.title = previousTitle;
+      window.removeEventListener('afterprint', restoreTitle);
+    };
+    window.addEventListener('afterprint', restoreTitle, { once: true });
+    window.requestAnimationFrame(() => window.print());
   };
 
   return (
     <main className="pc-box-result">
+      <div className="pc-box-screen-content">
       <Card className="pc-box-result-hero" variant="borderless">
         <img className="pc-box-result-cover" src={getResultCover(activity)} alt={activity.title} />
         <div className="pc-box-result-cover-shade" />
@@ -776,7 +807,119 @@ function PcBoxResult({
           </aside>
         </Col>
       </Row>
+      </div>
+
+      <PcBoxPrintSheet
+        activity={activity}
+        activitySteps={activitySteps}
+        checklist={checklist}
+        recommendation={recommendation}
+        recommendationReasons={recommendationReasons}
+      />
     </main>
+  );
+}
+
+function PcBoxPrintSheet({
+  activity,
+  activitySteps,
+  checklist,
+  recommendation,
+  recommendationReasons,
+}: {
+  activity: Activity;
+  activitySteps: string[];
+  checklist: string[];
+  recommendation: DrawResult['recommendation'];
+  recommendationReasons: string[];
+}) {
+  const printTags = Array.from(
+    new Set([activity.category, activity.mood, ...activity.moodTags].map((tag) => String(tag).trim()).filter(Boolean)),
+  ).slice(0, 5);
+
+  return (
+    <section className="pc-box-print-sheet" aria-label="单页行程 PDF">
+      <header className="pc-print-header">
+        <div>
+          <strong>懒得动</strong>
+          <span>WEEKEND ORACLE</span>
+        </div>
+        <p>AI TRAVEL DROP · {activity.cityName.toUpperCase()}</p>
+      </header>
+
+      <section className="pc-print-hero">
+        <img src={getResultCover(activity)} alt="" />
+        <div className="pc-print-hero-shade" />
+        <div className="pc-print-hero-copy">
+          <span>{activity.cityName} · {activity.district}</span>
+          <h1>{activity.title}</h1>
+          <p>{activity.summary}</p>
+        </div>
+      </section>
+
+      <section className="pc-print-stats">
+        <div><small>建议时长</small><strong>{formatDuration(activity.durationMinutes)}</strong></div>
+        <div><small>预计预算</small><strong>{formatBudget(activity.budgetYuan)}</strong></div>
+        <div><small>距离参考</small><strong>{formatDistanceMetric(activity.distanceKm, recommendation?.constraintSummary.distance)}</strong></div>
+        <div><small>适合人数</small><strong>{activity.minPartySize}–{activity.maxPartySize} 人</strong></div>
+      </section>
+
+      <div className="pc-print-grid">
+        <div className="pc-print-main-column">
+          <section className="pc-print-block pc-print-reasons">
+            <div className="pc-print-block-title"><span>01</span><h2>为什么推荐</h2><small>AI MATCH</small></div>
+            <ul>
+              {recommendationReasons.slice(0, 3).map((reason, index) => (
+                <li key={index}><i>✓</i><span>{reason}</span></li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="pc-print-block pc-print-route">
+            <div className="pc-print-block-title"><span>02</span><h2>今天怎么玩</h2><small>3-STEP ROUTE</small></div>
+            <ol>
+              {activitySteps.slice(0, 3).map((step, index) => (
+                <li key={index}>
+                  <b>{String(index + 1).padStart(2, '0')}</b>
+                  <div><strong>{['准备出发', '沉浸体验', '轻松收尾'][index]}</strong><p>{step}</p></div>
+                </li>
+              ))}
+            </ol>
+          </section>
+        </div>
+
+        <aside className="pc-print-side-column">
+          <section className="pc-print-block pc-print-place">
+            <div className="pc-print-block-title"><span>03</span><h2>目的地信息</h2></div>
+            <p>{activity.description || activity.summary}</p>
+            <dl>
+              <div><dt>地址</dt><dd>{activity.address || '出发前查看导航'}</dd></div>
+              <div><dt>心情</dt><dd>{activity.mood}</dd></div>
+              <div><dt>类型</dt><dd>{activity.category}</dd></div>
+            </dl>
+          </section>
+
+          <section className="pc-print-block pc-print-reminder">
+            <div className="pc-print-block-title"><span>04</span><h2>出发提醒</h2></div>
+            <ul>
+              {(activity.tips.length ? activity.tips : ['确认天气与开放时间', '为热门时段预留弹性']).slice(0, 3).map((tip, index) => (
+                <li key={index}>{tip}</li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="pc-print-block pc-print-checklist">
+            <div className="pc-print-block-title"><span>05</span><h2>随身清单</h2></div>
+            <div>{checklist.map((item) => <span key={item}>□ {item}</span>)}</div>
+          </section>
+        </aside>
+      </div>
+
+      <footer className="pc-print-footer">
+        <div>{printTags.map((tag) => <span key={tag}>{tag}</span>)}</div>
+        <p>少做选择题，只给一个现在能出发的方案。</p>
+      </footer>
+    </section>
   );
 }
 
@@ -1616,6 +1759,464 @@ const pcBoxOpenCss = `
   100% { transform: scaleX(1); background: linear-gradient(90deg, #FFF0A8, #C69B3D); box-shadow: 0 0 13px rgba(255,226,119,.66); }
 }
 
+/* Digital city-drop reveal: energy rings + a sealed mission card. */
+.pc-box-open-content {
+  background:
+    radial-gradient(circle at 16% 18%, rgba(120,103,255,.34), transparent 31%),
+    radial-gradient(circle at 82% 24%, rgba(120,232,255,.16), transparent 28%),
+    radial-gradient(circle at 72% 84%, rgba(201,255,98,.08), transparent 24%),
+    #11101c;
+}
+
+.pc-box-open-content::before {
+  content: "";
+  position: absolute;
+  inset: 76px 0 0;
+  opacity: .24;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(255,255,255,.28) .8px, transparent .8px);
+  background-size: 18px 18px;
+}
+
+.pc-box-open-card.ant-card {
+  border-color: rgba(255,255,255,.1);
+  background: rgba(24,22,38,.76);
+  box-shadow: 0 34px 100px rgba(0,0,0,.38);
+  backdrop-filter: blur(26px);
+}
+
+.pc-box-open-badge.ant-tag {
+  color: #171520;
+  background: #c9ff62;
+  box-shadow: 0 10px 28px rgba(201,255,98,.16);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .1em;
+}
+
+.pc-box-open-copy h1.ant-typography {
+  color: #fff;
+  font-size: clamp(44px, 4.1vw, 52px);
+  white-space: nowrap;
+}
+
+.pc-box-open-subtitle.ant-typography {
+  color: #78e8ff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 15px;
+  letter-spacing: .08em;
+}
+
+.pc-box-open-quote,
+.pc-box-open-hints .ant-typography,
+.pc-box-open-live-status { color: rgba(255,255,255,.52); }
+
+.pc-box-open-button.ant-btn {
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 16px;
+  color: #fff;
+  background: rgba(255,255,255,.08);
+  box-shadow: inset 0 1px rgba(255,255,255,.06);
+}
+
+.pc-box-open-button.ant-btn.ant-btn-loading,
+.pc-box-open-button.ant-btn:disabled {
+  color: #171520;
+  background: #c9ff62;
+  border-color: #c9ff62;
+}
+
+.pc-box-charge {
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.pc-box-charge-track {
+  width: 100%;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255,255,255,.1);
+}
+
+.pc-box-charge-track i {
+  display: block;
+  width: var(--charge-progress, 0%);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #7867ff, #78e8ff 54%, #c9ff62);
+  box-shadow: 0 0 16px rgba(120,232,255,.7);
+  transition: width 45ms linear;
+}
+
+.pc-box-charge-hint.ant-typography {
+  color: rgba(255,255,255,.42);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: .06em;
+}
+
+.pc-box-charge.is-charging .pc-box-open-button.ant-btn {
+  color: #171520;
+  background: #c9ff62;
+  animation: pcChargeButtonPulse .38s ease-in-out infinite alternate;
+}
+
+.pc-box-open-magic-stage {
+  border: 1px solid rgba(255,255,255,.08);
+  background:
+    radial-gradient(circle at 50% 50%, rgba(120,103,255,.22), transparent 48%),
+    rgba(255,255,255,.025);
+  box-shadow: inset 0 0 80px rgba(120,103,255,.08);
+}
+
+.pc-box-open-stage-light { opacity: .35; background: radial-gradient(circle, rgba(120,232,255,.24), transparent 66%); }
+.pc-box-open-orbit { border-color: rgba(120,232,255,.13); box-shadow: none; }
+
+.pc-drop-scene {
+  position: relative;
+  z-index: 3;
+  width: 430px;
+  height: 430px;
+  display: grid;
+  place-items: center;
+  perspective: 1200px;
+  isolation: isolate;
+}
+
+.pc-drop-beam,
+.pc-drop-burst,
+.pc-drop-shockwave,
+.pc-drop-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.pc-drop-beam {
+  z-index: 0;
+  width: 190px;
+  height: 390px;
+  opacity: .34;
+  background: linear-gradient(180deg, transparent, rgba(120,232,255,.26) 38%, rgba(201,255,98,.2) 58%, transparent);
+  filter: blur(18px);
+  clip-path: polygon(42% 0, 58% 0, 100% 100%, 0 100%);
+}
+
+.pc-drop-ring {
+  z-index: 1;
+  border: 1px solid rgba(120,232,255,.32);
+  border-radius: 50%;
+  box-shadow: 0 0 30px rgba(120,232,255,.08);
+}
+
+.pc-drop-ring-one { width: 360px; height: 118px; transform: translate(-50%,-50%) rotate(-13deg); animation: pcDropRing 7s linear infinite; }
+.pc-drop-ring-two { width: 290px; height: 96px; border-style: dashed; border-color: rgba(201,255,98,.28); transform: translate(-50%,-50%) rotate(22deg); animation: pcDropRingReverse 5.6s linear infinite; }
+.pc-drop-ring-three { width: 230px; height: 230px; border-color: rgba(170,114,255,.18); }
+
+.pc-drop-photo-signals {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.pc-drop-photo {
+  position: absolute;
+  width: 118px;
+  height: 76px;
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 15px;
+  object-fit: cover;
+  opacity: .25;
+  filter: grayscale(.75) saturate(.7) brightness(.72);
+  box-shadow: 0 16px 42px rgba(0,0,0,.3);
+}
+
+.pc-drop-photo::after { content: ""; position: absolute; inset: 0; }
+.pc-drop-photo-one { left: 5px; top: 82px; --photo-r: -11deg; transform: rotate(-11deg); }
+.pc-drop-photo-two { right: 0; top: 58px; --photo-r: 9deg; transform: rotate(9deg); }
+.pc-drop-photo-three { right: 14px; bottom: 58px; --photo-r: -7deg; transform: rotate(-7deg); }
+
+.pc-drop-scan-line {
+  position: absolute;
+  left: 50%;
+  top: 18%;
+  z-index: 7;
+  width: 238px;
+  height: 2px;
+  opacity: .24;
+  background: linear-gradient(90deg, transparent, #78e8ff 18% 82%, transparent);
+  box-shadow: 0 0 18px rgba(120,232,255,.72);
+  transform: translateX(-50%);
+}
+
+.pc-drop-card {
+  position: relative;
+  z-index: 5;
+  width: 222px;
+  height: 304px;
+  transform-style: preserve-3d;
+  transform: rotateY(-8deg) rotateX(3deg);
+  animation: pcDropCardIdle 3s ease-in-out infinite;
+}
+
+.pc-drop-card-face {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 28px;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  box-shadow: 0 32px 80px rgba(0,0,0,.44), inset 0 1px rgba(255,255,255,.12);
+}
+
+.pc-drop-card-face::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(118deg, transparent 28%, rgba(255,255,255,.12) 42%, transparent 54%),
+    radial-gradient(circle at 20% 12%, rgba(120,232,255,.2), transparent 28%);
+  transform: translateX(-55%);
+}
+
+.pc-drop-card-front {
+  padding: 22px;
+  color: #fff;
+  background:
+    linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px),
+    linear-gradient(145deg, #25213d, #171522 72%);
+  background-size: 22px 22px, 22px 22px, auto;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+.pc-drop-card-front strong {
+  align-self: center;
+  justify-self: center;
+  color: transparent;
+  background: linear-gradient(145deg, #fff, #78e8ff 48%, #c9ff62);
+  background-clip: text;
+  -webkit-background-clip: text;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 104px;
+  font-weight: 500;
+  line-height: 1;
+  text-shadow: 0 0 42px rgba(120,232,255,.16);
+}
+
+.pc-drop-card-front i {
+  position: absolute;
+  right: 20px;
+  bottom: 18px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  color: #171520;
+  background: #c9ff62;
+  display: grid;
+  place-items: center;
+}
+
+.pc-drop-card-index,
+.pc-drop-card-label {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+
+.pc-drop-card-index { color: rgba(255,255,255,.48); }
+.pc-drop-card-label { color: rgba(255,255,255,.34); }
+
+.pc-drop-card-back {
+  padding: 24px;
+  color: #171520;
+  background: linear-gradient(145deg, #c9ff62, #78e8ff 48%, #aa72ff);
+  opacity: 0;
+  transform: rotateY(82deg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  text-align: center;
+}
+
+.pc-drop-card-back .pc-drop-card-index { position: absolute; top: 20px; left: 22px; color: rgba(23,21,32,.52); }
+.pc-drop-card-back .pc-drop-card-label { color: rgba(23,21,32,.52); }
+.pc-drop-card-back b { font-size: 25px; font-weight: 950; }
+
+.pc-drop-rarity {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  z-index: 7;
+  display: flex;
+  gap: 8px;
+  transform: translateX(-50%);
+}
+
+.pc-drop-rarity span {
+  width: 34px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.12);
+}
+
+.pc-drop-coordinate {
+  position: absolute;
+  left: 7px;
+  bottom: 42px;
+  z-index: 4;
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 3px 9px;
+  color: rgba(255,255,255,.32);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 8px;
+  letter-spacing: .08em;
+}
+
+.pc-drop-coordinate b { color: rgba(120,232,255,.5); font-weight: 600; }
+
+.pc-drop-combo {
+  position: absolute;
+  right: 5px;
+  top: 194px;
+  z-index: 9;
+  padding: 7px 10px;
+  border: 1px solid rgba(201,255,98,.34);
+  border-radius: 999px;
+  color: #c9ff62;
+  opacity: 0;
+  background: rgba(17,16,28,.76);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  box-shadow: 0 0 22px rgba(201,255,98,.12);
+}
+
+.pc-drop-burst {
+  z-index: 2;
+  width: 310px;
+  height: 310px;
+  border-radius: 50%;
+  opacity: 0;
+  background:
+    repeating-conic-gradient(from 4deg, rgba(201,255,98,.8) 0 1.4deg, transparent 1.4deg 13deg),
+    radial-gradient(circle, rgba(255,255,255,.9), rgba(120,232,255,.34) 25%, transparent 66%);
+  mask-image: radial-gradient(circle, transparent 0 16%, #000 27%, transparent 72%);
+  -webkit-mask-image: radial-gradient(circle, transparent 0 16%, #000 27%, transparent 72%);
+}
+
+.pc-drop-shockwave {
+  z-index: 3;
+  width: 180px;
+  height: 180px;
+  border: 2px solid rgba(201,255,98,.82);
+  border-radius: 50%;
+  opacity: 0;
+  box-shadow: 0 0 34px rgba(201,255,98,.46);
+}
+
+.pc-box-open-card.is-opening .pc-drop-card {
+  animation: pcDropCardReveal 2.25s cubic-bezier(.2,.76,.18,1) both;
+}
+
+.pc-box-open-card.is-charging .pc-drop-card {
+  animation: pcDropChargeTension .13s ease-in-out infinite alternate;
+}
+
+.pc-box-open-card.is-charging .pc-drop-ring-one { animation-duration: 1.1s; }
+.pc-box-open-card.is-charging .pc-drop-ring-two { animation-duration: .82s; }
+.pc-box-open-card.is-charging .pc-drop-beam { opacity: .76; filter: blur(12px); }
+.pc-box-open-card.is-charging .pc-drop-photo { opacity: .52; filter: grayscale(.35) brightness(.82); }
+
+.pc-box-open-card.is-opening {
+  animation: pcDropStageKick 2.35s linear both;
+}
+
+.pc-box-open-card.is-opening .pc-drop-scene::after {
+  content: "";
+  position: absolute;
+  inset: -8%;
+  z-index: 2;
+  border-radius: 50%;
+  opacity: 0;
+  background: repeating-conic-gradient(from 0deg, transparent 0 5deg, rgba(120,232,255,.13) 5deg 6deg, transparent 6deg 13deg);
+  mask-image: radial-gradient(circle, transparent 0 34%, #000 36%, transparent 72%);
+  -webkit-mask-image: radial-gradient(circle, transparent 0 34%, #000 36%, transparent 72%);
+  animation: pcDropSpeedLines .78s ease-out 1.18s both;
+}
+
+.pc-box-open-card.is-opening .pc-drop-card-front {
+  animation: pcDropFrontExit .48s cubic-bezier(.55,.02,.68,.53) 1.02s forwards;
+}
+
+.pc-box-open-card.is-opening .pc-drop-card-back {
+  animation: pcDropBackEnter .62s cubic-bezier(.16,1,.3,1) 1.22s forwards;
+}
+
+.pc-box-open-card.is-opening .pc-drop-card-face::before { animation: pcDropSheen 1.5s ease .18s both; }
+.pc-box-open-card.is-opening .pc-drop-beam { animation: pcDropBeam 2.2s ease both; }
+.pc-box-open-card.is-opening .pc-drop-ring-one { animation-duration: 1.7s; }
+.pc-box-open-card.is-opening .pc-drop-ring-two { animation-duration: 1.25s; }
+.pc-box-open-card.is-opening .pc-drop-photo-one { animation: pcDropPhotoSignal 1.78s ease .05s both; }
+.pc-box-open-card.is-opening .pc-drop-photo-two { animation: pcDropPhotoSignal 1.78s ease .2s both; }
+.pc-box-open-card.is-opening .pc-drop-photo-three { animation: pcDropPhotoSignal 1.78s ease .34s both; }
+.pc-box-open-card.is-opening .pc-drop-scan-line { animation: pcDropScan 1.42s cubic-bezier(.2,.8,.2,1) .16s both; }
+.pc-box-open-card.is-opening .pc-drop-burst { animation: pcDropBurst .8s ease-out 1.35s forwards; }
+.pc-box-open-card.is-opening .pc-drop-shockwave { animation: pcDropShockwave .72s ease-out 1.4s forwards; }
+.pc-box-open-card.is-opening .pc-drop-combo { animation: pcDropCombo .48s cubic-bezier(.16,1,.3,1) 1.5s forwards; }
+.pc-box-open-card.is-opening .pc-drop-rarity span:nth-child(1) { animation: pcDropRarity .25s ease .25s forwards; }
+.pc-box-open-card.is-opening .pc-drop-rarity span:nth-child(2) { animation: pcDropRarity .25s ease .52s forwards; }
+.pc-box-open-card.is-opening .pc-drop-rarity span:nth-child(3) { animation: pcDropRarity .25s ease .8s forwards; }
+.pc-box-open-card.is-opening .pc-drop-rarity span:nth-child(4) { animation: pcDropRarityFinal .4s ease 1.08s forwards; }
+
+@keyframes pcDropCardIdle {
+  0%,100% { transform: rotateY(-8deg) rotateX(3deg) translateY(5px); }
+  50% { transform: rotateY(-5deg) rotateX(2deg) translateY(-7px); }
+}
+
+@keyframes pcChargeButtonPulse { from { transform: scale(1); box-shadow: 0 0 0 rgba(201,255,98,0); } to { transform: scale(1.018); box-shadow: 0 0 28px rgba(201,255,98,.24); } }
+@keyframes pcDropChargeTension { from { transform: rotateZ(-.7deg) scale(1.015); filter: brightness(1.04); } to { transform: rotateZ(.7deg) scale(1.035); filter: brightness(1.18); } }
+@keyframes pcDropStageKick { 0%,43%,58%,100% { transform: translate(0); } 46% { transform: translate(-7px,2px); } 49% { transform: translate(8px,-3px); } 52% { transform: translate(-5px,-1px); } 55% { transform: translate(3px,1px); } }
+@keyframes pcDropSpeedLines { 0% { opacity: 0; transform: scale(.6) rotate(-8deg); } 35% { opacity: 1; } 100% { opacity: 0; transform: scale(1.45) rotate(12deg); } }
+@keyframes pcDropCombo { from { opacity: 0; transform: translateX(18px) scale(.72); } to { opacity: 1; transform: translateX(0) scale(1); } }
+
+@keyframes pcDropCardReveal {
+  0% { opacity: 0; transform: rotateY(-18deg) rotateX(8deg) translateY(36px) scale(.78); }
+  16% { opacity: 1; transform: rotateY(-8deg) rotateX(3deg) translateY(0) scale(1); }
+  30% { transform: rotateY(-11deg) rotateZ(-2deg) scale(1.02); }
+  38% { transform: rotateY(-3deg) rotateZ(2deg) scale(1.035); }
+  48% { transform: rotateY(-6deg) rotateZ(0) scale(1.04); filter: brightness(1); }
+  64% { transform: rotateY(0) rotateX(0) translateY(-8px) scale(1.1); filter: brightness(1.24); }
+  82% { transform: rotateY(0) translateY(-12px) scale(1.04); filter: brightness(1.05); }
+  100% { transform: rotateY(0) translateY(-20px) scale(1.02); }
+}
+
+@keyframes pcDropFrontExit { from { opacity: 1; transform: rotateY(0); } to { opacity: 0; transform: rotateY(-82deg) scale(.96); } }
+@keyframes pcDropBackEnter { from { opacity: 0; transform: rotateY(82deg) scale(.96); } to { opacity: 1; transform: rotateY(0) scale(1); } }
+@keyframes pcDropSheen { from { transform: translateX(-65%); } to { transform: translateX(80%); } }
+@keyframes pcDropBeam { 0% { opacity: .12; transform: translate(-50%,-50%) scaleX(.5); } 62% { opacity: .9; transform: translate(-50%,-50%) scaleX(1.2); } 100% { opacity: .25; transform: translate(-50%,-50%) scaleX(.72); } }
+@keyframes pcDropPhotoSignal { 0% { opacity: 0; transform: translateY(22px) rotate(var(--photo-r)) scale(.66); filter: grayscale(1) blur(3px) brightness(.54); } 30%,68% { opacity: .86; transform: translateY(0) rotate(var(--photo-r)) scale(1); filter: grayscale(.12) blur(0) brightness(.94); } 100% { opacity: .12; transform: translateY(-15px) rotate(var(--photo-r)) scale(.9); filter: grayscale(.8) blur(2px) brightness(.7); } }
+@keyframes pcDropScan { 0% { top: 17%; opacity: 0; } 18% { opacity: 1; } 82% { opacity: .9; } 100% { top: 78%; opacity: 0; } }
+@keyframes pcDropRing { to { transform: translate(-50%,-50%) rotate(347deg); } }
+@keyframes pcDropRingReverse { to { transform: translate(-50%,-50%) rotate(-338deg); } }
+@keyframes pcDropBurst { 0% { opacity: 0; transform: translate(-50%,-50%) scale(.3) rotate(-8deg); } 24% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%,-50%) scale(1.8) rotate(15deg); } }
+@keyframes pcDropShockwave { 0% { opacity: 0; transform: translate(-50%,-50%) scale(.4); } 22% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%,-50%) scale(2.25); } }
+@keyframes pcDropRarity { to { background: linear-gradient(90deg,#7867ff,#78e8ff); box-shadow: 0 0 12px rgba(120,232,255,.4); } }
+@keyframes pcDropRarityFinal { 0% { transform: scaleX(.3); } 70% { transform: scaleX(1.12); background: #c9ff62; box-shadow: 0 0 18px rgba(201,255,98,.76); } 100% { transform: scaleX(1); background: #c9ff62; box-shadow: 0 0 13px rgba(201,255,98,.56); } }
+
 @media (max-width: 899px) {
   .pc-box-open-content {
     padding: 28px 22px 48px;
@@ -1712,6 +2313,37 @@ const pcBoxOpenCss = `
     width: 100%;
     height: 280px;
   }
+
+  .pc-drop-scene {
+    width: 300px;
+    height: 276px;
+  }
+
+  .pc-drop-card {
+    width: 156px;
+    height: 218px;
+  }
+
+  .pc-drop-card-face { border-radius: 21px; }
+  .pc-drop-card-front { padding: 16px; }
+  .pc-drop-card-front strong { font-size: 72px; }
+  .pc-drop-card-front i { right: 14px; bottom: 13px; width: 31px; height: 31px; }
+  .pc-drop-card-back { padding: 17px; gap: 9px; }
+  .pc-drop-card-back b { font-size: 18px; }
+  .pc-drop-card-back svg { width: 38px; height: 38px; }
+  .pc-drop-ring-one { width: 286px; height: 88px; }
+  .pc-drop-ring-two { width: 232px; height: 72px; }
+  .pc-drop-ring-three { width: 176px; height: 176px; }
+  .pc-drop-beam { width: 150px; height: 270px; }
+  .pc-drop-coordinate { display: none; }
+  .pc-drop-rarity { bottom: 3px; }
+  .pc-drop-rarity span { width: 24px; }
+  .pc-drop-photo { width: 78px; height: 52px; border-radius: 10px; }
+  .pc-drop-photo-one { left: 2px; top: 55px; }
+  .pc-drop-photo-two { right: 0; top: 42px; }
+  .pc-drop-photo-three { right: 5px; bottom: 42px; }
+  .pc-drop-scan-line { width: 170px; }
+  .pc-box-open-copy h1.ant-typography { white-space: normal; }
 
   .pc-loot-scene {
     width: 300px;
@@ -1838,6 +2470,8 @@ const pcBoxResultCss = `
   padding: 44px 0 72px;
   animation: pcBoxResultEnter 420ms cubic-bezier(.22, 1, .36, 1) both;
 }
+
+.pc-box-print-sheet { display: none; }
 
 .pc-box-result-empty {
   width: min(calc(100% - 32px), 520px);
@@ -2110,16 +2744,265 @@ const pcBoxResultCss = `
   }
 }
 
+@page { size: A4 portrait; margin: 0; }
+
 @media print {
+  html,
+  body,
+  #root {
+    width: 210mm !important;
+    height: 297mm !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #fff !important;
+  }
+
   .pc-experience-shell-header,
-  .pc-box-result-toolbar,
-  .pc-box-result-reset {
+  .pc-box-screen-content {
     display: none !important;
   }
 
+  .pc-experience-shell,
+  .pc-experience-shell-content,
+  .pc-box-open-page,
   .pc-box-result {
-    width: 100%;
-    padding: 0;
+    width: 210mm !important;
+    height: 297mm !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
   }
+
+  .pc-box-print-sheet {
+    width: 210mm;
+    height: 297mm;
+    padding: 9mm 11mm 8mm;
+    box-sizing: border-box;
+    color: #171522;
+    background: #f8f7fc;
+    display: grid !important;
+    grid-template-rows: 10mm 55mm 18mm minmax(0, 1fr) 10mm;
+    gap: 4mm;
+    font-family: "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+    page-break-inside: avoid;
+  }
+
+  .pc-print-header {
+    border-bottom: .35mm solid rgba(31,25,68,.15);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .pc-print-header > div { display: flex; align-items: baseline; gap: 3mm; }
+  .pc-print-header strong { font-size: 14pt; font-weight: 950; }
+  .pc-print-header span,
+  .pc-print-header p {
+    margin: 0;
+    color: #7565f6;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 7pt;
+    font-weight: 800;
+    letter-spacing: .12em;
+  }
+
+  .pc-print-hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: 5mm;
+    background: #211b44;
+  }
+
+  .pc-print-hero img,
+  .pc-print-hero-shade {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .pc-print-hero img { object-fit: cover; object-position: center 52%; }
+  .pc-print-hero-shade { background: linear-gradient(90deg, rgba(20,16,46,.9), rgba(20,16,46,.5) 56%, rgba(20,16,46,.12)); }
+  .pc-print-hero-copy {
+    position: relative;
+    z-index: 2;
+    width: 68%;
+    height: 100%;
+    padding: 7mm;
+    box-sizing: border-box;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+
+  .pc-print-hero-copy > span {
+    width: fit-content;
+    margin-bottom: 2.2mm;
+    padding: 1.2mm 2.4mm;
+    border-radius: 99mm;
+    background: #c9ff62;
+    color: #171522;
+    font-size: 7.2pt;
+    font-weight: 900;
+  }
+
+  .pc-print-hero h1 { margin: 0; font-size: 25pt; line-height: 1.1; letter-spacing: -.035em; }
+  .pc-print-hero p { margin: 2.2mm 0 0; color: rgba(255,255,255,.84); font-size: 9pt; line-height: 1.45; }
+
+  .pc-print-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2.5mm;
+  }
+
+  .pc-print-stats > div {
+    padding: 2.5mm 3mm;
+    border: .3mm solid rgba(31,25,68,.1);
+    border-radius: 3mm;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1mm;
+  }
+
+  .pc-print-stats small { color: #8b8598; font-size: 6.8pt; }
+  .pc-print-stats strong { color: #332b69; font-size: 10.5pt; }
+
+  .pc-print-grid {
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 1.16fr .84fr;
+    gap: 4mm;
+  }
+
+  .pc-print-main-column,
+  .pc-print-side-column {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3.2mm;
+  }
+
+  .pc-print-main-column .pc-print-reasons { flex: .8; }
+  .pc-print-main-column .pc-print-route { flex: 1.2; }
+  .pc-print-side-column .pc-print-place { flex: 1.25; }
+  .pc-print-side-column .pc-print-reminder { flex: .72; }
+  .pc-print-side-column .pc-print-checklist { flex: 1; }
+
+  .pc-print-block {
+    min-height: 0;
+    overflow: hidden;
+    padding: 3.6mm;
+    border: .3mm solid rgba(31,25,68,.1);
+    border-radius: 3.5mm;
+    background: #fff;
+    box-sizing: border-box;
+    break-inside: avoid;
+  }
+
+  .pc-print-block-title {
+    margin-bottom: 2.6mm;
+    display: flex;
+    align-items: center;
+    gap: 2mm;
+  }
+
+  .pc-print-block-title > span {
+    width: 6mm;
+    height: 6mm;
+    border-radius: 50%;
+    color: #171522;
+    background: #c9ff62;
+    display: grid;
+    place-items: center;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 6.5pt;
+    font-weight: 900;
+  }
+
+  .pc-print-block-title h2 { margin: 0; flex: 1; font-size: 11pt; }
+  .pc-print-block-title small { color: #928ca0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 6pt; letter-spacing: .08em; }
+
+  .pc-print-reasons ul,
+  .pc-print-reminder ul,
+  .pc-print-route ol { margin: 0; padding: 0; list-style: none; }
+
+  .pc-print-reasons li {
+    margin-bottom: 2.2mm;
+    display: grid;
+    grid-template-columns: 5mm 1fr;
+    gap: 1.8mm;
+    color: #4e495b;
+    font-size: 8pt;
+    line-height: 1.42;
+  }
+
+  .pc-print-reasons li i {
+    width: 4mm;
+    height: 4mm;
+    border-radius: 50%;
+    color: #fff;
+    background: #7565f6;
+    display: grid;
+    place-items: center;
+    font-size: 6pt;
+    font-style: normal;
+  }
+
+  .pc-print-route ol { display: grid; gap: 2mm; }
+  .pc-print-route li {
+    min-height: 15mm;
+    padding: 2.4mm;
+    border-radius: 2.5mm;
+    background: #f5f3fb;
+    display: grid;
+    grid-template-columns: 8mm 1fr;
+    align-items: center;
+    gap: 2.5mm;
+  }
+
+  .pc-print-route li > b { color: #7565f6; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9pt; }
+  .pc-print-route li strong { font-size: 8.2pt; }
+  .pc-print-route li p { margin: .7mm 0 0; color: #706a7c; font-size: 7.2pt; line-height: 1.35; }
+
+  .pc-print-place > p {
+    max-height: 22mm;
+    margin: 0 0 2.5mm;
+    overflow: hidden;
+    color: #625d6d;
+    font-size: 7.4pt;
+    line-height: 1.42;
+  }
+
+  .pc-print-place dl { margin: 0; display: grid; gap: 1.7mm; }
+  .pc-print-place dl > div { display: grid; grid-template-columns: 13mm 1fr; gap: 2mm; font-size: 7.2pt; line-height: 1.35; }
+  .pc-print-place dt { color: #96909e; }
+  .pc-print-place dd { margin: 0; color: #302b3c; font-weight: 700; }
+
+  .pc-print-reminder ul { display: grid; gap: 1.8mm; }
+  .pc-print-reminder li { padding-left: 3mm; color: #5e586a; font-size: 7.4pt; line-height: 1.35; position: relative; }
+  .pc-print-reminder li::before { content: ""; position: absolute; left: 0; top: 1.5mm; width: 1.3mm; height: 1.3mm; border-radius: 50%; background: #78e8ff; }
+
+  .pc-print-checklist > div:last-child { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1.7mm 2mm; }
+  .pc-print-checklist > div:last-child span { color: #5f596b; font-size: 7pt; line-height: 1.35; }
+
+  .pc-print-footer {
+    border-top: .35mm solid rgba(31,25,68,.13);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4mm;
+  }
+
+  .pc-print-footer > div { display: flex; gap: 1.5mm; }
+  .pc-print-footer span { padding: 1mm 2.2mm; border-radius: 99mm; color: #5546c0; background: #ece9ff; font-size: 6.5pt; font-weight: 800; }
+  .pc-print-footer p { margin: 0; color: #878190; font-size: 6.7pt; }
 }
 `;

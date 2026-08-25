@@ -1,7 +1,13 @@
 import { Platform } from 'react-native';
 
 import { getAuthToken } from '@/lib/auth-storage';
-import { resolveApiMediaUrl } from '@/services/api';
+import { isLocalDemoMode, resolveApiMediaUrl } from '@/services/api';
+import {
+  demoAttractions,
+  demoDestinationProfiles,
+  demoDestinations,
+  demoTravelTags,
+} from '@/services/demo-data';
 import type {
   AiRecommendParams,
   Attraction,
@@ -23,6 +29,20 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || platformDefault;
 class TravelConnectionError extends Error {
   constructor() {
     super('无法连接服务器，请稍后重试');
+  }
+}
+
+async function withTravelDemoFallback<T>(
+  request: () => Promise<T>,
+  fallback: () => T | Promise<T>,
+) {
+  if (isLocalDemoMode()) return await fallback();
+
+  try {
+    return await request();
+  } catch (reason) {
+    if (!(reason instanceof TravelConnectionError)) throw reason;
+    return await fallback();
   }
 }
 
@@ -78,12 +98,18 @@ function normalizeRecommendResponse(response: RecommendResponse): RecommendRespo
 }
 
 export async function getTravelTags() {
-  return await travelRequest<TravelTag[]>('/travel/tags', undefined, false);
+  return await withTravelDemoFallback(
+    () => travelRequest<TravelTag[]>('/travel/tags', undefined, false),
+    () => demoTravelTags,
+  );
 }
 
 export async function getDestinations(hot?: boolean) {
   const q = hot ? '?hot=true' : '';
-  const destinations = await travelRequest<Destination[]>(`/destinations${q}`, undefined, false);
+  const destinations = await withTravelDemoFallback(
+    () => travelRequest<Destination[]>(`/destinations${q}`, undefined, false),
+    () => hot ? demoDestinations.filter((item) => item.isHot) : demoDestinations,
+  );
   return destinations.map(normalizeDestination);
 }
 
@@ -97,7 +123,26 @@ function splitDetailValues(value: unknown): string[] {
 }
 
 export async function getDestinationDetail(id: number): Promise<DestinationDetail> {
-  const item = await travelRequest<Record<string, unknown>>(`/destinations/${id}`, undefined, false);
+  const item = await withTravelDemoFallback(
+    () => travelRequest<Record<string, unknown>>(`/destinations/${id}`, undefined, false),
+    () => {
+      const destination = demoDestinations.find((candidate) => candidate.id === id) ?? demoDestinations[0];
+      const profile = demoDestinationProfiles[destination.name];
+      return {
+        ...destination,
+        description: destination.summary,
+        city: destination.name,
+        category: profile?.category ?? '城市探索',
+        type: '周末目的地',
+        tags: profile?.tags ?? ['真实地点', '周末可玩', '轻松出发'],
+        suitableDays: '当天 / 1-2 天',
+        bestSeason: profile?.bestSeason ?? '四季皆宜',
+        tips: ['优先选择天气舒适的时段', '出发前确认场地开放信息'],
+        difficulty: profile?.difficulty ?? 2,
+        relaxation: profile?.relaxation ?? 5,
+      };
+    },
+  );
   const rawCityId = item.cityId ?? item.city_id;
   const rawHot = item.isHot ?? item.is_hot;
   const coverImageUri =
@@ -146,7 +191,15 @@ export async function getAttractions(destinationId?: number, limit?: number) {
   if (destinationId) params.set('destinationId', String(destinationId));
   if (typeof limit === 'number' && Number.isFinite(limit)) params.set('limit', String(limit));
   const q = params.toString();
-  const attractions = await travelRequest<Attraction[]>(`/attractions${q ? `?${q}` : ''}`, undefined, false);
+  const attractions = await withTravelDemoFallback(
+    () => travelRequest<Attraction[]>(`/attractions${q ? `?${q}` : ''}`, undefined, false),
+    () => {
+      const filtered = destinationId
+        ? demoAttractions.filter((item) => item.destinationId === destinationId)
+        : demoAttractions;
+      return typeof limit === 'number' ? filtered.slice(0, limit) : filtered;
+    },
+  );
   return attractions.map(normalizeAttraction);
 }
 

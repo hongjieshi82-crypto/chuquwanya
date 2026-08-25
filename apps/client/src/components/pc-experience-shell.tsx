@@ -45,6 +45,56 @@ const pcExperienceShellCss = `
   backdrop-filter: blur(18px);
 }
 
+.pc-experience-shell-header.pc-experience-shell-header-home,
+.pc-experience-shell-header.pc-experience-shell-header-blindbox {
+  color: #fff;
+  background: rgba(17, 16, 28, .92);
+  border-bottom-color: rgba(255, 255, 255, .08);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .18);
+  backdrop-filter: blur(22px);
+}
+
+.pc-experience-shell-header-home .pc-experience-shell-brand,
+.pc-experience-shell-header-home .pc-top-nav-menu.ant-menu-horizontal > .ant-menu-item,
+.pc-experience-shell-header-blindbox .pc-experience-shell-brand,
+.pc-experience-shell-header-blindbox .pc-top-nav-menu.ant-menu-horizontal > .ant-menu-item {
+  color: rgba(255, 255, 255, .72);
+}
+
+.pc-experience-shell-header-home .pc-experience-shell-brand,
+.pc-experience-shell-header-blindbox .pc-experience-shell-brand {
+  color: #fff;
+}
+
+.pc-experience-shell-header-home .pc-top-nav-menu.ant-menu-horizontal > .ant-menu-item:hover,
+.pc-experience-shell-header-home .pc-top-nav-menu.ant-menu-horizontal > .ant-menu-item-selected,
+.pc-experience-shell-header-blindbox .pc-top-nav-menu.ant-menu-horizontal > .ant-menu-item:hover,
+.pc-experience-shell-header-blindbox .pc-top-nav-menu.ant-menu-horizontal > .ant-menu-item-selected {
+  color: #c9ff62;
+}
+
+.pc-experience-shell-header-home .pc-top-nav-menu.ant-menu-horizontal > .ant-menu-item:hover::after,
+.pc-experience-shell-header-home .pc-top-nav-menu.ant-menu-horizontal > .ant-menu-item-selected::after,
+.pc-experience-shell-header-blindbox .pc-top-nav-menu.ant-menu-horizontal > .ant-menu-item:hover::after,
+.pc-experience-shell-header-blindbox .pc-top-nav-menu.ant-menu-horizontal > .ant-menu-item-selected::after {
+  border-bottom-color: #c9ff62;
+}
+
+.pc-experience-shell-header-home .pc-experience-shell-cta.ant-btn,
+.pc-experience-shell-header-blindbox .pc-experience-shell-cta.ant-btn {
+  border-color: #c9ff62;
+  color: #171520;
+  background: #c9ff62;
+  box-shadow: 0 10px 28px rgba(201, 255, 98, .18);
+}
+
+.pc-experience-shell-header-home .pc-experience-shell-cta.ant-btn:hover,
+.pc-experience-shell-header-blindbox .pc-experience-shell-cta.ant-btn:hover {
+  border-color: #dcff9b;
+  color: #171520;
+  background: #dcff9b;
+}
+
 .pc-experience-shell-header.pc-experience-shell-header-destinations {
   background: #fff;
   border-bottom-color: transparent;
@@ -183,6 +233,7 @@ export function PcExperienceShell({ children }: PropsWithChildren) {
   const [hasScrolled, setHasScrolled] = useState(false);
   const isBlindBoxRoute =
     pathname === '/box/config' || pathname === '/box/open' || pathname === '/box/result';
+  const isHomeRoute = pathname === '/pc';
   const isDestinationRoute = pathname === '/destinations';
   const isTripsRoute = pathname === '/trips';
 
@@ -240,7 +291,7 @@ export function PcExperienceShell({ children }: PropsWithChildren) {
         <style>{pcExperienceShellCss}</style>
         <PcTopNav
           className={
-            `pc-experience-shell-header${isDestinationRoute ? ' pc-experience-shell-header-destinations' : ''}${
+            `pc-experience-shell-header${isHomeRoute ? ' pc-experience-shell-header-home' : ''}${isBlindBoxRoute ? ' pc-experience-shell-header-blindbox' : ''}${isDestinationRoute ? ' pc-experience-shell-header-destinations' : ''}${
               isDestinationRoute && hasScrolled ? ' is-scrolled' : ''
             }`
           }

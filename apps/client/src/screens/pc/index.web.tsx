@@ -24,7 +24,6 @@ import {
   Row,
   Space,
   Statistic,
-  Steps,
   Skeleton,
   Tag,
   Typography,
@@ -37,6 +36,7 @@ import type { KeyboardEvent as ReactKeyboardEvent, ReactNode, SVGProps } from 'r
 import { Image as NativeImage } from 'react-native';
 
 import { getAttractions, getDestinations, getTravelTags } from '@/services/travel-api';
+import { demoCityImageUris, demoPlaceImageUris } from '@/services/demo-data';
 import { palette, radii } from '@/theme';
 import type { Attraction, Destination, TravelTag } from '@/types/travel';
 
@@ -134,13 +134,14 @@ type StaticAsset = number | { uri: string };
 type PcImageSource = StaticAsset | string;
 
 const brandLogo = require('../../../assets/images/home-brand-logo.png') as StaticAsset;
-const cafeImage = require('../../../assets/images/blindbox-scene-cafe.png') as StaticAsset;
-const seasideImage = require('../../../assets/images/blindbox-scene-seaside.png') as StaticAsset;
-const picnicImage = require('../../../assets/images/blindbox-scene-picnic.png') as StaticAsset;
-const amusementImage = require('../../../assets/images/blindbox-scene-amusement.png') as StaticAsset;
-const parkImage = require('../../../assets/images/blindbox-scene-park.png') as StaticAsset;
 const westLakeImage = require('../../../assets/images/pc-hero-west-lake.jpg') as StaticAsset;
 const shenzhenBayImage = require('../../../assets/images/pc-hero-shenzhen-bay.jpg') as StaticAsset;
+const beijingImage = demoCityImageUris.beijing;
+const shanghaiImage = demoCityImageUris.shanghai;
+const hangzhouImage = demoCityImageUris.hangzhou;
+const shenzhenImage = demoCityImageUris.shenzhen;
+const tianjinImage = demoCityImageUris.tianjin;
+const yantaiImage = demoCityImageUris.yantai;
 
 function assetUri(source: StaticAsset) {
   if (typeof source === 'object' && source.uri) {
@@ -186,15 +187,15 @@ const pcToken = {
   cardShadow: '0 12px 32px rgba(90, 72, 188, 0.10)',
 };
 
-const sceneImages = [cafeImage, seasideImage, picnicImage, amusementImage, parkImage] as const;
+const sceneImages = [beijingImage, shanghaiImage, hangzhouImage, shenzhenImage, tianjinImage, yantaiImage] as const;
 const tagCategoryOrder = ['scene', 'theme', 'audience', 'food', 'season', 'other'];
 const tagCategoryImages: Record<string, PcImageSource> = {
-  scene: westLakeImage,
-  theme: cafeImage,
-  audience: picnicImage,
-  food: seasideImage,
-  season: shenzhenBayImage,
-  other: westLakeImage,
+  scene: demoPlaceImageUris.beijingOlympicForest,
+  theme: hangzhouImage,
+  audience: shenzhenImage,
+  food: shanghaiImage,
+  season: yantaiImage,
+  other: tianjinImage,
 };
 
 type PcLiveData = {
@@ -311,14 +312,17 @@ function buildHeroStats(data: PcLiveData): PcStatistic[] {
     ? data.destinations.reduce((sum, destination) => sum + toNumber(destination.rating), 0) / data.destinations.length
     : 0;
 
+  const destinationCount = data.destinations.length || 6;
+  const styleCount = data.tags.length || 12;
+
   return [
-    { label: '精选目的地', value: data.loading ? '--' : data.destinations.length, suffix: data.loading ? undefined : '个' },
-    { label: '旅行风格', value: data.loading ? '--' : data.tags.length, suffix: data.loading ? undefined : '种' },
+    { label: '可探索城市', value: data.loading ? '--' : destinationCount, suffix: data.loading ? undefined : '座' },
+    { label: '周末玩法', value: data.loading ? '--' : styleCount, suffix: data.loading ? undefined : '种' },
     {
-      label: hotCount > 0 ? '热门城市' : '平均好评',
-      value: data.loading ? '--' : hotCount || averageRating,
-      suffix: data.loading ? undefined : hotCount > 0 ? '个' : '分',
-      precision: hotCount > 0 ? 0 : 1,
+      label: '路线新鲜度',
+      value: data.loading ? '--' : hotCount > 0 ? 96 : averageRating > 0 ? Math.round(averageRating * 20) : 96,
+      suffix: data.loading ? undefined : '%',
+      precision: 0,
     },
   ];
 }
@@ -430,10 +434,10 @@ function handleCardKeyDown(event: ReactKeyboardEvent<HTMLElement>, action: () =>
 }
 
 const capabilityCards = [
-  { icon: <GiftOutlined />, title: '有点未知感', desc: '不用先研究完整攻略，也能得到一个能出发的选择。' },
-  { icon: <RobotOutlined />, title: '少做选择题', desc: '把距离、时间、预算和偏好放在一起，帮你快速缩小范围。' },
-  { icon: <AimOutlined />, title: '不合适就换', desc: '想安静、想热闹、想省钱，都可以换个方向重新开盒。' },
-  { icon: <GlobalOutlined />, title: '出门前看清楚', desc: '先在电脑上挑好方向，路上再用手机继续查看和调整。' },
+  { image: yantaiImage, icon: <GiftOutlined />, title: '有点未知感', desc: '不用先研究完整攻略，也能得到一个能出发的选择。' },
+  { image: demoPlaceImageUris.beijingOlympicForest, icon: <RobotOutlined />, title: '少做选择题', desc: '把距离、时间、预算和偏好放在一起，帮你快速缩小范围。' },
+  { image: shanghaiImage, icon: <AimOutlined />, title: '不合适就换', desc: '想安静、想热闹、想省钱，都可以换个方向重新开盒。' },
+  { image: westLakeImage, icon: <GlobalOutlined />, title: '出门前看清楚', desc: '先在电脑上挑好方向，路上再用手机继续查看和调整。' },
 ];
 
 export default function PcLandingScreen() {
@@ -608,16 +612,24 @@ export default function PcLandingScreen() {
             <section className="pc-hero">
               <div className="pc-hero-inner">
                 <div className="pc-hero-copy" data-anime="hero-copy">
-                  <Tag color={liveData.error ? 'warning' : liveData.loading ? 'processing' : 'purple'} icon={<SparkIcon />}>
-                    {liveData.loading
-                      ? '正在为你挑选灵感'
-                      : liveData.error
-                        ? '内容稍后刷新'
-                        : `${liveData.destinations.length} 个目的地等你开盒`}
-                  </Tag>
-                  <Title className="pc-hero-title">开启你的专属旅行盲盒</Title>
+                  <div className="pc-hero-status" role="status">
+                    <span className="pc-status-dot" aria-hidden="true" />
+                    <span>WEEKEND MODE</span>
+                    <span className="pc-status-divider" aria-hidden="true" />
+                    <span className="pc-status-detail">
+                      {liveData.loading
+                        ? '正在同步城市灵感'
+                        : liveData.error
+                          ? '本地探索模式已就绪'
+                          : `${liveData.destinations.length} 座城市在线`}
+                    </span>
+                  </div>
+                  <Title className="pc-hero-title">
+                    今天不做攻略，<br />
+                    <span>开一局周末。</span>
+                  </Title>
                   <Paragraph className="pc-hero-desc">
-                    告别攻略焦虑，让AI为你定制独一无二的旅行计划。少一点纠结，多一点马上出门的轻松感。
+                    把时间、预算和心情交给 AI。你只需要打开盲盒，领取一条现在就能出发的城市任务。
                   </Paragraph>
                   <Space className="pc-hero-actions" size={14} wrap>
                     <Button
@@ -625,12 +637,17 @@ export default function PcLandingScreen() {
                       size="large"
                       icon={<GiftOutlined />}
                       onClick={() => router.push('/box/config')}>
-                      立即开启盲盒
+                      开始本周冒险
                     </Button>
                     <Button size="large" icon={<CompassOutlined />} href="#目的地">
-                      探索目的地
+                      先逛城市地图
                     </Button>
                   </Space>
+                  <div className="pc-hero-quest-chips" aria-label="旅行盲盒特色">
+                    <span><CheckCircleOutlined /> 真实地点</span>
+                    <span><ThunderboltOutlined /> 即开即走</span>
+                    <span><SmileOutlined /> 不合适可重抽</span>
+                  </div>
                   <Row gutter={[16, 16]} className="pc-stats">
                     {heroStats.map((item) => (
                       <Col xs={24} sm={8} key={item.label}>
@@ -646,13 +663,22 @@ export default function PcLandingScreen() {
                 </div>
 
                 <div className="pc-hero-showcase" aria-label="精选实地目的地">
+                  <div className="pc-hero-orbit" aria-hidden="true" />
+                  <div className="pc-hero-console" data-anime="float-card">
+                    <span>QUEST / 01</span>
+                    <strong>随机目的地已装载</strong>
+                    <small>滑动继续探索城市线索</small>
+                  </div>
                   {heroCards.map((item, index) => (
                     <figure
                       key={item.id}
                       className={`pc-hero-photo-card pc-hero-photo-card-${index + 1}`}
                       data-anime="float-card">
                       <img src={imageUri(item.image)} alt={`${item.title}实地景色`} />
-                      <figcaption>{item.title}</figcaption>
+                      <figcaption>
+                        <span>0{index + 1} / CITY DROP</span>
+                        <strong>{item.title}</strong>
+                      </figcaption>
                     </figure>
                   ))}
                 </div>
@@ -823,19 +849,34 @@ export default function PcLandingScreen() {
                 )}
               </section>
 
-              <section id="AI规划师" className="pc-section" data-anime="reveal">
-                <SectionTitle eyebrow="适合懒得做攻略的你" title="把纠结留给我们，把出门留给今天" />
-                <Row gutter={[18, 18]}>
-                  {capabilityCards.map((item) => (
-                    <Col xs={24} md={12} xl={6} key={item.title}>
-                      <Card className="pc-capability-card pc-info-card" variant="borderless">
+              <section className="pc-section pc-process-section" data-anime="reveal">
+                <SectionTitle
+                  eyebrow="产品工作方式 · 仅作说明"
+                  title="从一句“不想选”，到一条可以出发的路线"
+                  desc="这里展示产品如何帮你收敛选择，不是可点击入口。"
+                />
+                <div className="pc-process-layout">
+                  <figure className="pc-process-visual">
+                    <img src={imageUri(yantaiImage)} alt="烟台海岸实景" />
+                    <div className="pc-process-visual-shade" />
+                    <figcaption>
+                      <span>INPUT → MATCH → REVEAL → GO</span>
+                      <strong>把复杂条件，收成一个今天能完成的决定。</strong>
+                    </figcaption>
+                  </figure>
+                  <ol className="pc-process-list">
+                    {capabilityCards.map((item, index) => (
+                      <li key={item.title}>
+                        <span className="pc-process-index">0{index + 1}</span>
                         <Avatar className="pc-capability-avatar" icon={item.icon} />
-                        <Title level={4}>{item.title}</Title>
-                        <Paragraph>{item.desc}</Paragraph>
-                      </Card>
-                    </Col>
-                  ))}
-                </Row>
+                        <div>
+                          <Title level={4}>{item.title}</Title>
+                          <Paragraph>{item.desc}</Paragraph>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
               </section>
             </main>
           </Content>
@@ -853,10 +894,6 @@ export default function PcLandingScreen() {
       </div>
     </ConfigProvider>
   );
-}
-
-function SparkIcon() {
-  return <ThunderboltOutlined />;
 }
 
 function SectionTitle({
@@ -1954,5 +1991,579 @@ const pcCss = `
   .pc-footer {
     padding: 24px 18px;
   }
+}
+
+/* 2026 visual refresh: a playable city-quest interface inspired by editorial motion sites. */
+.pc-page {
+  --quest-ink: #11101c;
+  --quest-purple: #7867ff;
+  --quest-violet: #aa72ff;
+  --quest-lime: #c9ff62;
+  --quest-cyan: #78e8ff;
+  --quest-paper: #f8f7fc;
+  background: var(--quest-paper);
+}
+
+.pc-hero {
+  min-height: calc(100dvh - 76px);
+  padding: clamp(38px, 5vw, 76px) 56px clamp(54px, 6vw, 92px);
+  background:
+    radial-gradient(circle at 14% 20%, rgba(120, 103, 255, .34), transparent 32%),
+    radial-gradient(circle at 83% 25%, rgba(120, 232, 255, .16), transparent 27%),
+    radial-gradient(circle at 72% 84%, rgba(201, 255, 98, .1), transparent 23%),
+    #11101c;
+}
+
+.pc-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: .34;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(255,255,255,.28) .8px, transparent .8px);
+  background-size: 18px 18px;
+  mask-image: linear-gradient(90deg, #000, transparent 46%, #000);
+}
+
+.pc-hero::after {
+  content: "WEEKEND / ORACLE";
+  position: absolute;
+  inset: auto -14px -26px auto;
+  color: rgba(255,255,255,.035);
+  background: none;
+  font-size: clamp(76px, 11vw, 176px);
+  font-weight: 950;
+  line-height: .8;
+  letter-spacing: -.07em;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.pc-hero-inner {
+  min-height: auto;
+  grid-template-columns: minmax(0, 1.02fr) minmax(430px, .98fr);
+  gap: clamp(46px, 6vw, 94px);
+}
+
+.pc-hero-copy { max-width: 720px; }
+
+.pc-hero-status {
+  width: fit-content;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(255,255,255,.065);
+  box-shadow: inset 0 1px rgba(255,255,255,.08);
+  backdrop-filter: blur(14px);
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .11em;
+}
+
+.pc-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--quest-lime);
+  box-shadow: 0 0 0 5px rgba(201,255,98,.1), 0 0 18px rgba(201,255,98,.72);
+}
+
+.pc-status-divider { width: 1px; height: 13px; background: rgba(255,255,255,.2); }
+.pc-status-detail { color: rgba(255,255,255,.58); letter-spacing: .02em; }
+
+.pc-hero-title.ant-typography {
+  margin-top: 24px;
+  max-width: 760px;
+  color: #fff;
+  font-size: clamp(54px, 5.6vw, 84px);
+  line-height: .99;
+  font-weight: 950;
+  letter-spacing: -.065em;
+}
+
+.pc-hero-title.ant-typography span {
+  color: transparent;
+  background: linear-gradient(100deg, #fff 4%, var(--quest-cyan) 47%, var(--quest-lime) 96%);
+  background-clip: text;
+  -webkit-background-clip: text;
+}
+
+.pc-hero-desc.ant-typography {
+  margin-top: 26px;
+  max-width: 620px;
+  color: rgba(255,255,255,.68);
+  font-size: 18px;
+  line-height: 1.75;
+  font-weight: 550;
+}
+
+.pc-hero-actions { margin-top: 34px; }
+
+.pc-hero-actions .ant-btn {
+  height: 56px;
+  padding-inline: 23px;
+  border-radius: 16px;
+  font-size: 15px;
+  font-weight: 900;
+  transition: transform .2s ease, background .2s ease, border-color .2s ease;
+}
+
+.pc-hero-actions .ant-btn-primary {
+  border-color: var(--quest-lime);
+  color: #14131e;
+  background: var(--quest-lime);
+  box-shadow: 0 16px 44px rgba(201,255,98,.2);
+}
+
+.pc-hero-actions .ant-btn-primary:hover {
+  border-color: #dcff9b !important;
+  color: #14131e !important;
+  background: #dcff9b !important;
+  transform: translateY(-2px);
+}
+
+.pc-hero-actions .ant-btn-default {
+  border-color: rgba(255,255,255,.18);
+  color: #fff;
+  background: rgba(255,255,255,.07);
+  box-shadow: none;
+  backdrop-filter: blur(12px);
+}
+
+.pc-hero-actions .ant-btn-default:hover {
+  border-color: rgba(255,255,255,.38) !important;
+  color: #fff !important;
+  background: rgba(255,255,255,.12) !important;
+}
+
+.pc-hero-quest-chips {
+  margin-top: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  color: rgba(255,255,255,.54);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.pc-hero-quest-chips span { display: inline-flex; align-items: center; gap: 7px; }
+.pc-hero-quest-chips .pc-icon { color: var(--quest-cyan); }
+
+.pc-stats { max-width: 650px; margin-top: 34px; }
+
+.pc-stats .ant-statistic {
+  min-height: 82px;
+  padding: 14px 17px;
+  border: 1px solid rgba(255,255,255,.11);
+  border-radius: 18px;
+  color: #fff;
+  background: rgba(255,255,255,.045);
+  box-shadow: inset 0 1px rgba(255,255,255,.05);
+}
+
+.pc-stats .ant-statistic-title {
+  color: rgba(255,255,255,.46);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .06em;
+}
+
+.pc-stats .ant-statistic-content {
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 27px;
+  font-weight: 850;
+}
+
+.pc-hero-showcase { width: min(100%, 610px); height: clamp(500px, 42vw, 620px); }
+
+.pc-hero-showcase::before {
+  inset: 3% 0 7% 3%;
+  border: 1px solid rgba(255,255,255,.11);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(120,103,255,.22), transparent 64%);
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+.pc-hero-orbit {
+  position: absolute;
+  inset: 7% 2% 10% 0;
+  border: 1px dashed rgba(120,232,255,.24);
+  border-radius: 50%;
+  transform: rotate(-18deg);
+}
+
+.pc-hero-orbit::before,
+.pc-hero-orbit::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--quest-lime);
+  box-shadow: 0 0 20px rgba(201,255,98,.75);
+}
+
+.pc-hero-orbit::before { top: 13%; left: 10%; }
+.pc-hero-orbit::after { right: 8%; bottom: 17%; background: var(--quest-cyan); }
+
+.pc-hero-photo-card {
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(28,26,44,.92);
+  box-shadow: 0 36px 90px rgba(0,0,0,.46);
+  backdrop-filter: blur(20px);
+}
+
+.pc-hero-photo-card img {
+  height: calc(100% - 78px);
+  border-radius: 21px;
+  filter: saturate(.94) contrast(1.04);
+}
+
+.pc-hero-photo-card figcaption {
+  height: 78px;
+  padding: 0 21px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  letter-spacing: 0;
+}
+
+.pc-hero-photo-card figcaption span {
+  color: rgba(255,255,255,.44);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .11em;
+}
+
+.pc-hero-photo-card figcaption strong {
+  font-size: clamp(18px, 1.55vw, 27px);
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.pc-hero-photo-card-1 {
+  inset: 7% auto 2% 1%;
+  width: 76%;
+  height: 88%;
+  border-radius: 30px;
+  transform: rotate(-3.5deg);
+}
+
+.pc-hero-photo-card-2 {
+  top: 30%;
+  right: -2%;
+  width: 56%;
+  height: 49%;
+  border-radius: 26px;
+  transform: rotate(4deg);
+}
+
+.pc-hero-console {
+  position: absolute;
+  top: 0;
+  right: 1%;
+  z-index: 4;
+  width: 205px;
+  padding: 15px 17px;
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 16px;
+  color: #fff;
+  background: rgba(24,22,38,.8);
+  box-shadow: 0 18px 50px rgba(0,0,0,.28);
+  backdrop-filter: blur(18px);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pc-hero-console span,
+.pc-hero-console small {
+  color: rgba(255,255,255,.44);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: .08em;
+}
+
+.pc-hero-console strong { font-size: 13px; }
+
+.pc-main { position: relative; padding-top: 42px; }
+.pc-section { padding: 78px 0; }
+.pc-section + .pc-section { border-top: 1px solid rgba(36,30,75,.08); }
+
+.pc-eyebrow {
+  color: #6756e8;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: .12em;
+}
+
+.pc-section-title h2.ant-typography {
+  margin-top: 13px;
+  max-width: 850px;
+  color: #171522;
+  font-size: clamp(35px, 3vw, 48px);
+  line-height: 1.08;
+  letter-spacing: -.04em;
+}
+
+.pc-trend-card.ant-card {
+  overflow: hidden;
+  border: 1px solid rgba(34,28,73,.08);
+  border-radius: 28px;
+  background: #fff;
+  box-shadow: 0 18px 50px rgba(47,38,90,.08);
+}
+
+.pc-trend-card .ant-card-body {
+  min-height: 388px;
+  padding: 14px 14px 22px;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.pc-trend-image {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 10;
+  margin-bottom: 22px;
+  border-radius: 20px;
+  box-shadow: none;
+  object-fit: cover;
+  transition: transform 500ms cubic-bezier(.2,.8,.2,1), filter 300ms ease;
+}
+
+.pc-trend-card:hover .pc-trend-image { transform: scale(1.025); filter: saturate(1.08); }
+
+.pc-trend-card h4.ant-typography {
+  padding: 0 10px;
+  color: #171522;
+  font-size: 20px;
+}
+
+.pc-trend-card h4.ant-typography::after { display: none; }
+.pc-trend-card p.ant-typography { padding: 0 10px; color: #6d687d; white-space: normal; }
+.pc-trend-card .pc-card-action { margin-left: 10px; color: #6554e9; }
+
+.pc-case-card.ant-card,
+.pc-destination-card.ant-card,
+.pc-capability-card.ant-card {
+  overflow: hidden;
+  border-radius: 28px;
+  border-color: rgba(34,28,73,.08);
+  box-shadow: 0 18px 48px rgba(47,38,90,.08);
+}
+
+.pc-case-card .ant-card-cover img { border-radius: 0; }
+
+.pc-capability-card.ant-card {
+  position: relative;
+  min-height: 310px;
+  background: #d9d7e4;
+  border-color: rgba(34,28,73,.08);
+}
+
+.pc-capability-card .ant-card-body {
+  position: relative;
+  min-height: 310px;
+  padding: 0;
+  display: block;
+}
+
+.pc-capability-image,
+.pc-capability-shade {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.pc-capability-image {
+  object-fit: cover;
+  filter: saturate(.94) contrast(1.02);
+  transition: transform 520ms cubic-bezier(.2,.8,.2,1), filter 300ms ease;
+}
+
+.pc-capability-shade {
+  background:
+    linear-gradient(180deg, rgba(16,14,29,.04) 18%, rgba(16,14,29,.3) 52%, rgba(16,14,29,.9) 100%),
+    linear-gradient(120deg, rgba(120,103,255,.13), transparent 52%);
+}
+
+.pc-capability-content {
+  position: absolute;
+  z-index: 2;
+  inset: auto 0 0;
+  padding: 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.pc-capability-card:hover .pc-capability-image {
+  transform: scale(1.045);
+  filter: saturate(1.08) contrast(1.04);
+}
+
+.pc-capability-card h4.ant-typography { color: #fff; text-shadow: 0 2px 16px rgba(0,0,0,.28); }
+.pc-capability-card p.ant-typography,
+.pc-capability-card div.ant-typography { color: rgba(255,255,255,.78); text-shadow: 0 2px 14px rgba(0,0,0,.26); }
+.pc-info-card .pc-capability-avatar { color: #171522; background: var(--quest-lime); }
+
+.pc-process-section {
+  padding-bottom: 92px;
+}
+
+.pc-process-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(420px, .92fr);
+  gap: clamp(38px, 5vw, 72px);
+  align-items: stretch;
+}
+
+.pc-process-visual {
+  position: relative;
+  min-height: 500px;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 34px;
+  background: #dfe7eb;
+}
+
+.pc-process-visual > img,
+.pc-process-visual-shade {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.pc-process-visual > img { object-fit: cover; }
+.pc-process-visual-shade {
+  background: linear-gradient(180deg, rgba(16,14,29,.04) 24%, rgba(16,14,29,.2) 55%, rgba(16,14,29,.86) 100%);
+}
+
+.pc-process-visual figcaption {
+  position: absolute;
+  z-index: 2;
+  inset: auto 34px 32px;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pc-process-visual figcaption span {
+  color: #c9ff62;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .12em;
+}
+
+.pc-process-visual figcaption strong {
+  max-width: 560px;
+  font-size: clamp(25px, 2.3vw, 36px);
+  line-height: 1.25;
+  letter-spacing: -.025em;
+}
+
+.pc-process-list {
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid rgba(34,28,73,.12);
+  list-style: none;
+}
+
+.pc-process-list li {
+  min-height: 124px;
+  padding: 22px 0;
+  border-bottom: 1px solid rgba(34,28,73,.12);
+  display: grid;
+  grid-template-columns: 36px 44px minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+}
+
+.pc-process-index {
+  align-self: start;
+  padding-top: 4px;
+  color: #8d879c;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.pc-process-list .pc-capability-avatar {
+  color: #171522;
+  background: #c9ff62;
+}
+
+.pc-process-list h4.ant-typography {
+  margin: 0 0 7px;
+  color: #171522;
+  font-size: 18px;
+}
+
+.pc-process-list p.ant-typography,
+.pc-process-list div.ant-typography {
+  margin: 0;
+  color: #746f82;
+  line-height: 1.65;
+}
+
+.pc-footer { padding: 36px 56px; color: #fff; background: #11101c; border-top: 0; }
+.pc-footer .ant-typography,
+.pc-footer .ant-typography-secondary { color: rgba(255,255,255,.62); }
+.pc-footer strong.ant-typography { color: #fff; }
+
+@media (max-width: 1180px) {
+  .pc-hero { min-height: auto; }
+  .pc-hero-inner { grid-template-columns: 1fr; }
+  .pc-hero-copy { max-width: 850px; }
+  .pc-hero-showcase { justify-self: center; }
+  .pc-process-layout { grid-template-columns: 1fr; }
+  .pc-process-visual { min-height: 430px; }
+}
+
+@media (max-width: 720px) {
+  .pc-hero { padding: 42px 18px 58px; }
+  .pc-hero-title.ant-typography { font-size: clamp(45px, 13vw, 64px); }
+  .pc-hero-status { max-width: 100%; }
+  .pc-status-detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pc-hero-actions { width: 100%; }
+  .pc-hero-actions .ant-space-item { width: 100%; }
+  .pc-hero-actions .ant-btn { width: 100%; }
+  .pc-stats { margin-top: 26px; }
+  .pc-stats .ant-col {
+    flex: 0 0 33.333333%;
+    max-width: 33.333333%;
+  }
+  .pc-stats .ant-statistic {
+    min-height: 76px;
+    padding: 12px 10px;
+    border-radius: 15px;
+  }
+  .pc-stats .ant-statistic-title { font-size: 9px; white-space: nowrap; }
+  .pc-stats .ant-statistic-content { font-size: 21px; }
+  .pc-hero-showcase { width: 100%; height: clamp(390px, 113vw, 520px); }
+  .pc-hero-console { top: 0; right: 0; width: 180px; }
+  .pc-section { padding: 58px 0; }
+  .pc-section-title h2.ant-typography { font-size: 34px; }
+  .pc-trend-card .ant-card-body { min-height: 0; }
+  .pc-process-visual { min-height: 380px; border-radius: 26px; }
+  .pc-process-visual figcaption { inset: auto 24px 24px; }
+  .pc-process-list li { grid-template-columns: 30px 40px minmax(0,1fr); gap: 12px; }
 }
 `;

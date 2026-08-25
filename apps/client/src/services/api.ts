@@ -1,6 +1,14 @@
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { clearAuthToken, getAuthToken, setAuthToken } from '@/lib/auth-storage';
+import {
+  createDemoDraw,
+  createDemoGuest,
+  demoActivities,
+  demoCities,
+  demoPreferenceOptions,
+} from '@/services/demo-data';
 import type {
   Activity,
   ApiResponse,
@@ -57,6 +65,13 @@ const API_REQUEST_TIMEOUT_MS = 4_000;
 const AUTH_CODE_REQUEST_TIMEOUT_MS = 20_000;
 // 抽取链路可能包含向量召回、坐标补全和 AI 决策，冷启动时明显长于普通接口。
 const DRAW_REQUEST_TIMEOUT_MS = 45_000;
+const DEMO_TODOS_KEY = '@weekend-oracle/demo-todos';
+let localDemoModeEnabled = false;
+let demoCurrentDraw: DrawResult | null = null;
+
+export function isLocalDemoMode() {
+  return localDemoModeEnabled;
+}
 
 export function resolveApiMediaUrl(value: string | null | undefined) {
   if (!value) {
@@ -72,7 +87,12 @@ export function resolveApiMediaUrl(value: string | null | undefined) {
     trimmed.startsWith('http://') ||
     trimmed.startsWith('https://') ||
     trimmed.startsWith('data:') ||
-    trimmed.startsWith('blob:')
+    trimmed.startsWith('blob:') ||
+    trimmed.startsWith('file:') ||
+    trimmed.startsWith('content:') ||
+    trimmed.startsWith('asset:') ||
+    trimmed.startsWith('/_expo/') ||
+    trimmed.startsWith('/assets/?unstable_path=')
   ) {
     return trimmed;
   }
@@ -136,6 +156,41 @@ class ApiConnectionError extends Error {
   constructor(message = '无法连接服务器，请稍后重试') {
     super(message);
   }
+}
+
+async function withDemoFallback<T>(
+  request: () => Promise<T>,
+  fallback: () => T | Promise<T>,
+) {
+  if (localDemoModeEnabled) return await fallback();
+
+  try {
+    return await request();
+  } catch (reason) {
+    if (!(reason instanceof ApiConnectionError)) throw reason;
+    localDemoModeEnabled = true;
+    return await fallback();
+  }
+}
+
+async function readDemoTodos() {
+  const raw = await AsyncStorage.getItem(DEMO_TODOS_KEY);
+  if (!raw) return [] as Todo[];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? (parsed as Todo[]) : [];
+  } catch {
+    return [] as Todo[];
+  }
+}
+
+async function writeDemoTodos(items: Todo[]) {
+  await AsyncStorage.setItem(DEMO_TODOS_KEY, JSON.stringify(items));
+}
+
+function todayDateString() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
 export class ApiHttpError extends Error {
@@ -300,18 +355,27 @@ export function getApiRetryAfterSeconds(reason: unknown) {
 }
 
 export async function getCities() {
-  return await apiRequest<City[]>('/cities', undefined, false);
+  return await withDemoFallback(
+    () => apiRequest<City[]>('/cities', undefined, false),
+    () => demoCities,
+  );
 }
 
 export async function getPreferenceOptions() {
-  return await apiRequest<PreferenceOptions>('/preferences/options', undefined, false);
+  return await withDemoFallback(
+    () => apiRequest<PreferenceOptions>('/preferences/options', undefined, false),
+    () => demoPreferenceOptions,
+  );
 }
 
 export async function createGuestSession(deviceId: string) {
-  return await apiRequest<GuestUser>('/session/guest', {
-    method: 'POST',
-    body: JSON.stringify({ deviceId }),
-  }, false);
+  return await withDemoFallback(
+    () => apiRequest<GuestUser>('/session/guest', {
+      method: 'POST',
+      body: JSON.stringify({ deviceId }),
+    }, false),
+    () => createDemoGuest(deviceId),
+  );
 }
 
 export async function requestAuthCode(email: string) {
@@ -478,12 +542,18 @@ export async function submitTodoCompletion(input: {
 }
 
 export async function createOrContinueDraw(input: DrawRequest) {
-  const result = await apiRequest<DrawResult>('/draws', {
-    method: 'POST',
-    body: JSON.stringify(normalizeDrawRequestForApi(input)),
-  }, {
-    timeoutMs: DRAW_REQUEST_TIMEOUT_MS,
-  });
+  const result = await withDemoFallback(
+    () => apiRequest<DrawResult>('/draws', {
+      method: 'POST',
+      body: JSON.stringify(normalizeDrawRequestForApi(input)),
+    }, {
+      timeoutMs: DRAW_REQUEST_TIMEOUT_MS,
+    }),
+    () => {
+      demoCurrentDraw = createDemoDraw(input);
+      return demoCurrentDraw;
+    },
+  );
   return {
     ...result,
     activity: normalizeActivity(result.activity),
@@ -491,12 +561,18 @@ export async function createOrContinueDraw(input: DrawRequest) {
 }
 
 export async function rerollDraw(input: DrawRequest & { drawSessionId: string }) {
-  const result = await apiRequest<DrawResult>('/draws', {
-    method: 'POST',
-    body: JSON.stringify(input),
-  }, {
-    timeoutMs: DRAW_REQUEST_TIMEOUT_MS,
-  });
+  const result = await withDemoFallback(
+    () => apiRequest<DrawResult>('/draws', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }, {
+      timeoutMs: DRAW_REQUEST_TIMEOUT_MS,
+    }),
+    () => {
+      demoCurrentDraw = createDemoDraw(input, demoCurrentDraw);
+      return demoCurrentDraw;
+    },
+  );
   return {
     ...result,
     activity: normalizeActivity(result.activity),
@@ -703,13 +779,46 @@ export async function addTodo(input: {
   drawSessionId?: string | null;
   scheduledDate?: string;
 }) {
-  return await apiRequest<{ id: number; alreadyExists: boolean }>('/todos', {
-    method: 'POST',
-    body: JSON.stringify({
-      ...input,
-      drawSessionId: normalizeDrawSessionIdForApi(input.drawSessionId),
+  return await withDemoFallback(
+    () => apiRequest<{ id: number; alreadyExists: boolean }>('/todos', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...input,
+        drawSessionId: normalizeDrawSessionIdForApi(input.drawSessionId),
+      }),
     }),
-  });
+    async () => {
+      const items = await readDemoTodos();
+      const existing = items.find((item) => item.activityId === input.activityId && item.status !== 'cancelled');
+      if (existing) return { id: existing.id, alreadyExists: true };
+
+      const activity = demoActivities.find((item) => item.id === input.activityId) ?? demoCurrentDraw?.activity;
+      if (!activity) throw new Error('没有找到可以加入行程的玩法');
+      const nextId = items.reduce((max, item) => Math.max(max, item.id), 0) + 1;
+      const now = new Date().toISOString();
+      const todo: Todo = {
+        id: nextId,
+        status: 'pending',
+        startedAt: null,
+        completedAt: null,
+        cancelledAt: null,
+        createdAt: now,
+        scheduledDate: input.scheduledDate ?? todayDateString(),
+        activityId: activity.id,
+        title: activity.title,
+        summary: activity.summary,
+        durationMinutes: activity.durationMinutes,
+        budgetYuan: activity.budgetYuan,
+        district: activity.district,
+        address: activity.address,
+        navigationUrl: activity.navigationUrl,
+        accentColor: activity.accentColor,
+        cityName: activity.cityName,
+      };
+      await writeDemoTodos([todo, ...items]);
+      return { id: todo.id, alreadyExists: false };
+    },
+  );
 }
 
 export async function getTodos(userId?: number) {
@@ -717,26 +826,55 @@ export async function getTodos(userId?: number) {
     ? `?${new URLSearchParams({ userId: String(userId) }).toString()}`
     : '';
 
-  return await apiRequest<Todo[]>(`/todos${query}`);
+  return await withDemoFallback(
+    () => apiRequest<Todo[]>(`/todos${query}`),
+    readDemoTodos,
+  );
 }
 
 export async function updateTodoStatus(todoId: number, status: TodoStatus, userId?: number) {
-  return await apiRequest<{ id: number; status: TodoStatus }>(`/todos/${todoId}/status`, {
-    method: 'PATCH',
-    body: JSON.stringify({
-      status,
-      ...(typeof userId === 'number' && Number.isFinite(userId) ? { userId } : {}),
+  return await withDemoFallback(
+    () => apiRequest<{ id: number; status: TodoStatus }>(`/todos/${todoId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        status,
+        ...(typeof userId === 'number' && Number.isFinite(userId) ? { userId } : {}),
+      }),
     }),
-  });
+    async () => {
+      const items = await readDemoTodos();
+      const now = new Date().toISOString();
+      const next = items.map((item) => item.id === todoId ? {
+        ...item,
+        status,
+        startedAt: status === 'in_progress' ? now : item.startedAt,
+        completedAt: status === 'completed' ? now : item.completedAt,
+        cancelledAt: status === 'cancelled' ? now : item.cancelledAt,
+      } : item);
+      await writeDemoTodos(next);
+      return { id: todoId, status };
+    },
+  );
 }
 
 export async function startTodo(todoId: number, userId?: number) {
-  return await apiRequest<{ id: number; status: TodoStatus }>(`/todos/${todoId}/start`, {
-    method: 'PATCH',
-    body: JSON.stringify(
-      typeof userId === 'number' && Number.isFinite(userId) ? { userId } : {},
-    ),
-  });
+  return await withDemoFallback(
+    () => apiRequest<{ id: number; status: TodoStatus }>(`/todos/${todoId}/start`, {
+      method: 'PATCH',
+      body: JSON.stringify(
+        typeof userId === 'number' && Number.isFinite(userId) ? { userId } : {},
+      ),
+    }),
+    async () => {
+      const items = await readDemoTodos();
+      const startedAt = new Date().toISOString();
+      const next = items.map((item) => item.id === todoId
+        ? { ...item, status: 'in_progress' as const, startedAt }
+        : item);
+      await writeDemoTodos(next);
+      return { id: todoId, status: 'in_progress' as const };
+    },
+  );
 }
 
 export async function getMyDiaries(
