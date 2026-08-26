@@ -939,12 +939,10 @@
         case 'Home': go(0); break;
         case 'End': go(total-1); break;
         case 'f': case 'F': fullscreen(); break;
-        case 's': case 'S': openPresenterWindow(); break;
-        case 'n': case 'N': toggleNotes(); break;
         case 'o': case 'O': toggleOverview(); break;
         case 't': case 'T': cycleTheme(); break;
         case 'a': case 'A': cycleAnim(); break;
-        case 'Escape': toggleOverview(false); toggleNotes(false); break;
+        case 'Escape': toggleOverview(false); break;
       }
     });
 
