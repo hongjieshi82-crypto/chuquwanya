@@ -9,15 +9,15 @@ module.exports = ({ config }) => {
     [
       'expo-image-picker',
       {
-        photosPermission: '允许粗来玩鸭！访问相册，用于上传账号头像。',
-        cameraPermission: '允许粗来玩鸭！访问相机，用于拍摄账号头像。',
+        photosPermission: '允许粗去玩鸭！访问相册，用于上传账号头像。',
+        cameraPermission: '允许粗去玩鸭！访问相机，用于拍摄账号头像。',
         microphonePermission: false,
       },
     ],
     [
       'expo-location',
       {
-        locationWhenInUsePermission: '允许粗来玩鸭！获取当前位置，用于按出发地推荐附近玩法。',
+        locationWhenInUsePermission: '允许粗去玩鸭！获取当前位置，用于按出发地推荐附近玩法。',
       },
     ],
   ];

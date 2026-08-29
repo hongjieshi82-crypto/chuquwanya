@@ -64,7 +64,7 @@ function buildShareUrl(activityId: number) {
 }
 
 function buildShareMessage(activity: Activity, shareUrl: string) {
-  return `我在粗来玩鸭！发现一个出门方案：${activity.title}\n${activity.summary}\n${shareUrl}`;
+  return `我在粗去玩鸭！发现一个出门方案：${activity.title}\n${activity.summary}\n${shareUrl}`;
 }
 
 export default function ActivityDetailScreen() {

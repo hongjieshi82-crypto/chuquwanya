@@ -888,7 +888,7 @@ export default function PcLandingScreen() {
             <Flex justify="space-between" align="center" wrap="wrap" gap={16}>
               <Space>
                 <img src={assetUri(brandLogo)} alt="" />
-                <Text strong>粗来玩鸭！ · 旅行盲盒规划师</Text>
+                <Text strong>粗去玩鸭！ · 旅行盲盒规划师</Text>
               </Space>
               <Text type="secondary">开盲盒，去未知，玩出新鲜感，攻略全省心</Text>
             </Flex>

@@ -205,7 +205,7 @@ export function getPcTopNavItems({
 
 export function PcTopNav({
   brandHref = '/pc',
-  brandAriaLabel = '粗来玩鸭！首页',
+  brandAriaLabel = '粗去玩鸭！首页',
   className,
   brandClassName,
   menuClassName,
@@ -315,8 +315,8 @@ export function PcTopNav({
       <style>{pcTopNavCss}</style>
       <Header className={className} data-anime={dataAnime} style={style}>
         <Link className={brandClassName} href={brandHref as Href} aria-label={brandAriaLabel}>
-          <img src={assetUri(brandLogo)} alt="粗来玩鸭！" />
-          <span>粗来玩鸭！</span>
+          <img src={assetUri(brandLogo)} alt="粗去玩鸭！" />
+          <span>粗去玩鸭！</span>
         </Link>
 
         <Menu

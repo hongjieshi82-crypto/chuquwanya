@@ -87,7 +87,7 @@ export default function TodosScreen() {
         contentContainerStyle={[styles.page, { paddingBottom: tabBarHeight + spacing.lg }]}
         showsVerticalScrollIndicator={false}>
         <View style={styles.topbar}>
-          <Image accessibilityLabel="粗来玩鸭！" resizeMode="contain" source={BRAND_LOGO} style={styles.logoImage} />
+          <Image accessibilityLabel="粗去玩鸭！" resizeMode="contain" source={BRAND_LOGO} style={styles.logoImage} />
         </View>
 
         {error ? <ErrorCard message={error} onRetry={loadTodos} /> : null}

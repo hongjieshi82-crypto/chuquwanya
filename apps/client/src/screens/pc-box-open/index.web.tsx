@@ -313,7 +313,7 @@ async function createTripPoster(
 
   context.fillStyle = '#7565f6';
   context.font = '900 25px PingFang SC, Microsoft YaHei, sans-serif';
-  context.fillText('粗来玩鸭！  ·  WEEKEND ORACLE', 70, 1540);
+  context.fillText('粗去玩鸭！  ·  WEEKEND ORACLE', 70, 1540);
   context.fillStyle = '#8c8598';
   context.font = '500 22px PingFang SC, Microsoft YaHei, sans-serif';
   context.fillText('少做选择题，只给一个现在能出发的方案。', 590, 1540);
@@ -784,7 +784,7 @@ function PcBoxResult({
   ].filter((reason): reason is string => Boolean(reason));
 
   const shareResult = async () => {
-    const text = `我在粗来玩鸭！抽到了「${activity.title}」，${activity.summary}`;
+    const text = `我在粗去玩鸭！抽到了「${activity.title}」，${activity.summary}`;
 
     try {
       if (navigator.share) {
@@ -806,7 +806,7 @@ function PcBoxResult({
     setIsSavingPoster(true);
     try {
       const blob = await createTripPoster(activity, recommendation, recommendationReasons, activitySteps);
-      const fileName = `粗来玩鸭！-${activity.cityName}-${activity.title}.jpg`;
+      const fileName = `粗去玩鸭！-${activity.cityName}-${activity.title}.jpg`;
       const objectUrl = URL.createObjectURL(blob);
       if (isWechatMobile) {
         if (wechatPreview) {
@@ -1031,7 +1031,7 @@ function PcBoxPrintSheet({
     <section className="pc-box-print-sheet" aria-label="单页行程 PDF">
       <header className="pc-print-header">
         <div>
-          <strong>粗来玩鸭！</strong>
+          <strong>粗去玩鸭！</strong>
           <span>WEEKEND ORACLE</span>
         </div>
         <p>AI TRAVEL DROP · {activity.cityName.toUpperCase()}</p>

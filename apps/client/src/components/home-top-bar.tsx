@@ -111,7 +111,7 @@ export function HomeTopBar() {
     <View style={styles.nav} accessibilityLabel="首页顶部栏">
       <View style={styles.logoWrap}>
         <Image
-          accessibilityLabel="粗来玩鸭！"
+          accessibilityLabel="粗去玩鸭！"
           resizeMode="contain"
           source={BRAND_LOGO}
           style={styles.logoImage}
