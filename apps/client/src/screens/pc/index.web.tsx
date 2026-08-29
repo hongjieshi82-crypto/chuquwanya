@@ -317,7 +317,7 @@ function buildHeroStats(data: PcLiveData): PcStatistic[] {
 
   return [
     { label: '可探索城市', value: data.loading ? '--' : destinationCount, suffix: data.loading ? undefined : '座' },
-    { label: '周末玩法', value: data.loading ? '--' : styleCount, suffix: data.loading ? undefined : '种' },
+    { label: '玩法标签', value: data.loading ? '--' : styleCount, suffix: data.loading ? undefined : '类' },
     {
       label: '路线新鲜度',
       value: data.loading ? '--' : hotCount > 0 ? 96 : averageRating > 0 ? Math.round(averageRating * 20) : 96,
