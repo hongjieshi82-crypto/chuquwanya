@@ -25,6 +25,8 @@ test("不限条件不会生成额外筛选", () => {
   assert.equal(result.sql.includes("JSON_CONTAINS(a.mood_tags, JSON_QUOTE(?))"), false);
   assert.equal(result.sql.includes("a.category = ?"), false);
   assert.equal(result.sql.includes("a.city_distance_km <= ?"), false);
+  assert.equal(result.sql.includes("a.content_status = 'published'"), true);
+  assert.equal(result.sql.includes("a.content_score >= 70"), true);
 });
 
 test("明确偏好会生成对应筛选", () => {
@@ -176,7 +178,7 @@ test("有真实出发地坐标时按坐标计算半径", () => {
   assert.deepEqual(result.values.slice(0, 3), [31.223, 121.445, 31.223]);
 });
 
-test("出发地显式城市与当前城市不一致时返回冲突提示", () => {
+test("出发城市与目的地不一致时仍锁定用户明确选择的目的地", () => {
   const cities = [
     { id: 1, name: "上海", code: "sh", province: "上海" },
     { id: 13, name: "北京", code: "bj", province: "北京" },
@@ -201,13 +203,8 @@ test("出发地显式城市与当前城市不一致时返回冲突提示", () =>
     cities,
   );
 
-  assert.equal(result.cityId, 13);
-  assert.deepEqual(result.cityMismatchHint, {
-    requestCityId: 1,
-    requestCityName: "上海",
-    detectedCityId: 13,
-    detectedCityName: "北京",
-  });
+  assert.equal(result.cityId, 1);
+  assert.equal(result.cityMismatchHint, undefined);
 });
 
 test("出发地与当前城市一致时不会返回冲突提示", () => {
@@ -239,7 +236,7 @@ test("出发地与当前城市一致时不会返回冲突提示", () => {
   assert.equal(result.cityMismatchHint, undefined);
 });
 
-test("全国范围在中度惊喜时会选择出发城市以外的目的地", () => {
+test("全国范围和惊喜程度都不能擅自更换目的地", () => {
   const cities = [
     { id: 1, name: "上海", code: "sh", province: "上海" },
     { id: 13, name: "北京", code: "bj", province: "北京" },
@@ -265,7 +262,7 @@ test("全国范围在中度惊喜时会选择出发城市以外的目的地", ()
     cities,
   );
 
-  assert.equal(result.cityId, 13);
+  assert.equal(result.cityId, 1);
   assert.equal(result.cityMismatchHint, undefined);
 });
 

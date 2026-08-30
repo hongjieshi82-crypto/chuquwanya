@@ -239,6 +239,84 @@ const baseActivities: Activity[] = [
     accentColor: '#C9FF62',
   },
   {
+    id: 1020,
+    cityId: 1,
+    cityName: '北京',
+    title: '在五道营胡同随机转三次弯',
+    summary: '不查攻略，用三次随机转弯遇见胡同里的北京日常。',
+    description: '从雍和宫附近进入五道营胡同，每到一个路口随机决定方向，最后选一家顺眼的小店休息。',
+    category: '城市漫游',
+    mood: '探索',
+    moodTags: ['胡同', '散步', '探索'],
+    environment: 'outdoor',
+    minPartySize: 1,
+    maxPartySize: 3,
+    durationMinutes: 120,
+    budgetYuan: 80,
+    distanceKm: 4,
+    district: '东城区',
+    address: '五道营胡同',
+    latitude: 39.9463,
+    longitude: 116.4177,
+    navigationUrl: 'https://uri.amap.com/search?keyword=北京五道营胡同',
+    coverImageUri: assetUri(beijingImage),
+    steps: ['从雍和宫一侧进入胡同', '连续完成三次随机转弯', '挑一家顺眼的小店休息'],
+    tips: ['注意礼让胡同居民', '不要进入私人院落'],
+    accentColor: '#78E8FF',
+  },
+  {
+    id: 1021,
+    cityId: 1,
+    cityName: '北京',
+    title: '去798只看一种颜色的作品',
+    summary: '给自己一个颜色限制，把逛展变成一场视觉搜集。',
+    description: '从798艺术区南门进入，只记录一种今天最有感觉的颜色，并在三件作品前停留。',
+    category: '文艺',
+    mood: '探索',
+    moodTags: ['展览', '艺术', '室内'],
+    environment: 'indoor',
+    minPartySize: 1,
+    maxPartySize: 4,
+    durationMinutes: 150,
+    budgetYuan: 100,
+    distanceKm: 9.6,
+    district: '朝阳区',
+    address: '798艺术区',
+    latitude: 39.9841,
+    longitude: 116.4956,
+    navigationUrl: 'https://uri.amap.com/search?keyword=北京798艺术区',
+    coverImageUri: assetUri(beijingImage),
+    steps: ['从南门进入园区', '选定一种今天的主题色', '在三件作品前分别停留五分钟'],
+    tips: ['部分展馆周一闭馆', '收费展览以现场信息为准'],
+    accentColor: '#AA72FF',
+  },
+  {
+    id: 1022,
+    cityId: 1,
+    cityName: '北京',
+    title: '去砖塔胡同找一本北京旧书',
+    summary: '沿老胡同慢走，再用一本书带走今天的城市记忆。',
+    description: '从砖塔胡同进入，在万松老人塔附近慢走，最后去周边书店挑一本与北京有关的旧书。',
+    category: '风景人文',
+    mood: '放松',
+    moodTags: ['胡同', '旧书', '人文'],
+    environment: 'either',
+    minPartySize: 1,
+    maxPartySize: 2,
+    durationMinutes: 120,
+    budgetYuan: 60,
+    distanceKm: 5.5,
+    district: '西城区',
+    address: '砖塔胡同',
+    latitude: 39.9232,
+    longitude: 116.3675,
+    navigationUrl: 'https://uri.amap.com/search?keyword=北京砖塔胡同',
+    coverImageUri: assetUri(beijingImage),
+    steps: ['从胡同东口开始慢走', '在万松老人塔附近停留', '去书店挑一本北京主题旧书'],
+    tips: ['胡同道路较窄注意车辆', '旧书价格以店内为准'],
+    accentColor: '#FFCF68',
+  },
+  {
     id: 1002,
     cityId: 2,
     cityName: '上海',
@@ -564,7 +642,27 @@ const additionalActivities: Activity[] = [
   }),
 ];
 
-export const demoActivities = [...baseActivities, ...additionalActivities];
+const originalDemoActivities = [...baseActivities, ...additionalActivities];
+
+function createActivityVariants(activity: Activity): Activity[] {
+  const place = activity.address || activity.district || activity.title;
+  const common = {
+    ...activity,
+    coverImageUri: activity.coverImageUri ?? null,
+  };
+  if (activity.environment === 'indoor') {
+    return [
+      { ...common, id: 20_000 + activity.id * 10 + 1, title: `在${place}只追一种颜色`, summary: '给自己一个颜色限制，把普通参观变成一场视觉搜集。', mood: '探索', moodTags: [...new Set([...activity.moodTags, '颜色挑战', '观察'])], steps: ['选定今天的主题色', '寻找三件符合颜色的细节', '离开前选出最喜欢的一件'], tips: [...activity.tips, '不使用闪光灯影响他人'] },
+      { ...common, id: 20_000 + activity.id * 10 + 2, title: `给${place}写三句观察`, summary: '不用写长游记，只记录三个真实看到的细节。', mood: '放松', moodTags: [...new Set([...activity.moodTags, '记录', '独处'])], steps: ['先完整走一遍空间', '挑三个想停留的细节', '分别写下一句观察'], tips: [...activity.tips, '尊重场馆拍摄规定'] },
+    ];
+  }
+  return [
+    { ...common, id: 20_000 + activity.id * 10 + 1, title: `在${place}完成五色收集`, summary: '不追打卡点，只收集今天在城市里遇见的五种颜色。', mood: '探索', moodTags: [...new Set([...activity.moodTags, '拍照', '颜色挑战'])], steps: ['从主入口开始慢走', '依次收集五种不同颜色', '用最喜欢的颜色结束路线'], tips: [...activity.tips, '拍摄时注意行人与隐私'] },
+    { ...common, id: 20_000 + activity.id * 10 + 2, title: `给${place}做一张声音地图`, summary: '暂时收起攻略，用三段声音记住一处真实地点。', mood: '放松', moodTags: [...new Set([...activity.moodTags, '声音地图', '独处'])], steps: ['安静走十分钟', '记录三种不同的环境声音', '在最舒服的位置停留十五分钟'], tips: [...activity.tips, '避免在安静区域外放声音'] },
+  ];
+}
+
+export const demoActivities = originalDemoActivities.flatMap((activity) => [activity, ...createActivityVariants(activity)]);
 
 export const demoAttractions: Attraction[] = demoActivities.map((item, index) => ({
   id: item.id,
@@ -605,11 +703,14 @@ export function createDemoDraw(
   input: DrawRequest,
   previous?: DrawResult | null,
 ): DrawResult {
-  const isNationwide = input.preferences.destinationScope === 'nationwide';
-  let candidates = isNationwide
-    ? demoActivities
-    : demoActivities.filter((activity) => activity.cityId === input.cityId);
-  if (!candidates.length) candidates = demoActivities;
+  const candidates = demoActivities.filter((activity) => activity.cityId === input.cityId);
+  if (!candidates.length) {
+    const selectedCity = demoCities.find((city) => city.id === input.cityId)?.name ?? '当前城市';
+    throw new Error(`${selectedCity}暂时没有符合条件的本地玩法，请调整条件或选择其他城市。`);
+  }
+  if (previous && candidates.length < 2) {
+    throw new Error('当前条件下暂时只有这一条玩法，没有新的结果可供重抽。');
+  }
 
   const previousIndex = previous
     ? candidates.findIndex((activity) => activity.id === previous.activity.id)

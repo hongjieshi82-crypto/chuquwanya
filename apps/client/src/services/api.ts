@@ -83,6 +83,16 @@ export function resolveApiMediaUrl(value: string | null | undefined) {
     return null;
   }
 
+  // API 与前端都使用 /assets 前缀；数据库中的这些目录明确由 API 静态服务提供。
+  if (
+    trimmed.startsWith('/assets/city-covers/') ||
+    trimmed.startsWith('/assets/place-covers/') ||
+    trimmed.startsWith('/assets/activity-covers/') ||
+    trimmed === '/assets/home-brand-logo.png'
+  ) {
+    return `${API_ORIGIN}${trimmed}`;
+  }
+
   const runtimePagesBasePath = typeof window !== 'undefined' && window.location.hostname.endsWith('github.io')
     ? `/${window.location.pathname.split('/').filter(Boolean)[0] ?? ''}`
     : '';

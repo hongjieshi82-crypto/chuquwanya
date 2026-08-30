@@ -94,3 +94,46 @@ test("PC 端旅游时间偏好不按分钟级时长做硬失败", () => {
 
   assert.equal(getHardFailure(preferences, candidate, runtime), null);
 });
+
+test("雨天会排除未确认雨天友好的户外活动", () => {
+  const candidate: CandidateCard = {
+    ...baseCandidate,
+    distance_source: "stored",
+    distance_km: 2,
+    rain_friendly: "no",
+  };
+  const runtime = buildRuntimeData([candidate], {
+    city: "上海",
+    condition: "中雨",
+    temperature: 24,
+    windLevel: 3,
+    humidity: 90,
+    risks: ["rain"],
+    observedAt: "2026-08-30 10:00:00",
+    source: "amap",
+  });
+
+  assert.equal(getHardFailure({ ...basePreferences, radiusKm: null }, candidate, runtime), "雨天不适合");
+});
+
+test("雨天仍允许已确认雨天友好的室内活动", () => {
+  const candidate: CandidateCard = {
+    ...baseCandidate,
+    environment: "indoor",
+    distance_source: "stored",
+    distance_km: 2,
+    rain_friendly: "yes",
+  };
+  const runtime = buildRuntimeData([candidate], {
+    city: "上海",
+    condition: "小雨",
+    temperature: 24,
+    windLevel: 2,
+    humidity: 88,
+    risks: ["rain"],
+    observedAt: "2026-08-30 10:00:00",
+    source: "amap",
+  });
+
+  assert.equal(getHardFailure({ ...basePreferences, radiusKm: null }, candidate, runtime), null);
+});

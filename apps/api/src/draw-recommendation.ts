@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { ActivityRow } from "./types.js";
 import { parseJsonArray } from "./types.js";
 import { llmService } from "./travel/ai/llm.service.js";
+import type { CityWeather } from "./weather.service.js";
 
 type DrawPreferences = {
   partySize: number;
@@ -50,6 +51,10 @@ export type CandidateCard = {
   mood: string;
   mood_tags: string[];
   environment: "indoor" | "outdoor" | "either";
+  rain_friendly?: "yes" | "no" | "unknown";
+  heat_sensitive?: "yes" | "no" | "unknown";
+  wind_sensitive?: "yes" | "no" | "unknown";
+  weather_notes?: string | null;
   min_party_size: number;
   max_party_size: number;
   duration_minutes: number;
@@ -137,6 +142,7 @@ export type DrawRecommendationDto = {
     budget: string;
     time: string;
     random: string;
+    weather: string;
   };
   display: {
     badge: string;
@@ -161,6 +167,7 @@ const decisionSchema = z.object({
     budget: z.string().min(1).max(160),
     time: z.string().min(1).max(160),
     random: z.string().min(1).max(160),
+    weather: z.string().min(1).max(160),
   }),
   display: z.object({
     badge: z.string().min(1).max(40),
@@ -192,12 +199,13 @@ const outputJsonSchema = {
     constraint_summary: {
       type: "object",
       additionalProperties: false,
-      required: ["distance", "budget", "time", "random"],
+      required: ["distance", "budget", "time", "random", "weather"],
       properties: {
         distance: { type: "string" },
         budget: { type: "string" },
         time: { type: "string" },
         random: { type: "string" },
+        weather: { type: "string" },
       },
     },
     display: {
@@ -246,6 +254,10 @@ function toCandidate(row: ActivityRow): CandidateCard {
     mood: row.mood,
     mood_tags: parseJsonArray(row.mood_tags),
     environment: row.environment,
+    rain_friendly: row.rain_friendly ?? "unknown",
+    heat_sensitive: row.heat_sensitive ?? "unknown",
+    wind_sensitive: row.wind_sensitive ?? "unknown",
+    weather_notes: row.weather_notes ?? null,
     min_party_size: Number(row.min_party_size),
     max_party_size: Number(row.max_party_size),
     duration_minutes: Number(row.duration_minutes),
@@ -341,7 +353,7 @@ function estimateOneWayMinutes(distanceKm: number) {
   return Math.max(8, Math.ceil(10 + distanceKm * 5));
 }
 
-function buildRuntimeData(candidateCards: CandidateCard[]) {
+function buildRuntimeData(candidateCards: CandidateCard[], weather: CityWeather | null = null) {
   const traffic_estimates: RuntimeCandidate[] = candidateCards.map((candidate) => {
     const estimated_one_way_minutes = estimateOneWayMinutes(candidate.distance_km);
     const estimated_round_trip_minutes = estimated_one_way_minutes * 2;
@@ -358,6 +370,7 @@ function buildRuntimeData(candidateCards: CandidateCard[]) {
   return {
     timezone: "Asia/Shanghai",
     current_time_iso: new Date().toISOString(),
+    weather,
     traffic_estimates,
     note:
       "本地 activities 表暂无营业时间字段，close_status=unknown 时只能按玩法时长约束+交通估算展示预期耗时，不做额外硬校验。",
@@ -384,6 +397,15 @@ function getHardFailure(
     candidate.environment !== preferences.environment
   ) {
     return "环境冲突";
+  }
+  if (runtime.weather?.risks.includes("rain") && candidate.rain_friendly !== "yes") {
+    return "雨天不适合";
+  }
+  if (runtime.weather?.risks.includes("wind") && candidate.wind_sensitive === "yes") {
+    return "大风不适合";
+  }
+  if (runtime.weather?.risks.includes("heat") && candidate.heat_sensitive === "yes") {
+    return "高温不适合";
   }
   if (preferences.radiusKm !== null && candidate.distance_source === "missing") {
     return "距离无法确认";
@@ -465,6 +487,12 @@ function buildNoResultSuggestion(preferences: DrawPreferences, candidates: Candi
       return "当前环境偏好与候选卡场景冲突，建议调整室内/户外偏好。";
     case "人数不匹配":
       return "没有适合当前人数的候选卡，建议调整人数。";
+    case "雨天不适合":
+      return "当前天气有雨，内容池里暂时没有已确认雨天友好的活动。";
+    case "大风不适合":
+      return "当前风力较大，海边、骑行、登高等活动已暂时排除。";
+    case "高温不适合":
+      return "当前处于高温天气，普通户外活动已暂时排除。";
     default:
       return "当前城市候选卡不足，建议换个城市或稍后再试。";
   }
@@ -513,6 +541,9 @@ async function buildFallbackRecommendation(
     : preferences.randomLevel >= 65
       ? `randomLevel=${preferences.randomLevel}%，在合格池内保留探索感。`
       : `randomLevel=${preferences.randomLevel}%，更偏向高匹配确定解。`;
+  const weatherText = runtime.weather
+    ? `已核验${runtime.weather.city}${runtime.weather.condition}${runtime.weather.temperature === null ? "" : `，${runtime.weather.temperature}℃`}；${candidate.weather_notes || "活动天气适用性已进入规则校验"}。`
+    : "天气服务暂不可用，本次未冒充实时天气已核验，出发前请再次确认。";
 
   return {
     status: "selected",
@@ -524,6 +555,7 @@ async function buildFallbackRecommendation(
       budget: budgetSummary,
       time: timeSummary,
       random: randomText,
+      weather: weatherText,
     },
     display: {
       badge: `${candidate.category} · ${preferences.mood}`,
@@ -589,6 +621,7 @@ function mapDecisionToRecommendation(decision: z.infer<typeof decisionSchema>): 
       budget: decision.constraint_summary.budget,
       time: decision.constraint_summary.time,
       random: decision.constraint_summary.random,
+      weather: decision.constraint_summary.weather,
     },
     display: {
       badge: decision.display.badge,
@@ -646,7 +679,7 @@ function buildPrompt(input: {
     runtime_data: {
       online_search_enabled: false,
       current_time: input.runtimeData.current_time_iso,
-      weather: null,
+      weather: input.runtimeData.weather,
       traffic: {
         default_mode: "driving",
         items: input.runtimeData.traffic_estimates.map((item) => ({
@@ -679,7 +712,10 @@ function buildPrompt(input: {
         reservation_required: "待补",
         open_status: "unknown",
         open_hours: null,
-        rain_friendly: "待补",
+        rain_friendly: candidate.rain_friendly,
+        heat_sensitive: candidate.heat_sensitive,
+        wind_sensitive: candidate.wind_sensitive,
+        weather_notes: candidate.weather_notes,
         night_friendly: "待补",
         task_template: candidate.steps.join("；"),
         avoid_pitfalls: candidate.tips.join("；"),
@@ -754,9 +790,10 @@ export async function selectActivityWithRecommendation(
   preferences: DrawPreferences,
   rows: ActivityRow[],
   drawContext?: DrawContext,
+  weather: CityWeather | null = null,
 ): Promise<SelectionResult> {
   const allCandidates = rows.map(toCandidate);
-  const runtime = buildRuntimeData(allCandidates);
+  const runtime = buildRuntimeData(allCandidates, weather);
   const byId = new Map(allCandidates.map((candidate) => [candidate.card_id, candidate]));
   const rowById = new Map(rows.map((row) => [Number(row.id), row]));
 

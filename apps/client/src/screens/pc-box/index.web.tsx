@@ -62,15 +62,9 @@ const boxToken = {
   sky: palette.sky,
 };
 
-const destinationScopeGroup: MatchPreferenceGroup = {
-  key: 'destinationScope',
-  label: '目的地范围',
-  options: ['周边', '本省', '全国'],
-};
-
 const matchPreferenceGroups: MatchPreferenceGroup[] = [
   { key: 'partySize', label: '人数', options: ['1 人', '2 人', '多人'] },
-  { key: 'travelDuration', label: '旅游时间', options: ['当天', '1-2天', '3-5天', '5-7天'] },
+  { key: 'travelDuration', label: '旅游时间', options: ['当天', '2天', '3天', '4天', '5天'] },
   { key: 'budget', label: '预算', options: ['穷游', '平价', '舒适', '轻奢'] },
   { key: 'mood', label: '心情', options: ['放松', '探索', '热闹'] },
   {
@@ -79,8 +73,8 @@ const matchPreferenceGroups: MatchPreferenceGroup[] = [
     options: ['轻度', '中度', '重度'],
     descriptions: {
       轻度: '锁定城市与风格，只随机具体玩法',
-      中度: '保留部分偏好，目的地半随机',
-      重度: '不预设结果，整个旅程充满未知',
+      中度: '锁定目的地，在当地候选中扩大探索范围',
+      重度: '锁定目的地，只提高当地玩法的新鲜感',
     },
   },
 ];
@@ -130,10 +124,10 @@ const partySizeValues: Record<string, number> = {
 };
 
 const budgetValues: Record<string, number | null> = {
-  穷游: 50,
-  平价: 100,
-  舒适: 300,
-  轻奢: null,
+  穷游: 200,
+  平价: 500,
+  舒适: 1000,
+  轻奢: 2000,
 };
 
 function resolveBudgetMax(option: string) {
@@ -141,18 +135,6 @@ function resolveBudgetMax(option: string) {
     ? budgetValues[option] ?? null
     : 100;
 }
-
-const destinationRadiusValues: Record<string, number | null> = {
-  周边: 10,
-  本省: null,
-  全国: null,
-};
-
-const destinationScopeValues: Record<string, 'nearby' | 'province' | 'nationwide'> = {
-  周边: 'nearby',
-  本省: 'province',
-  全国: 'nationwide',
-};
 
 const surpriseLevelValues: Record<string, number> = {
   轻度: 25,
@@ -272,12 +254,8 @@ export default function PcBoxConfigScreen() {
     const budgetMax = resolveBudgetMax(matchSelections.budget);
     const randomLevel = surpriseLevelValues[matchSelections.surpriseLevel] ?? 60;
     const originCity = findMatchingCity(cities, locatedCity.name);
-    const selectedScopeLabel = originCity
-      ? matchSelections.destinationScope
-      : '全国';
-    const radiusKm = destinationRadiusValues[selectedScopeLabel] ?? null;
-    const destinationScope = destinationScopeValues[selectedScopeLabel] ?? 'nationwide';
-    const drawCityId = originCity?.id ?? selectedCityId ?? cities[0]?.id ?? null;
+    const destinationCity = cities.find((city) => city.id === selectedCityId) ?? originCity ?? cities[0] ?? null;
+    const drawCityId = destinationCity?.id ?? null;
 
     if (!drawCityId) {
       setDrawError('城市数据尚未加载完成，请稍后重试。');
@@ -292,7 +270,7 @@ export default function PcBoxConfigScreen() {
       randomLevel,
       category: '不限',
       environment: 'either',
-      radiusKm,
+      radiusKm: originCity?.id === drawCityId ? 10 : null,
       originName: locatedCity.name,
       originLatitude: locatedCity.latitude,
       originLongitude: locatedCity.longitude,
@@ -303,32 +281,29 @@ export default function PcBoxConfigScreen() {
           : locatedCity.source === 'manual'
             ? 'manual'
             : null,
-      destinationScope,
+      destinationScope: originCity?.id === drawCityId ? 'nearby' : 'nationwide',
       travelDuration:
         matchSelections.travelDuration === '当天'
           ? 'same-day'
-          : matchSelections.travelDuration === '1-2天'
+          : matchSelections.travelDuration === '2天'
             ? '1-2days'
-            : matchSelections.travelDuration === '3-5天'
-          ? '3-5days'
-          : matchSelections.travelDuration === '5-7天'
-            ? '5-7days'
-            : 'same-day',
+            : matchSelections.travelDuration === '3天'
+              ? '1-3days'
+              : matchSelections.travelDuration === '4天'
+              ? '3-5days'
+              : '3-5days',
       clientSource: 'pc',
-      destinationScopeLabel: originCity
-        ? selectedScopeLabel
-        : `全国（从${locatedCity.name}出发）`,
+      destinationScopeLabel: originCity?.id === drawCityId
+        ? `${destinationCity?.name ?? locatedCity.name}本地`
+        : `${locatedCity.name} → ${destinationCity?.name ?? '目的地'}`,
       travelDurationLabel: matchSelections.travelDuration,
       budgetLabel: matchSelections.budget,
       surpriseLevelLabel: matchSelections.surpriseLevel,
     };
 
-    if (drawCityId !== selectedCityId) {
-      setSelectedCityId(drawCityId);
-    }
-
     const summary = [
-      originCity ? selectedScopeLabel : `全国（从${locatedCity.name}出发）`,
+      `${locatedCity.name}出发`,
+      `目的地：${destinationCity?.name ?? '未选择'}`,
       ...matchPreferenceGroups.map((group) => matchSelections[group.key] ?? group.options[0]),
     ].join(' · ');
 
@@ -354,7 +329,6 @@ export default function PcBoxConfigScreen() {
     matchSelections,
     router,
     selectedCityId,
-    setSelectedCityId,
   ]);
 
   useEffect(() => {
@@ -447,7 +421,20 @@ export default function PcBoxConfigScreen() {
     void storePcLocatedCity(nextLocatedCity);
   };
 
+  const handleDestinationCitySelect = (cityId: number) => {
+    const city = cities.find((item) => item.id === cityId);
+    if (!city) return;
+    setSelectedCityId(city.id);
+    setDrawError(null);
+    setLocationNotice(
+      city.name === locatedCity.name
+        ? `将生成${city.name}本地玩法。`
+        : `已指定从${locatedCity.name}前往${city.name}，系统不会随机更换目的地城市。`,
+    );
+  };
+
   const locatedCityOption = findMatchingCity(cities, locatedCity.name);
+  const destinationCityOption = cities.find((city) => city.id === selectedCityId) ?? locatedCityOption ?? cities[0];
 
   return (
     <ConfigProvider
@@ -542,14 +529,22 @@ export default function PcBoxConfigScreen() {
                       <Text className="pc-box-location-notice">{locationNotice}</Text>
                     ) : null}
                   </div>
-                  <MatchOptionGroup
-                    group={destinationScopeGroup}
-                    selected={
-                      matchSelections[destinationScopeGroup.key] ??
-                      destinationScopeGroup.options[0]
-                    }
-                    onSelect={handleMatchSelect}
-                  />
+                  <div className="pc-box-location">
+                    <Text className="pc-box-label">目的地城市</Text>
+                    <Select
+                      aria-label="选择目的地城市"
+                      className="pc-box-city-select"
+                      options={cities.map((city) => ({ label: `${city.name} · ${city.province}`, value: city.id }))}
+                      placeholder="请选择明确的目的地"
+                      showSearch
+                      optionFilterProp="label"
+                      value={destinationCityOption?.id}
+                      onChange={handleDestinationCitySelect}
+                    />
+                    <Text className="pc-box-destination-hint">
+                      AI 只会在这个城市里抽具体玩法，不会擅自切换城市。
+                    </Text>
+                  </div>
                 </div>
               </Card>
 
@@ -595,7 +590,8 @@ export default function PcBoxConfigScreen() {
               <div className="pc-box-summary">
                 <Text className="pc-box-summary-label">本次偏好</Text>
                 <Text className="pc-box-summary-value">
-                  {[destinationScopeGroup, ...matchPreferenceGroups]
+                  {`${locatedCity.name} → ${destinationCityOption?.name ?? '请选择目的地'} · `}
+                  {matchPreferenceGroups
                     .map((group) => matchSelections[group.key] ?? group.options[0])
                     .join(' · ')}
                 </Text>
@@ -1050,6 +1046,13 @@ const pcBoxCss = `
   color: #4D6F16;
   font-size: 12px;
   font-weight: 700;
+  line-height: 1.55;
+}
+
+.pc-box-destination-hint {
+  color: ${boxToken.muted};
+  font-size: 12px;
+  font-weight: 650;
   line-height: 1.55;
 }
 

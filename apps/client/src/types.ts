@@ -167,6 +167,17 @@ export type Activity = {
   mood: string;
   moodTags: string[];
   environment: Preferences['environment'];
+  rainFriendly?: 'yes' | 'no' | 'unknown';
+  heatSensitive?: 'yes' | 'no' | 'unknown';
+  windSensitive?: 'yes' | 'no' | 'unknown';
+  weatherNotes?: string | null;
+  lastVerifiedAt?: string | null;
+  openingHours?: Record<string, unknown> | string | null;
+  reservationRequired?: 'yes' | 'no' | 'unknown';
+  reservationUrl?: string | null;
+  contentScore?: number;
+  sourceType?: string | null;
+  sourceUrl?: string | null;
   minPartySize: number;
   maxPartySize: number;
   durationMinutes: number;
@@ -200,6 +211,7 @@ export type DrawRecommendation = {
     budget: string;
     time: string;
     random: string;
+    weather?: string;
   };
   display: {
     badge: string;

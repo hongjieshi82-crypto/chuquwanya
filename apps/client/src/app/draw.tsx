@@ -95,6 +95,7 @@ export default function DrawScreen() {
               <View style={styles.reasonBox}>
                 <Text style={styles.reasonLabel}>为什么是它</Text>
                 <Text style={styles.reasonText}>{recommendation.display.cardPage}</Text>
+                <Text style={styles.weatherText}>{recommendation.constraintSummary.weather}</Text>
               </View>
             ) : null}
           </View>
@@ -160,6 +161,7 @@ const styles = StyleSheet.create({
     backgroundColor: palette.canvas,
     gap: spacing.md,
   },
+  weatherText: { color: palette.muted, fontSize: typography.caption, lineHeight: 19, marginTop: spacing.sm },
   emptyTitle: { color: palette.ink, fontSize: typography.h2, fontWeight: '900', textAlign: 'center' },
   emptyBody: { color: palette.muted, fontSize: typography.body, lineHeight: 22, textAlign: 'center' },
   resultArt: {

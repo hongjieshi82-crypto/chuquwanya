@@ -40,7 +40,9 @@ import {
   type PendingPcBoxDraw,
 } from '@/lib/pc-box-open-state';
 import { ApiHttpError } from '@/services/api';
+import { composeMultiDayTrip } from '@/services/travel-api';
 import { createDemoDraw, demoCityImageUris } from '@/services/demo-data';
+import { savePcMultiDayTrip } from '@/lib/pc-multi-day-trip';
 import { palette, radii } from '@/theme';
 import type { Activity, DrawResult } from '@/types';
 
@@ -55,6 +57,11 @@ type PcIconProps = SVGProps<SVGSVGElement> & {
 };
 
 type DrawOutcome = { ok: true } | { ok: false; reason: unknown };
+
+function getRequestedDays(input: PendingPcBoxDraw) {
+  const matched = input.preferences.travelDurationLabel?.match(/\d+/);
+  return matched ? Number(matched[0]) : 1;
+}
 
 const openToken = {
   canvas: palette.canvas,
@@ -355,10 +362,29 @@ export default function PcBoxOpenScreen() {
       setIsOpening(true);
       clearError();
 
-      const outcomePromise: Promise<DrawOutcome> = startDraw(
-        input.cityId,
-        input.preferences,
-      ).then(
+      const requestedDays = getRequestedDays(input);
+      const multiDayBudget = input.preferences.budgetMax === null
+        ? null
+        : input.preferences.budgetMax * requestedDays * input.preferences.partySize;
+      const budgetTier = input.preferences.budgetLabel === '轻奢'
+        ? 'luxury'
+        : input.preferences.budgetLabel === '舒适'
+          ? 'premium'
+          : input.preferences.budgetLabel === '穷游'
+            ? 'budget'
+            : 'standard';
+      const operation = requestedDays > 1
+        ? composeMultiDayTrip({
+            cityId: input.cityId,
+            originName: input.preferences.originName,
+            days: requestedDays,
+            travelers: input.preferences.partySize,
+            budget: multiDayBudget,
+            mood: input.preferences.mood,
+            budgetTier,
+          }).then((trip) => savePcMultiDayTrip(trip))
+        : startDraw(input.cityId, input.preferences);
+      const outcomePromise: Promise<DrawOutcome> = operation.then(
         () => ({ ok: true }),
         (reason: unknown) => ({ ok: false, reason }),
       );
@@ -383,7 +409,7 @@ export default function PcBoxOpenScreen() {
       if (!mountedRef.current || runId !== runIdRef.current) return;
 
       clearPendingPcBoxDraw();
-      router.replace('/box/result');
+      router.replace(requestedDays > 1 ? '/box/trip-result' : '/box/result');
     },
     [clearError, router, startDraw],
   );
@@ -662,6 +688,8 @@ function PcBoxResultContent() {
   const { addCurrentDrawToTodos, currentDraw, reroll } = useApp();
   const { message } = App.useApp();
   const [isRerolling, setIsRerolling] = useState(false);
+  const [rerollStage, setRerollStage] = useState<'idle' | 'drawing' | 'revealed'>('idle');
+  const [rerollReveal, setRerollReveal] = useState<Activity | null>(null);
   const [isAddingToPlan, setIsAddingToPlan] = useState(false);
   const previewDraw = useMemo(
     () => {
@@ -702,10 +730,16 @@ function PcBoxResultContent() {
     if (!currentDraw || currentDraw.attemptsRemaining <= 0 || isRerolling) return;
 
     setIsRerolling(true);
+    setRerollReveal(null);
+    setRerollStage('drawing');
     try {
-      await reroll();
-      message.success('已为你换了一个新选择');
+      const [result] = await Promise.all([reroll(), wait(1_650)]);
+      setRerollReveal(result.activity);
+      setRerollStage('revealed');
+      await wait(1_250);
+      setRerollStage('idle');
     } catch (reason) {
+      setRerollStage('idle');
       message.error(reason instanceof Error ? reason.message : '重新抽取失败，请稍后重试。');
     } finally {
       setIsRerolling(false);
@@ -731,14 +765,19 @@ function PcBoxResultContent() {
     <div className="pc-box-open-page">
       <style>{pcBoxResultCss}</style>
       {activeDraw ? (
-        <PcBoxResult
-          draw={activeDraw}
-          isAddingToPlan={isAddingToPlan}
-          isRerolling={isRerolling}
-          onAddToPlan={() => void handleAddToPlan()}
-          onReroll={() => void handleReroll()}
-          onReset={() => router.replace('/box/config')}
-        />
+        <>
+          <PcBoxResult
+            draw={activeDraw}
+            isAddingToPlan={isAddingToPlan}
+            isRerolling={isRerolling}
+            onAddToPlan={() => void handleAddToPlan()}
+            onReroll={() => void handleReroll()}
+            onReset={() => router.replace('/box/config')}
+          />
+          {rerollStage !== 'idle' ? (
+            <RerollRevealOverlay stage={rerollStage} activity={rerollReveal} />
+          ) : null}
+        </>
       ) : (
         <main className="pc-box-result-empty">
           <Card>
@@ -750,6 +789,48 @@ function PcBoxResultContent() {
           </Card>
         </main>
       )}
+    </div>
+  );
+}
+
+function RerollRevealOverlay({
+  activity,
+  stage,
+}: {
+  activity: Activity | null;
+  stage: 'drawing' | 'revealed';
+}) {
+  return (
+    <div className={`pc-reroll-overlay is-${stage}`} role="dialog" aria-modal="true" aria-label="正在重新抽取目的地">
+      <div className="pc-reroll-glow" />
+      <div className="pc-reroll-orbit" />
+      <div className="pc-reroll-panel">
+        <Tag className="pc-reroll-badge" icon={<ThunderboltOutlined />}>
+          {stage === 'drawing' ? 'SIGNAL SEARCHING' : 'NEW DROP UNLOCKED'}
+        </Tag>
+        <div className="pc-reroll-card" aria-live="polite">
+          {stage === 'revealed' && activity ? (
+            <>
+              {activity.coverImageUri ? <img src={activity.coverImageUri} alt={activity.title} /> : null}
+              <div className="pc-reroll-card-shade" />
+              <div className="pc-reroll-result-copy">
+                <span>{activity.cityName} · {activity.district}</span>
+                <strong>{activity.title}</strong>
+                <small>{activity.summary}</small>
+              </div>
+            </>
+          ) : (
+            <div className="pc-reroll-searching">
+              <CompassOutlined size={56} />
+              <strong>正在重新搜索城市信号</strong>
+              <span>保留你的预算、时间和心情条件</span>
+            </div>
+          )}
+        </div>
+        <Text className="pc-reroll-status">
+          {stage === 'drawing' ? '规则正在过滤候选，AI 即将锁定新任务…' : '新目的地已装载，正在返回结果页…'}
+        </Text>
+      </div>
     </div>
   );
 }
@@ -879,9 +960,15 @@ function PcBoxResult({
           </Space>
           <Space wrap>
             <Text type="secondary">还可重抽 {attemptsRemaining} 次</Text>
-            <Button disabled={attemptsRemaining <= 0} loading={isRerolling} icon={<ReloadOutlined />} onClick={onReroll}>
-              再抽一次
-            </Button>
+            {attemptsRemaining > 0 ? (
+              <Button loading={isRerolling} icon={<ReloadOutlined />} onClick={onReroll}>
+                再抽一次
+              </Button>
+            ) : (
+              <Button icon={<GiftOutlined />} onClick={onReset}>
+                返回设置重新开盒
+              </Button>
+            )}
             <Button
               type="primary"
               disabled={isAddingToPlan}
@@ -925,6 +1012,12 @@ function PcBoxResult({
                     <Text>{reason}</Text>
                   </div>
                 ))}
+                {recommendation?.constraintSummary.weather ? (
+                  <div className="pc-box-result-reason">
+                    <CheckCircleOutlined size={18} />
+                    <Text>{recommendation.constraintSummary.weather}</Text>
+                  </div>
+                ) : null}
               </Space>
               <Divider />
               <Space wrap>
@@ -976,6 +1069,12 @@ function PcBoxResult({
                 <Descriptions.Item label="城市地点">{activity.cityName} · {activity.district}</Descriptions.Item>
                 <Descriptions.Item label="详细地址">{activity.address || '出发前请查看导航'}</Descriptions.Item>
                 <Descriptions.Item label="适合人群">{activity.minPartySize}–{activity.maxPartySize} 人同行</Descriptions.Item>
+                <Descriptions.Item label="预约要求">
+                  {activity.reservationRequired === 'yes' ? '需要预约' : activity.reservationRequired === 'no' ? '无需预约' : '尚未核验'}
+                </Descriptions.Item>
+                <Descriptions.Item label="内容核验">
+                  {activity.lastVerifiedAt ? `最近核验：${String(activity.lastVerifiedAt).slice(0, 10)}` : '尚未标注核验时间'}
+                </Descriptions.Item>
                 <Descriptions.Item label="盲盒等级">{recommendation?.display.badge ?? '为你精选'}</Descriptions.Item>
               </Descriptions>
             </Card>
@@ -2892,6 +2991,121 @@ const pcBoxResultCss = `
 .pc-box-result-reset.ant-btn:not(:disabled):hover {
   transform: translateY(-1px);
 }
+
+.pc-reroll-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  overflow: hidden;
+  color: #fff;
+  background: rgba(15, 14, 26, .9);
+  backdrop-filter: blur(18px);
+  display: grid;
+  place-items: center;
+  animation: pcRerollOverlayIn 240ms ease-out both;
+}
+
+.pc-reroll-glow {
+  position: absolute;
+  width: min(72vw, 820px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(201,255,98,.24), rgba(120,232,255,.1) 35%, transparent 68%);
+  animation: pcRerollGlow 1.4s ease-in-out infinite alternate;
+}
+
+.pc-reroll-orbit {
+  position: absolute;
+  width: min(68vw, 720px);
+  aspect-ratio: 1.7;
+  border: 1px dashed rgba(120,232,255,.38);
+  border-radius: 50%;
+  transform: rotate(-12deg);
+  animation: pcRerollOrbit 7s linear infinite;
+}
+
+.pc-reroll-panel {
+  position: relative;
+  width: min(calc(100% - 40px), 520px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.pc-reroll-badge.ant-tag {
+  margin: 0;
+  padding: 7px 14px;
+  border: 1px solid rgba(255,255,255,.15);
+  color: rgba(255,255,255,.76);
+  background: rgba(255,255,255,.07);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .12em;
+}
+
+.pc-reroll-card {
+  position: relative;
+  width: min(100%, 440px);
+  aspect-ratio: 1.28;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 30px;
+  background: linear-gradient(145deg, #24213c, #171624);
+  box-shadow: 0 38px 100px rgba(0,0,0,.5), 0 0 70px rgba(201,255,98,.12);
+  transform-style: preserve-3d;
+}
+
+.is-drawing .pc-reroll-card { animation: pcRerollSearching 760ms ease-in-out infinite alternate; }
+.is-revealed .pc-reroll-card { animation: pcRerollReveal 620ms cubic-bezier(.22,1,.36,1) both; }
+
+.pc-reroll-card > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pc-reroll-card-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 25%, rgba(11,10,19,.9) 100%);
+}
+
+.pc-reroll-result-copy {
+  position: absolute;
+  inset: auto 28px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.pc-reroll-result-copy span { color: var(--quest-cyan, #78e8ff); font-size: 11px; font-weight: 900; letter-spacing: .08em; }
+.pc-reroll-result-copy strong { color: #fff; font-size: clamp(27px, 4vw, 38px); line-height: 1.05; }
+.pc-reroll-result-copy small { color: rgba(255,255,255,.7); font-size: 13px; line-height: 1.5; }
+
+.pc-reroll-searching {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  text-align: center;
+}
+
+.pc-reroll-searching .pc-box-open-icon { color: #c9ff62; filter: drop-shadow(0 0 18px rgba(201,255,98,.55)); }
+.pc-reroll-searching strong { font-size: 21px; }
+.pc-reroll-searching span { color: rgba(255,255,255,.56); font-size: 13px; }
+.pc-reroll-status.ant-typography { color: rgba(255,255,255,.68); text-align: center; font-weight: 700; }
+
+@keyframes pcRerollOverlayIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pcRerollGlow { from { opacity: .55; transform: scale(.92); } to { opacity: 1; transform: scale(1.08); } }
+@keyframes pcRerollOrbit { to { transform: rotate(348deg); } }
+@keyframes pcRerollSearching { from { transform: perspective(900px) rotateY(-5deg) scale(.98); } to { transform: perspective(900px) rotateY(5deg) scale(1.02); } }
+@keyframes pcRerollReveal { from { opacity: 0; transform: perspective(900px) rotateY(90deg) scale(.8); } to { opacity: 1; transform: perspective(900px) rotateY(0) scale(1); } }
 
 @keyframes pcBoxResultEnter {
   from { opacity: 0; transform: translateY(16px); }

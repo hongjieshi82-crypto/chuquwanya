@@ -35,7 +35,7 @@ try {
        a.accent_color
      FROM activities a
      INNER JOIN cities c ON c.id = a.city_id
-     WHERE a.is_active = TRUE
+     WHERE a.is_active = TRUE AND a.content_status = 'published' AND a.content_score >= 70
      ORDER BY a.id ASC`,
   );
 

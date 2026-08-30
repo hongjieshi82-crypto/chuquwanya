@@ -29,6 +29,8 @@ import { registerPaymentRoutes } from "./payments.js";
 import { parseJsonArray, type ActivityRow, toActivityDto } from "./types.js";
 import { buildWeekWindow, registerTodoRoutes } from "./todos.js";
 import { registerTravelRoutes } from "./travel/routes.js";
+import { getCityWeather } from "./weather.service.js";
+import { registerContentAdminRoutes } from "./content-admin.js";
 
 const environmentValues = ["indoor", "outdoor", "either"] as const;
 const DRAW_SEMANTIC_TOP_K = 3;
@@ -620,65 +622,8 @@ function resolveCityFromOriginName(
   input: DrawInput,
   cities: CityLookupRow[],
 ): CityResolution {
-  if (input.drawSessionId) {
-    return { cityId: input.cityId };
-  }
-
   const requestedCity = cities.find((city) => city.id === input.cityId);
-  const requestedCityName = getCityDisplayName(requestedCity, input.cityId);
-  const detectedCityId = findCityIdFromOriginNameStrict(
-    input.preferences.originName,
-    cities,
-  );
-  const detectedCity = cities.find((city) => city.id === detectedCityId);
-  const destinationScope = input.preferences.destinationScope ?? "nearby";
-
-  if (
-    destinationScope !== "nearby" &&
-    input.preferences.randomLevel > 33
-  ) {
-    const scopedCandidates =
-      destinationScope === "province" && detectedCity
-        ? cities.filter((city) => city.province === detectedCity.province)
-        : cities;
-    const alternativeCities =
-      detectedCityId === null
-        ? scopedCandidates
-        : scopedCandidates.filter((city) => city.id !== detectedCityId);
-    const candidates = alternativeCities.length > 0 ? alternativeCities : scopedCandidates;
-    const targetCities = candidates.length > 0 ? candidates : [detectedCity ?? requestedCity].filter(Boolean);
-    if (targetCities.length > 0) {
-      const targetCity = targetCities[randomInt(targetCities.length)]!;
-      return { cityId: targetCity.id };
-    }
-  }
-
-  if (
-    detectedCityId !== null &&
-    detectedCityId !== input.cityId &&
-    Number.isInteger(detectedCityId)
-  ) {
-    const detectedCity = cities.find((city) => city.id === detectedCityId);
-    return {
-      cityId: detectedCityId,
-      cityMismatchHint: {
-        requestCityId: input.cityId,
-        requestCityName: requestedCityName,
-        detectedCityId,
-        detectedCityName: getCityDisplayName(detectedCity, detectedCityId),
-      },
-    };
-  }
-
-  return {
-    cityId:
-      detectedCityId ??
-      findCityIdFromOriginName(
-        input.preferences.originName,
-        cities,
-        input.cityId,
-      ),
-  };
+  return { cityId: requestedCity?.id ?? input.cityId };
 }
 
 async function resolveDrawCityId(
@@ -706,7 +651,7 @@ function buildDestinationGeocodeAddress(row: ActivityRow) {
 // 地理编码只用于补全候选距离。不能让冷缓存下的大候选池逐条串行请求外部服务，阻塞抽取结果。
 const MAX_DESTINATION_GEOCODES_PER_DRAW = 8;
 
-async function resolveOriginCoordinates(input: DrawInput, cityName: string) {
+async function resolveOriginCoordinates(input: DrawInput) {
   if (hasOriginCoordinates(input.preferences)) {
     return {
       latitude: input.preferences.originLatitude,
@@ -717,7 +662,7 @@ async function resolveOriginCoordinates(input: DrawInput, cityName: string) {
   const originName = input.preferences.originName?.trim();
   if (!originName) return null;
 
-  const resolved = await geocodeAddressWithAmap(originName, { city: cityName });
+  const resolved = await geocodeAddressWithAmap(originName);
   return resolved ? { latitude: resolved.latitude, longitude: resolved.longitude } : null;
 }
 
@@ -726,7 +671,7 @@ async function enrichCandidateRowsWithCoordinates(
   input: DrawInput,
   rows: ActivityRow[],
 ) {
-  const origin = await resolveOriginCoordinates(input, rows[0]?.city_name ?? "");
+  const origin = await resolveOriginCoordinates(input);
   if (!origin) return rows;
 
   const enrichedRows = [...rows];
@@ -825,6 +770,8 @@ function buildActivityQuery(
   const conditions = [
     "a.city_id = ?",
     "a.is_active = TRUE",
+    "a.content_status = 'published'",
+    "a.content_score >= 70",
     `NOT EXISTS (
       SELECT 1
       FROM draw_results dr
@@ -897,6 +844,19 @@ function buildActivityQuery(
         a.mood,
         a.mood_tags,
         a.environment,
+        a.rain_friendly,
+        a.heat_sensitive,
+        a.wind_sensitive,
+        a.weather_notes,
+        a.last_verified_at,
+        a.opening_hours,
+        a.reservation_required,
+        a.reservation_url,
+        a.content_status,
+        a.content_score,
+        a.quality_issues,
+        a.source_type,
+        a.source_url,
         a.min_party_size,
         a.max_party_size,
         a.duration_minutes,
@@ -939,6 +899,8 @@ function buildCandidatePoolQuery(
   const conditions = [
     "a.city_id = ?",
     "a.is_active = TRUE",
+    "a.content_status = 'published'",
+    "a.content_score >= 70",
     `NOT EXISTS (
           SELECT 1
           FROM draw_results dr
@@ -988,6 +950,19 @@ function buildCandidatePoolQuery(
         a.mood,
         a.mood_tags,
         a.environment,
+        a.rain_friendly,
+        a.heat_sensitive,
+        a.wind_sensitive,
+        a.weather_notes,
+        a.last_verified_at,
+        a.opening_hours,
+        a.reservation_required,
+        a.reservation_url,
+        a.content_status,
+        a.content_score,
+        a.quality_issues,
+        a.source_type,
+        a.source_url,
         a.min_party_size,
         a.max_party_size,
         a.duration_minutes,
@@ -1021,6 +996,14 @@ async function findActivityForDraw(
   input: z.infer<typeof drawSchema>,
   drawSessionId: string,
 ) {
+  let cityWeather: Awaited<ReturnType<typeof getCityWeather>> = null;
+  try {
+    const [cityRows] = await connection.execute("SELECT name FROM cities WHERE id = ? AND is_active = TRUE LIMIT 1", [input.cityId]);
+    const cityName = (cityRows as Array<{ name: string }>)[0]?.name;
+    cityWeather = cityName ? await getCityWeather(cityName) : null;
+  } catch (error) {
+    console.warn({ error, cityId: input.cityId }, "Weather lookup failed; continuing without weather hard filters");
+  }
   try {
     const activityIds = await activityVectorService.searchActivityIds(
       { cityId: input.cityId, preferences: input.preferences },
@@ -1041,6 +1024,7 @@ async function findActivityForDraw(
         input.preferences,
         enrichedSemanticRows,
         input.drawContext,
+        cityWeather,
       );
 
       if (semanticSelection.status === "selected") {
@@ -1063,7 +1047,7 @@ async function findActivityForDraw(
     };
   }
   const rows = await enrichCandidateRowsWithCoordinates(connection, input, fallbackRows);
-  return selectActivityWithRecommendation(input.preferences, rows, input.drawContext);
+  return selectActivityWithRecommendation(input.preferences, rows, input.drawContext, cityWeather);
 }
 
 const activitySelect = `
@@ -1221,12 +1205,37 @@ export function createApp() {
   );
 
   app.get(
+    "/api/v1/content/coverage",
+    asyncRoute(async (_request, response) => {
+      const [rows] = await pool.query(
+        `SELECT
+           c.id AS cityId,
+           c.name AS cityName,
+           COUNT(a.id) AS totalActivities,
+           COUNT(DISTINCT CASE WHEN a.content_status = 'published' AND a.content_score >= 70 AND a.is_active = TRUE THEN COALESCE(a.place_key, CONCAT(a.city_id, ':', a.address)) END) AS uniquePlaces,
+           SUM(CASE WHEN a.content_status = 'published' AND a.content_score >= 70 AND a.is_active = TRUE THEN 1 ELSE 0 END) AS recommendableActivities,
+           SUM(CASE WHEN a.content_status IN ('draft', 'review') THEN 1 ELSE 0 END) AS pendingReview,
+           SUM(CASE WHEN a.environment = 'indoor' AND a.content_status = 'published' AND a.content_score >= 70 THEN 1 ELSE 0 END) AS indoorActivities,
+           SUM(CASE WHEN a.rain_friendly = 'yes' AND a.content_status = 'published' AND a.content_score >= 70 THEN 1 ELSE 0 END) AS rainFriendlyActivities,
+           SUM(CASE WHEN a.budget_yuan <= 50 AND a.content_status = 'published' AND a.content_score >= 70 THEN 1 ELSE 0 END) AS lowBudgetActivities,
+           ROUND(AVG(CASE WHEN a.content_status = 'published' THEN a.content_score END), 1) AS averageScore
+         FROM cities c
+         LEFT JOIN activities a ON a.city_id = c.id AND a.content_status <> 'archived'
+         WHERE c.is_active = TRUE
+         GROUP BY c.id, c.name
+         ORDER BY recommendableActivities ASC, c.id ASC`,
+      );
+      response.json({ data: rows });
+    }),
+  );
+
+  app.get(
     "/api/v1/preferences/options",
     asyncRoute(async (_request, response) => {
       const [activityRows] = await pool.query(
         `SELECT mood, mood_tags AS moodTags
          FROM activities
-         WHERE is_active = TRUE`,
+         WHERE is_active = TRUE AND content_status = 'published' AND content_score >= 70`,
       );
       const moods = new Set<string>();
       for (const row of activityRows as Array<{ mood: string; moodTags: unknown }>) {
@@ -1278,7 +1287,7 @@ export function createApp() {
     "/api/v1/activities",
     asyncRoute(async (request, response) => {
       const query = homeCommunityFeedSchema.parse(request.query);
-      const filters: string[] = ["a.is_active = TRUE"];
+      const filters: string[] = ["a.is_active = TRUE", "a.content_status = 'published'", "a.content_score >= 70"];
       const params: Array<string | number> = [];
       const tagFilters: Array<string | number> = [];
 
@@ -1707,6 +1716,7 @@ export function createApp() {
   registerTodoRoutes(app);
   registerCheckinRoutes(app);
   registerTravelRoutes(app);
+  registerContentAdminRoutes(app);
   registerPaymentRoutes(app);
 
   app.use((_request, _response, next) => {

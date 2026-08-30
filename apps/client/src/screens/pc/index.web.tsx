@@ -32,7 +32,7 @@ import 'antd/dist/reset.css';
 import { animate, createScope, createTimeline, onScroll, stagger, type Scope } from 'animejs';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { KeyboardEvent as ReactKeyboardEvent, ReactNode, SVGProps } from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent, ReactNode, SVGProps, SyntheticEvent } from 'react';
 import { Image as NativeImage } from 'react-native';
 
 import { getAttractions, getDestinations, getTravelTags } from '@/services/travel-api';
@@ -161,6 +161,20 @@ function assetUri(source: StaticAsset) {
 
 function imageUri(source: PcImageSource) {
   return typeof source === 'string' ? source : assetUri(source);
+}
+
+const stableImageFallbacks = [
+  assetUri(westLakeImage),
+  assetUri(shenzhenBayImage),
+  beijingImage,
+  shanghaiImage,
+  hangzhouImage,
+  shenzhenImage,
+].filter(Boolean);
+
+function handleStableImageError(event: SyntheticEvent<HTMLImageElement>, index = 0) {
+  const fallback = stableImageFallbacks[index % stableImageFallbacks.length];
+  if (fallback && event.currentTarget.src !== fallback) event.currentTarget.src = fallback;
 }
 
 const pcToken = {
@@ -675,7 +689,7 @@ export default function PcLandingScreen() {
                       key={item.id}
                       className={`pc-hero-photo-card pc-hero-photo-card-${index + 1}`}
                       data-anime="float-card">
-                      <img src={imageUri(item.image)} alt={`${item.title}实地景色`} loading="lazy" decoding="async" />
+                      <img src={imageUri(item.image)} alt={`${item.title}实地景色`} loading="eager" decoding="async" onError={(event) => handleStableImageError(event, index)} />
                       <figcaption>
                         <span>0{index + 1} / CITY DROP</span>
                         <strong>{item.title}</strong>
@@ -701,7 +715,7 @@ export default function PcLandingScreen() {
                   <LoadingGrid />
                 ) : trendCards.length ? (
                   <Row gutter={[18, 18]}>
-                    {trendCards.map((item) => (
+                    {trendCards.map((item, index) => (
                       <Col xs={24} md={12} xl={6} key={item.id}>
                         <Card
                           hoverable
@@ -718,6 +732,7 @@ export default function PcLandingScreen() {
                             alt={item.title}
                             loading="lazy"
                             decoding="async"
+                            onError={(event) => handleStableImageError(event, index)}
                           />
                           <Title level={4}>{item.title}</Title>
                           <Paragraph>{item.desc}</Paragraph>
@@ -750,7 +765,7 @@ export default function PcLandingScreen() {
                   <LoadingGrid columns={3} />
                 ) : caseCards.length ? (
                   <Row gutter={[18, 18]}>
-                    {caseCards.map((item) => (
+                    {caseCards.map((item, index) => (
                       <Col xs={24} lg={8} key={item.id}>
                         <Card
                           hoverable
@@ -773,7 +788,7 @@ export default function PcLandingScreen() {
                               ),
                             )
                           }
-                          cover={<img src={imageUri(item.image)} alt={item.title} loading="lazy" decoding="async" />}>
+                          cover={<img src={imageUri(item.image)} alt={item.title} loading="lazy" decoding="async" onError={(event) => handleStableImageError(event, index)} />}>
                           <Flex justify="space-between" align="center">
                             <Tag>{item.tag}</Tag>
                             <Text type="secondary">
@@ -811,7 +826,7 @@ export default function PcLandingScreen() {
                   <LoadingGrid columns={2} />
                 ) : destinationCards.length ? (
                   <Row gutter={[18, 18]}>
-                    {destinationCards.map((item) => (
+                    {destinationCards.map((item, index) => (
                       <Col xs={24} md={12} key={item.id}>
                         <Card
                           hoverable
@@ -825,7 +840,7 @@ export default function PcLandingScreen() {
                             )
                           }>
                           <Flex gap={18} align="stretch">
-                            <img className="pc-destination-img" src={imageUri(item.image)} alt={item.title} loading="lazy" decoding="async" />
+                            <img className="pc-destination-img" src={imageUri(item.image)} alt={item.title} loading="lazy" decoding="async" onError={(event) => handleStableImageError(event, index)} />
                             <div className="pc-destination-body">
                               <Flex justify="space-between" align="center">
                                 <Tag color="geekblue">{item.tag}</Tag>
@@ -860,7 +875,7 @@ export default function PcLandingScreen() {
                 />
                 <div className="pc-process-layout">
                   <figure className="pc-process-visual">
-                    <img src={imageUri(yantaiImage)} alt="烟台海岸实景" loading="lazy" decoding="async" />
+                    <img src={imageUri(yantaiImage)} alt="烟台海岸实景" loading="lazy" decoding="async" onError={(event) => handleStableImageError(event, 4)} />
                     <div className="pc-process-visual-shade" />
                     <figcaption>
                       <span>INPUT → MATCH → REVEAL → GO</span>
@@ -2008,8 +2023,12 @@ const pcCss = `
 }
 
 .pc-hero {
+  --hero-block-pad: clamp(42px, 5vh, 78px);
+  box-sizing: border-box;
   min-height: calc(100dvh - 76px);
-  padding: clamp(38px, 5vw, 76px) 56px clamp(54px, 6vw, 92px);
+  padding: var(--hero-block-pad) clamp(26px, 3.2vw, 48px);
+  display: flex;
+  align-items: stretch;
   background:
     radial-gradient(circle at 14% 20%, rgba(201, 255, 98, .24), transparent 32%),
     radial-gradient(circle at 83% 25%, rgba(120, 232, 255, .16), transparent 27%),
@@ -2043,12 +2062,16 @@ const pcCss = `
 }
 
 .pc-hero-inner {
-  min-height: auto;
-  grid-template-columns: minmax(0, 1.02fr) minmax(430px, .98fr);
-  gap: clamp(46px, 6vw, 94px);
+  width: 100%;
+  max-width: 1480px;
+  min-height: calc(100dvh - 76px - var(--hero-block-pad) * 2);
+  grid-template-columns: minmax(0, 1fr) minmax(500px, 1fr);
+  align-items: center;
+  align-content: center;
+  gap: clamp(30px, 4vw, 64px);
 }
 
-.pc-hero-copy { max-width: 720px; }
+.pc-hero-copy { max-width: 760px; }
 
 .pc-hero-status {
   width: fit-content;
@@ -2082,9 +2105,9 @@ const pcCss = `
 
 .pc-hero-title.ant-typography {
   margin-top: 24px;
-  max-width: 760px;
+  max-width: 800px;
   color: #fff;
-  font-size: clamp(54px, 5.6vw, 84px);
+  font-size: clamp(64px, 6.15vw, 98px);
   line-height: .99;
   font-weight: 950;
   letter-spacing: -.065em;
@@ -2099,9 +2122,9 @@ const pcCss = `
 
 .pc-hero-desc.ant-typography {
   margin-top: 26px;
-  max-width: 620px;
+  max-width: 670px;
   color: rgba(255,255,255,.68);
-  font-size: 18px;
+  font-size: 19px;
   line-height: 1.75;
   font-weight: 550;
 }
@@ -2109,8 +2132,8 @@ const pcCss = `
 .pc-hero-actions { margin-top: 34px; }
 
 .pc-hero-actions .ant-btn {
-  height: 56px;
-  padding-inline: 23px;
+  height: 58px;
+  padding-inline: 26px;
   border-radius: 16px;
   font-size: 15px;
   font-weight: 900;
@@ -2184,7 +2207,11 @@ const pcCss = `
   font-weight: 850;
 }
 
-.pc-hero-showcase { width: min(100%, 610px); height: clamp(500px, 42vw, 620px); }
+.pc-hero-showcase {
+  width: min(100%, 710px);
+  height: clamp(600px, 54vh, 750px);
+  align-self: center;
+}
 
 .pc-hero-showcase::before {
   inset: 3% 0 7% 3%;
@@ -2531,9 +2558,23 @@ const pcCss = `
 .pc-footer .ant-typography-secondary { color: rgba(255,255,255,.62); }
 .pc-footer strong.ant-typography { color: #fff; }
 
+@media (min-width: 1181px) and (max-height: 760px) {
+  .pc-hero { --hero-block-pad: 28px; }
+  .pc-hero-title.ant-typography {
+    margin-top: 18px;
+    font-size: clamp(52px, 5.1vw, 74px);
+  }
+  .pc-hero-desc.ant-typography { margin-top: 18px; line-height: 1.6; }
+  .pc-hero-actions { margin-top: 24px; }
+  .pc-hero-quest-chips { margin-top: 14px; }
+  .pc-stats { margin-top: 20px; }
+  .pc-stats .ant-statistic { min-height: 70px; padding-block: 10px; }
+  .pc-hero-showcase { height: min(530px, calc(100dvh - 132px)); }
+}
+
 @media (max-width: 1180px) {
-  .pc-hero { min-height: auto; }
-  .pc-hero-inner { grid-template-columns: 1fr; }
+  .pc-hero { min-height: auto; display: block; }
+  .pc-hero-inner { min-height: auto; grid-template-columns: 1fr; }
   .pc-hero-copy { max-width: 850px; }
   .pc-hero-showcase { justify-self: center; }
   .pc-process-layout { grid-template-columns: 1fr; }

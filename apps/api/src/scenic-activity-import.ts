@@ -6,6 +6,8 @@ const AMAP_POI_SEARCH_URL = "https://restapi.amap.com/v3/place/text";
 const AMAP_POI_SEARCH_TIMEOUT_MS = 8_000;
 const MAX_AMAP_TEXT_SEARCH_RESULTS = 200;
 const AMAP_MAX_OFFSET = 25;
+const AMAP_REQUEST_INTERVAL_MS = 420;
+const AMAP_RATE_LIMIT_RETRIES = 4;
 
 export type ScenicImportCity = {
   id: number;
@@ -363,11 +365,28 @@ export async function fetchAmapScenicPois(options: FetchAmapScenicPoisOptions) {
   const offset = Math.min(Math.max(Math.trunc(options.offset ?? DEFAULT_AMAP_POI_OFFSET), 1), AMAP_MAX_OFFSET);
   const pageLimit = Math.max(Math.trunc(options.pageLimit ?? DEFAULT_AMAP_PAGE_LIMIT), 1);
   const fetchImpl = options.fetchImpl ?? fetch;
+  const shouldThrottle = options.fetchImpl === undefined;
   const allPois: AmapPoi[] = [];
+
+  const requestPage = async (input: Parameters<typeof fetchAmapTextSearchPage>[0]) => {
+    for (let attempt = 0; attempt <= AMAP_RATE_LIMIT_RETRIES; attempt += 1) {
+      try {
+        const result = await fetchAmapTextSearchPage(input);
+        if (shouldThrottle) await new Promise((resolve) => setTimeout(resolve, AMAP_REQUEST_INTERVAL_MS));
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        const rateLimited = /1002[0-3]|QPS_HAS_EXCEEDED_THE_LIMIT/.test(message);
+        if (!shouldThrottle || !rateLimited || attempt === AMAP_RATE_LIMIT_RETRIES) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 1_200 * (attempt + 1)));
+      }
+    }
+    throw new Error('高德 POI 搜索重试失败');
+  };
 
   for (const keyword of queryKeywords) {
     for (let page = 1; page <= pageLimit; page += 1) {
-      const { pois, total } = await fetchAmapTextSearchPage({
+      const { pois, total } = await requestPage({
         key,
         city,
         types,

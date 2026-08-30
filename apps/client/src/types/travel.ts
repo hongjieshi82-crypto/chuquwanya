@@ -89,3 +89,34 @@ export type TripGenerateParams = {
   preferences: string[];
   tripType?: string;
 };
+
+export type ComposedTripItem = {
+  type: 'transport' | 'activity' | 'meal' | 'hotel' | 'nightlife';
+  activityId: number | null;
+  name: string;
+  summary: string;
+  timeSlot: '上午' | '中午' | '下午' | '晚上';
+  startTime?: string;
+  durationMinutes: number;
+  budgetYuan: number;
+  district: string;
+  address: string;
+  coverImageUri: string | null;
+  sourceUrl?: string | null;
+  transportNote?: string | null;
+  tips: string[];
+};
+
+export type ComposedTrip = {
+  destinationCityId: number;
+  destination: string;
+  originName?: string | null;
+  daysCount: number;
+  travelers: number;
+  budgetTier?: 'budget' | 'standard' | 'premium' | 'luxury';
+  totalBudgetEstimate: number;
+  budgetBreakdown?: { intercityTransport: number; hotel: number; meals: number; localTransport: number; activities: number; reserve: number };
+  stayRecommendation?: { name: string; address: string; tier: string; estimatedNightlyPrice: number; sourceUrl: string | null; note: string } | null;
+  summary: string;
+  days: { day: number; theme: string; dailyBudgetEstimate?: number; items: ComposedTripItem[] }[];
+};

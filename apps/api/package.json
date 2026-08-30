@@ -14,7 +14,13 @@
     "images:localize:blind-box": "tsx scripts/localizeBlindBoxCoverImages.ts",
     "images:fallback:blind-box": "tsx scripts/fallbackBlindBoxCoverImages.ts",
     "data:sync:scenic": "tsx scripts/syncScenicActivitiesFromAmap.ts",
-    "data:import:dianping-scenic": "tsx scripts/importDianpingScenicActivities.ts"
+    "data:import:dianping-scenic": "tsx scripts/importDianpingScenicActivities.ts",
+    "content:report": "tsx scripts/contentQuality.ts",
+    "content:publish": "tsx scripts/contentQuality.ts --publish",
+    "content:import-sources": "tsx scripts/importContentSources.ts",
+    "content:generate-variants": "tsx scripts/generateActivityVariants.ts",
+    "content:review-amap": "tsx scripts/reviewAmapImports.ts",
+    "data:sync:trip-support": "tsx scripts/importTripSupportPois.ts"
   },
   "engines": {
     "node": ">=24 <25"

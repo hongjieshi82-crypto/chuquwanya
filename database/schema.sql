@@ -38,6 +38,22 @@ CREATE TABLE IF NOT EXISTS activities (
   mood VARCHAR(32) NOT NULL,
   mood_tags JSON NOT NULL DEFAULT (JSON_ARRAY()),
   environment ENUM('indoor', 'outdoor', 'either') NOT NULL DEFAULT 'either',
+  rain_friendly ENUM('yes', 'no', 'unknown') NOT NULL DEFAULT 'unknown',
+  heat_sensitive ENUM('yes', 'no', 'unknown') NOT NULL DEFAULT 'unknown',
+  wind_sensitive ENUM('yes', 'no', 'unknown') NOT NULL DEFAULT 'unknown',
+  weather_notes VARCHAR(255) NULL,
+  last_verified_at DATETIME NULL,
+  opening_hours JSON NULL,
+  reservation_required ENUM('yes', 'no', 'unknown') NOT NULL DEFAULT 'unknown',
+  reservation_url VARCHAR(500) NULL,
+  content_status ENUM('draft', 'review', 'published', 'archived') NOT NULL DEFAULT 'published',
+  content_score TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  quality_issues JSON NOT NULL DEFAULT (JSON_ARRAY()),
+  source_type VARCHAR(32) NULL,
+  source_url VARCHAR(500) NULL,
+  place_key VARCHAR(180) NULL,
+  suitable_periods JSON NOT NULL DEFAULT (JSON_ARRAY()),
+  source_confidence TINYINT UNSIGNED NOT NULL DEFAULT 0,
   min_party_size TINYINT UNSIGNED NOT NULL DEFAULT 1,
   max_party_size TINYINT UNSIGNED NOT NULL DEFAULT 6,
   duration_minutes SMALLINT UNSIGNED NOT NULL,
@@ -65,8 +81,63 @@ CREATE TABLE IF NOT EXISTS activities (
     duration_minutes,
     budget_yuan
   ),
+  KEY idx_activities_content_admission (city_id, is_active, content_status, content_score),
+  KEY idx_activities_place_key (city_id, place_key),
   CONSTRAINT fk_activities_city
     FOREIGN KEY (city_id) REFERENCES cities (id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS content_sources (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  platform ENUM('official', 'amap', 'xiaohongshu', 'douyin', 'bilibili', 'wechat', 'user', 'manual') NOT NULL,
+  source_url VARCHAR(700) NULL,
+  source_title VARCHAR(255) NULL,
+  author_name VARCHAR(120) NULL,
+  published_at DATETIME NULL,
+  captured_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  usage_role ENUM('fact', 'inspiration', 'both') NOT NULL DEFAULT 'inspiration',
+  verification_status ENUM('unverified', 'cross_checked', 'verified', 'rejected') NOT NULL DEFAULT 'unverified',
+  rights_note VARCHAR(255) NULL,
+  extracted_signals JSON NOT NULL DEFAULT (JSON_ARRAY()),
+  PRIMARY KEY (id),
+  KEY idx_content_sources_platform_status (platform, verification_status),
+  UNIQUE KEY uk_content_source_url (source_url)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS trip_support_pois (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  city_id BIGINT UNSIGNED NOT NULL,
+  name VARCHAR(160) NOT NULL,
+  kind ENUM('restaurant','cafe','hotel','nightlife') NOT NULL,
+  tier ENUM('budget','standard','premium','luxury') NOT NULL DEFAULT 'standard',
+  address VARCHAR(255) NOT NULL,
+  district VARCHAR(80) NOT NULL,
+  latitude DECIMAL(10,7) NOT NULL,
+  longitude DECIMAL(10,7) NOT NULL,
+  avg_price_yuan SMALLINT UNSIGNED NULL,
+  tags JSON NOT NULL DEFAULT (JSON_ARRAY()),
+  cover_image VARCHAR(500) NULL,
+  source_type VARCHAR(32) NOT NULL DEFAULT 'amap',
+  source_url VARCHAR(500) NULL,
+  verification_status ENUM('unverified','source_checked','verified','rejected') NOT NULL DEFAULT 'source_checked',
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_trip_support_city_kind_name (city_id, kind, name),
+  KEY idx_trip_support_match (city_id, kind, tier, is_active),
+  CONSTRAINT fk_trip_support_city FOREIGN KEY (city_id) REFERENCES cities(id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS activity_source_links (
+  activity_id BIGINT UNSIGNED NOT NULL,
+  source_id BIGINT UNSIGNED NOT NULL,
+  relation_role ENUM('fact', 'inspiration', 'both') NOT NULL DEFAULT 'inspiration',
+  notes VARCHAR(255) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (activity_id, source_id),
+  CONSTRAINT fk_activity_source_activity FOREIGN KEY (activity_id) REFERENCES activities(id) ON DELETE CASCADE,
+  CONSTRAINT fk_activity_source_source FOREIGN KEY (source_id) REFERENCES content_sources(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS draw_sessions (

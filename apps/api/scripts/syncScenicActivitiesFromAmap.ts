@@ -238,12 +238,14 @@ async function insertActivity(connection: mysql.Connection, draft: ScenicActivit
        city_id, title, summary, description, category, mood, mood_tags, environment,
        min_party_size, max_party_size, duration_minutes, budget_yuan, city_distance_km,
        district, address, latitude, longitude, navigation_url, cover_image, steps, tips,
-       accent_color, is_active
+       accent_color, is_active, rain_friendly, heat_sensitive, wind_sensitive, weather_notes,
+       reservation_required, content_status, content_score, quality_issues, source_type, source_url
      ) VALUES (
        ?, ?, ?, ?, ?, ?, CAST(? AS JSON), ?,
        ?, ?, ?, ?, ?,
        ?, ?, ?, ?, ?, ?, CAST(? AS JSON), CAST(? AS JSON),
-       ?, TRUE
+       ?, TRUE, ?, ?, ?, ?,
+       'unknown', 'review', 65, CAST(? AS JSON), 'amap', ?
      )`,
     [
       draft.cityId,
@@ -268,6 +270,12 @@ async function insertActivity(connection: mysql.Connection, draft: ScenicActivit
       JSON.stringify(draft.steps),
       JSON.stringify(draft.tips),
       draft.accentColor,
+      draft.environment === "outdoor" ? "no" : "yes",
+      draft.environment === "outdoor" ? "yes" : "no",
+      draft.environment === "outdoor" ? "yes" : "no",
+      "自动导入的天气适用性为初步推断，发布前需人工确认",
+      JSON.stringify(["营业时间未核验", "预约要求未核验", "天气适用性需人工确认"]),
+      draft.navigationUrl,
     ],
   );
   return result.insertId;
@@ -296,6 +304,16 @@ async function updateActivity(connection: mysql.Connection, activityId: number, 
          steps = CAST(? AS JSON),
          tips = CAST(? AS JSON),
          accent_color = ?,
+         rain_friendly = ?,
+         heat_sensitive = ?,
+         wind_sensitive = ?,
+         weather_notes = ?,
+         reservation_required = 'unknown',
+         content_status = 'review',
+         content_score = 65,
+         quality_issues = CAST(? AS JSON),
+         source_type = 'amap',
+         source_url = ?,
          is_active = TRUE,
          updated_at = CURRENT_TIMESTAMP
      WHERE id = ?`,
@@ -320,6 +338,12 @@ async function updateActivity(connection: mysql.Connection, activityId: number, 
       JSON.stringify(draft.steps),
       JSON.stringify(draft.tips),
       draft.accentColor,
+      draft.environment === "outdoor" ? "no" : "yes",
+      draft.environment === "outdoor" ? "yes" : "no",
+      draft.environment === "outdoor" ? "yes" : "no",
+      "自动导入的天气适用性为初步推断，发布前需人工确认",
+      JSON.stringify(["营业时间未核验", "预约要求未核验", "天气适用性需人工确认"]),
+      draft.navigationUrl,
       activityId,
     ],
   );

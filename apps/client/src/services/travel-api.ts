@@ -4,6 +4,7 @@ import { getAuthToken } from '@/lib/auth-storage';
 import { isLocalDemoMode, resolveApiMediaUrl } from '@/services/api';
 import {
   demoAttractions,
+  demoActivities,
   demoDestinationProfiles,
   demoDestinations,
   demoTravelTags,
@@ -17,6 +18,7 @@ import type {
   SemanticSearchHit,
   TravelTag,
   TripGenerateParams,
+  ComposedTrip,
 } from '@/types/travel';
 
 const platformDefault = Platform.select({
@@ -290,6 +292,72 @@ export async function generateTripAsync(params: TripGenerateParams) {
     method: 'POST',
     body: JSON.stringify({ ...params, stream: false }),
   });
+}
+
+export async function composeMultiDayTrip(params: {
+  cityId: number;
+  originName?: string | null;
+  days: number;
+  travelers: number;
+  budget: number | null;
+  mood: string;
+  budgetTier?: 'budget' | 'standard' | 'premium' | 'luxury';
+}) {
+  const trip = await withTravelDemoFallback(
+    () => travelRequest<ComposedTrip>('/trips/compose', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }, false),
+    () => {
+      const candidates = demoActivities
+        .filter((activity) => activity.cityId === params.cityId)
+        .filter((activity, index, list) => list.findIndex((candidate) => candidate.address === activity.address) === index);
+      const cityName = candidates[0]?.cityName ?? '当前城市';
+      if (candidates.length < params.days) {
+        throw new Error(`${cityName}目前只有 ${candidates.length} 条演示玩法，不足以生成 ${params.days} 天不重复行程。`);
+      }
+      const selected = [] as typeof candidates;
+      let selectedCost = 0;
+      for (const activity of candidates) {
+        const nextCost = activity.budgetYuan * params.travelers;
+        if (params.budget !== null && selectedCost + nextCost > params.budget) continue;
+        selected.push(activity);
+        selectedCost += nextCost;
+        if (selected.length === params.days) break;
+      }
+      if (selected.length < params.days) {
+        throw new Error(`当前预算不足以组合 ${params.days} 天不重复核心玩法，请提高预算或减少天数。`);
+      }
+      const activityCost = selected.reduce((sum, activity) => sum + activity.budgetYuan * params.travelers, 0);
+      const flexibleDailyBudget = params.budget === null
+        ? 80 * params.travelers
+        : Math.max(0, Math.floor((params.budget - activityCost) / params.days));
+      return {
+        destinationCityId: params.cityId,
+        destination: cityName,
+        daysCount: params.days,
+        travelers: params.travelers,
+        totalBudgetEstimate: activityCost + flexibleDailyBudget * params.days,
+        summary: `${cityName} ${params.days} 天不重复城市任务。`,
+        days: selected.map((activity, index) => ({
+          day: index + 1,
+          theme: index === 0 ? `先认识${cityName}` : index === selected.length - 1 ? '低强度收尾' : `${params.mood}城市任务`,
+          items: [
+            { type: 'transport' as const, activityId: null, name: `前往${activity.district}`, summary: '根据实时位置选择公共交通或步行。', timeSlot: '上午' as const, durationMinutes: 45, budgetYuan: 0, district: activity.district, address: activity.address, coverImageUri: null, tips: ['出发前确认实时交通'] },
+            { type: 'activity' as const, activityId: activity.id, name: activity.title, summary: activity.summary, timeSlot: '下午' as const, durationMinutes: activity.durationMinutes, budgetYuan: activity.budgetYuan * params.travelers, district: activity.district, address: activity.address, coverImageUri: activity.coverImageUri ?? null, tips: activity.tips },
+            { type: 'meal' as const, activityId: null, name: `在${activity.district}自由用餐`, summary: '结合实时营业状态和口味现场选择。', timeSlot: '晚上' as const, durationMinutes: 75, budgetYuan: flexibleDailyBudget, district: activity.district, address: activity.district, coverImageUri: null, tips: ['以现场菜单和营业状态为准'] },
+          ],
+        })),
+      } satisfies ComposedTrip;
+    },
+  );
+  return {
+    ...trip,
+    days: trip.days.map((day) => ({
+      ...day,
+      items: day.items.map((item) => ({ ...item, coverImageUri: resolveApiMediaUrl(item.coverImageUri) })),
+    })),
+  };
 }
 
 export async function getTripGenerateTask(taskId: string) {

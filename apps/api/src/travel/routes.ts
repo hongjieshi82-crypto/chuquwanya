@@ -10,6 +10,7 @@ import { vectorStoreService } from "./ai/vectorStore.service.js";
 import { RecommendationService } from "./modules/recommendation.service.js";
 import { SemanticSearchService } from "./modules/semanticSearch.service.js";
 import { TripGenerationService } from "./modules/tripGeneration.service.js";
+import { MultiDayComposerService } from "./modules/multiDayComposer.service.js";
 import { config, getEmbeddingModelName, isAiConfigured } from "../config.js";
 
 type AuthRequest = Request & { userId?: number };
@@ -62,9 +63,20 @@ const tripGenerateSchema = z.object({
   stream: z.boolean().default(false),
 });
 
+const tripComposeSchema = z.object({
+  cityId: z.number().int().positive(),
+  originName: z.string().trim().min(1).max(80).nullable().optional(),
+  days: z.number().int().min(2).max(5),
+  travelers: z.number().int().min(1).max(20),
+  budget: z.number().int().min(0).max(100_000).nullable(),
+  mood: z.string().min(1).max(32),
+  budgetTier: z.enum(['budget', 'standard', 'premium', 'luxury']).optional(),
+});
+
 const recommendationService = new RecommendationService(pool);
 const semanticSearchService = new SemanticSearchService(pool);
 const tripGenerationService = new TripGenerationService(pool);
+const multiDayComposerService = new MultiDayComposerService(pool);
 
 export function registerTravelRoutes(app: Express) {
   app.get(
@@ -206,6 +218,15 @@ export function registerTravelRoutes(app: Express) {
       const body = semanticSearchSchema.parse(request.body);
       const results = await semanticSearchService.search(body.query, body.target, body.limit);
       response.json({ data: { results, total: results.length, mode: embeddingService.isAvailable() ? "semantic" : "keyword" } });
+    }),
+  );
+
+  app.post(
+    "/api/v1/trips/compose",
+    asyncRoute(async (request, response) => {
+      const input = tripComposeSchema.parse(request.body);
+      const trip = await multiDayComposerService.compose(input);
+      response.status(201).json({ data: trip });
     }),
   );
 
