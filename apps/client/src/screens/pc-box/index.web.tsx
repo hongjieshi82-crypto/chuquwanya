@@ -1283,7 +1283,7 @@ const pcBoxCss = `
   background: #dcff9b;
 }
 
-/* Keep the whole configurator inside the same dark travel-console world. */
+/* Keep the atmospheric background while using light, readable control cards. */
 .pc-box-page {
   color: #f7f7f2;
   background:
@@ -1314,50 +1314,55 @@ const pcBoxCss = `
 
 .pc-box-section.ant-card {
   overflow: hidden;
-  border: 1px solid rgba(255,255,255,.105);
+  border: 1px solid rgba(225,231,217,.96);
   border-radius: 24px;
-  color: #f7f7f2;
-  background: linear-gradient(145deg, rgba(35,39,43,.9), rgba(20,21,27,.94));
-  box-shadow: 0 22px 58px rgba(0,0,0,.24);
-  backdrop-filter: blur(20px);
+  color: #171c18;
+  background: rgba(251,252,248,.98);
+  box-shadow: 0 22px 58px rgba(0,0,0,.2);
 }
 
-.pc-box-section .ant-card-body { padding: 34px 38px 38px; }
+.pc-box-section .ant-card-body { padding: 38px 42px 42px; }
 .pc-box-section-heading { margin-bottom: 28px; }
 .pc-box-section-icon { width: 44px; height: 44px; border-radius: 13px; box-shadow: 0 8px 24px rgba(201,255,98,.12); }
-.pc-box-section-title, .pc-box-label { color: #fff; }
-.pc-box-location-notice, .pc-box-destination-hint { color: rgba(255,255,255,.4); }
+.pc-box-section-title { color: #171c18; font-size: 22px; }
+.pc-box-label { color: #252b26; font-size: 16px; }
+.pc-box-location-notice, .pc-box-destination-hint { color: #767d76; font-size: 14px; line-height: 1.65; }
 
 .pc-box-city-select .ant-select-selector,
 .pc-box-location-button.ant-btn,
 .pc-box-options .ant-tag-checkable-group-item.ant-tag {
-  border-color: rgba(255,255,255,.11) !important;
-  color: rgba(255,255,255,.66);
-  background: rgba(255,255,255,.055) !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.035) !important;
+  border-color: #dfe5da !important;
+  color: #3f4740;
+  background: #f1f4ed !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.7) !important;
 }
 
 .pc-box-city-select .ant-select-selection-item,
-.pc-box-city-select .ant-select-arrow { color: rgba(255,255,255,.7); }
-.pc-box-locate-button.ant-btn { border-color: rgba(201,255,98,.22); color: #c9ff62; background: rgba(201,255,98,.07); }
-.pc-box-locate-button.ant-btn:hover { color: #dcff9b !important; background: rgba(201,255,98,.12) !important; }
-.pc-box-options .ant-tag-checkable-group-item.ant-tag:hover { border-color: rgba(201,255,98,.34) !important; color: #c9ff62; background: rgba(201,255,98,.075) !important; }
+.pc-box-city-select .ant-select-arrow { color: #4c554d; }
+.pc-box-locate-button.ant-btn { border-color: #b8d37e; color: #4d6f16; background: #eff8dc; font-size: 15px; }
+.pc-box-locate-button.ant-btn:hover { border-color: #90b549 !important; color: #38550b !important; background: #e6f6c5 !important; }
+.pc-box-options .ant-tag-checkable-group-item.ant-tag { min-height: 48px; font-size: 16px; }
+.pc-box-options .ant-tag-checkable-group-item.ant-tag:hover { border-color: #a7c76a !important; color: #4d6f16; background: #edf5df !important; }
 .pc-box-options .ant-tag-checkable-group-item.ant-tag-checkable-checked {
-  border-color: #c9ff62 !important;
+  border-color: #9ccc43 !important;
   color: #111419;
   background: #c9ff62 !important;
-  box-shadow: 0 10px 26px rgba(201,255,98,.13) !important;
+  box-shadow: 0 10px 26px rgba(111,152,33,.17) !important;
 }
 
 .pc-box-group-surprise .ant-tag-checkable-group-item.ant-tag { min-height: 168px; }
 .pc-box-group-surprise .ant-tag-checkable-group-item.ant-tag-checkable-checked { color: #111419; background: linear-gradient(145deg,#c9ff62,#aeeeff) !important; }
-.pc-box-group-surprise .pc-box-surprise-option small { color: inherit; opacity: .62; }
+.pc-box-group-surprise .pc-box-surprise-option strong { font-size: 20px; }
+.pc-box-group-surprise .pc-box-surprise-option small { color: #646d65; font-size: 15px; line-height: 1.7; opacity: 1; }
 
 .pc-box-action {
-  border-color: rgba(201,255,98,.18);
-  background: rgba(15,17,20,.94);
-  box-shadow: 0 24px 60px rgba(0,0,0,.3);
+  border-color: rgba(225,231,217,.96);
+  color: #171c18;
+  background: rgba(251,252,248,.98);
+  box-shadow: 0 24px 60px rgba(0,0,0,.22);
 }
+.pc-box-summary-label { color: #7a827a; font-size: 13px; }
+.pc-box-summary-value { color: #252b26; font-size: 16px; line-height: 1.6; }
 
 @media (max-width: 720px) {
   .pc-box-page {

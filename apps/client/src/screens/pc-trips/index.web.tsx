@@ -28,6 +28,7 @@ import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 
 import { useApp } from '@/contexts/app-context';
+import { resolveCuratedActivityCover } from '@/services/demo-data';
 import { getActivity, getTodos, startTodo, updateTodoStatus } from '@/services/api';
 import { palette, radii } from '@/theme';
 import type { Todo, TodoStatus } from '@/types';
@@ -77,11 +78,11 @@ const tripsCss = `
 .pc-trips-summary { color: rgba(255,255,255,.46); font-size: 13px; }
 .pc-trips-summary b { color: #c9ff62; font-weight: 800; }
 .pc-trips-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
-.pc-trip-card.ant-card { position: relative; overflow: hidden; min-height: 510px; border: 1px solid rgba(255,255,255,.11); border-radius: 24px; background: linear-gradient(145deg, rgba(35,39,43,.96), rgba(20,21,27,.98)); box-shadow: 0 18px 44px rgba(0,0,0,.18); transition: transform .28s cubic-bezier(.2,.8,.2,1), border-color .28s ease, box-shadow .28s ease; animation: trip-card-in .55s both; }
+.pc-trip-card.ant-card { position: relative; overflow: hidden; min-height: 540px; border: 1px solid rgba(223,228,216,.95); border-radius: 24px; background: #fbfcf8; box-shadow: 0 18px 44px rgba(0,0,0,.18); transition: transform .28s cubic-bezier(.2,.8,.2,1), border-color .28s ease, box-shadow .28s ease; animation: trip-card-in .55s both; }
 .pc-trip-card.ant-card:nth-child(2) { animation-delay: .07s; }.pc-trip-card.ant-card:nth-child(3) { animation-delay: .14s; }.pc-trip-card.ant-card:nth-child(4) { animation-delay: .21s; }
 .pc-trip-card.ant-card::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(120deg, transparent 25%, rgba(201,255,98,.06), transparent 70%); transform: translateX(-110%); transition: transform .65s ease; }
 .pc-trip-card.ant-card:hover { transform: translateY(-7px); border-color: rgba(201,255,98,.42); box-shadow: 0 24px 54px rgba(0,0,0,.32); }.pc-trip-card.ant-card:hover::after { transform: translateX(110%); }
-.pc-trip-card .ant-card-body { display: flex; flex-direction: column; height: 100%; min-height: 510px; padding: 0; }
+.pc-trip-card .ant-card-body { display: flex; flex-direction: column; height: 100%; min-height: 540px; padding: 0; }
 .pc-trip-cover { position: relative; flex: 0 0 auto; height: 220px; overflow: hidden; background: radial-gradient(circle at 72% 28%, color-mix(in srgb, var(--trip-accent) 55%, transparent), transparent 34%), linear-gradient(145deg,#2b3930,#17202a); }
 .pc-trip-cover img { width: 100%; height: 100%; display: block; object-fit: cover; transition: transform .65s cubic-bezier(.2,.8,.2,1); }.pc-trip-card:hover .pc-trip-cover img { transform: scale(1.055); }
 .pc-trip-cover-placeholder { width: 100%; height: 100%; display: grid; place-items: center; color: rgba(255,255,255,.2); font-size: 36px; font-weight: 900; letter-spacing: -.04em; }
@@ -93,16 +94,16 @@ const tripsCss = `
 .pc-trip-status i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 10px currentColor; }
 .pc-trip-status.is-pending { color: #f4d277; }.pc-trip-status.is-progress { color: #84c8ff; }.pc-trip-status.is-completed { color: #c9ff62; }.pc-trip-status.is-cancelled { color: #aaaab3; }
 .pc-trip-overflow.ant-btn { width: 30px; height: 30px; color: #fff; background: rgba(10,13,15,.68); backdrop-filter: blur(12px); }
-.pc-trip-content { display: flex; flex: 1; flex-direction: column; padding: 24px 24px 22px; }
-.pc-trip-title.ant-typography { margin: 0 0 8px; color: #fff; font-size: 22px; line-height: 1.35; }
-.pc-trip-summary.ant-typography { display: -webkit-box; min-height: 42px; margin: 0; overflow: hidden; color: rgba(255,255,255,.52); font-size: 14px; line-height: 21px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.pc-trip-meta { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px 14px; margin-top: 20px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,.09); color: rgba(255,255,255,.58); font-size: 12px; }.pc-trip-meta-item:last-child { grid-column: 1 / -1; }
+.pc-trip-content { display: flex; flex: 1; flex-direction: column; padding: 27px 26px 25px; }
+.pc-trip-title.ant-typography { margin: 0 0 10px; color: #171c18; font-size: 25px; font-weight: 900; line-height: 1.35; letter-spacing: .01em; }
+.pc-trip-summary.ant-typography { display: -webkit-box; min-height: 52px; margin: 0; overflow: hidden; color: #626a63; font-size: 16px; line-height: 26px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.pc-trip-meta { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 13px 16px; margin-top: 22px; padding-top: 20px; border-top: 1px solid #e2e7dd; color: #555e57; font-size: 14px; font-weight: 600; }.pc-trip-meta-item:last-child { grid-column: 1 / -1; }
 .pc-trip-meta-item { display: flex; align-items: center; gap: 7px; min-width: 0; }
-.pc-trip-meta-item svg { color: #c9ff62; }
+.pc-trip-meta-item svg { color: #6f9821; }
 .pc-trip-meta-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pc-trip-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 19px; }
-.pc-trip-detail.ant-btn { padding: 0; color: #c9ff62; font-size: 13px; font-weight: 750; }.pc-trip-detail.ant-btn:hover { color: #dcff9b !important; }
-.pc-trip-start.ant-btn { height: 36px; border: 0; border-radius: 999px; color: #10130d; background: #c9ff62; box-shadow: none; font-size: 13px; font-weight: 800; }
+.pc-trip-detail.ant-btn { padding: 0; color: #567c16; font-size: 15px; font-weight: 850; }.pc-trip-detail.ant-btn:hover { color: #38550b !important; }
+.pc-trip-start.ant-btn { height: 40px; padding-inline: 18px; border: 0; border-radius: 999px; color: #10130d; background: #c9ff62; box-shadow: none; font-size: 14px; font-weight: 850; }
 .pc-trips-empty.ant-empty { margin: 0; padding: 78px 24px; border: 1px dashed rgba(201,255,98,.24); border-radius: 22px; background: rgba(255,255,255,.035); }.pc-trips-empty .ant-empty-description { color: rgba(255,255,255,.58); }.pc-trips-empty .ant-empty-image { filter: grayscale(1) brightness(1.9); opacity: .58; }
 .pc-trips-loading { display: grid; min-height: 280px; place-items: center; border: 1px solid rgba(255,255,255,.1); border-radius: 22px; background: rgba(255,255,255,.035); }.pc-trips-loading .ant-spin-text { color: rgba(255,255,255,.6); }
 @keyframes trip-card-in { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
@@ -156,6 +157,7 @@ function TripCard({
   const router = useRouter();
   const status = statusMeta[item.status];
   const date = dateParts(item.scheduledDate || item.createdAt);
+  const effectiveCoverImageUri = coverImageUri || resolveCuratedActivityCover(item);
   const menuItems: MenuProps['items'] = [
     { key: 'detail', label: '查看详情', icon: <ArrowRightOutlined /> },
     { key: 'calendar', label: '添加到日历', icon: <CalendarOutlined /> },
@@ -164,7 +166,7 @@ function TripCard({
   return (
     <Card className="pc-trip-card" variant="borderless">
       <div className="pc-trip-cover" style={{ '--trip-accent': item.accentColor || '#c9ff62' } as CSSProperties}>
-        {coverImageUri ? <img alt="" src={coverImageUri} /> : <div className="pc-trip-cover-placeholder"><span>{item.cityName || '周末出发'}</span></div>}
+        {effectiveCoverImageUri ? <img alt={`${item.title}场景图`} src={effectiveCoverImageUri} /> : <div className="pc-trip-cover-placeholder"><span>{item.cityName || '周末出发'}</span></div>}
         <div className="pc-trip-cover-shade" />
         <div className="pc-trip-date"><span>{date.month}</span><b>{date.day}</b></div>
         <Space className="pc-trip-cover-actions" size={7} align="start">
@@ -186,7 +188,7 @@ function TripCard({
           <Button className="pc-trip-detail" icon={<ArrowRightOutlined />} iconPlacement="end" type="link" onClick={() => router.push(`/activity/${item.activityId}`)}>查看详情</Button>
           {item.status === 'pending' ? <Button className="pc-trip-start" icon={<PlayCircleOutlined />} loading={isStarting} type="primary" onClick={() => onStart(item)}>开始行程</Button> : null}
           {item.status === 'in_progress' ? <Button className="pc-trip-start" loading={isCompleting} type="primary" onClick={() => onComplete(item)}>完成行程</Button> : null}
-          {item.status === 'completed' ? <Badge color="#c9ff62" text={<span style={{ color: 'rgba(255,255,255,.6)' }}>已留下回忆</span>} /> : null}
+          {item.status === 'completed' ? <Badge color="#78a927" text={<span style={{ color: '#59615a', fontSize: 14, fontWeight: 700 }}>已留下回忆</span>} /> : null}
         </div>
       </div>
     </Card>

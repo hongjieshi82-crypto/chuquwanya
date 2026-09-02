@@ -132,13 +132,35 @@ const curatedActivityCoverRules = [
   { keywords: ['翠湖', '文化巷'], uri: kunmingCuihuParkImage },
 ] as const;
 
+const curatedCityCoverRules = [
+  { cityName: '北京', uri: beijingImage },
+  { cityName: '上海', uri: shanghaiImage },
+  { cityName: '杭州', uri: hangzhouImage },
+  { cityName: '深圳', uri: shenzhenImage },
+  { cityName: '天津', uri: tianjinImage },
+  { cityName: '烟台', uri: yantaiImage },
+  { cityName: '青岛', uri: qingdaoImage },
+  { cityName: '南京', uri: nanjingImage },
+  { cityName: '武汉', uri: wuhanImage },
+  { cityName: '成都', uri: chengduImage },
+  { cityName: '西安', uri: xianImage },
+  { cityName: '长沙', uri: changshaImage },
+  { cityName: '广州', uri: guangzhouImage },
+  { cityName: '合肥', uri: hefeiImage },
+  { cityName: '重庆', uri: chongqingImage },
+  { cityName: '厦门', uri: xiamenImage },
+  { cityName: '济南', uri: jinanImage },
+  { cityName: '昆明', uri: kunmingImage },
+] as const;
+
 export function resolveCuratedActivityCover(
   activity: Pick<Activity, 'title' | 'address' | 'cityName'>,
 ) {
   const searchable = `${activity.cityName} ${activity.title} ${activity.address}`;
-  return curatedActivityCoverRules.find((rule) =>
+  const placeCover = curatedActivityCoverRules.find((rule) =>
     rule.keywords.some((keyword) => searchable.includes(keyword)),
-  )?.uri ?? null;
+  )?.uri;
+  return placeCover ?? curatedCityCoverRules.find((rule) => rule.cityName === activity.cityName)?.uri ?? null;
 }
 
 function assetUri(source: StaticAsset) {
@@ -746,6 +768,43 @@ export const demoAttractions: Attraction[] = demoActivities.map((item, index) =>
   destinationName: item.cityName,
 }));
 
+const demoRecentActivityIds: number[] = [];
+const DEMO_RECENT_DRAW_LIMIT = 8;
+
+function demoActivityPlaceKey(activity: Activity) {
+  return `${activity.cityId}:${activity.address || activity.district || activity.title}`;
+}
+
+function rememberDemoActivity(activityId: number) {
+  const existingIndex = demoRecentActivityIds.indexOf(activityId);
+  if (existingIndex >= 0) demoRecentActivityIds.splice(existingIndex, 1);
+  demoRecentActivityIds.push(activityId);
+  if (demoRecentActivityIds.length > DEMO_RECENT_DRAW_LIMIT) {
+    demoRecentActivityIds.splice(0, demoRecentActivityIds.length - DEMO_RECENT_DRAW_LIMIT);
+  }
+}
+
+function pickDemoActivity(candidates: Activity[], previous?: DrawResult | null) {
+  const recentIds = new Set(demoRecentActivityIds);
+  const recentPlaces = new Set(
+    demoRecentActivityIds
+      .map((id) => demoActivities.find((activity) => activity.id === id))
+      .filter((activity): activity is Activity => Boolean(activity))
+      .map(demoActivityPlaceKey),
+  );
+  if (previous) {
+    recentIds.add(previous.activity.id);
+    recentPlaces.add(demoActivityPlaceKey(previous.activity));
+  }
+
+  // Prefer a genuinely different place, then a different task at a known place,
+  // and only fall back to the full city pool after every option has been seen.
+  const unseenPlaces = candidates.filter((activity) => !recentPlaces.has(demoActivityPlaceKey(activity)));
+  const unseenActivities = candidates.filter((activity) => !recentIds.has(activity.id));
+  const pool = unseenPlaces.length ? unseenPlaces : unseenActivities.length ? unseenActivities : candidates;
+  return pool[Math.floor(Math.random() * pool.length)]!;
+}
+
 function createUuid() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -780,13 +839,8 @@ export function createDemoDraw(
     throw new Error('当前条件下暂时只有这一条玩法，没有新的结果可供重抽。');
   }
 
-  const previousIndex = previous
-    ? candidates.findIndex((activity) => activity.id === previous.activity.id)
-    : -1;
-  const seed = previousIndex >= 0
-    ? previousIndex + 1
-    : Math.floor((input.preferences.randomLevel / 100) * candidates.length);
-  const activity = candidates[Math.abs(seed) % candidates.length];
+  const activity = pickDemoActivity(candidates, previous);
+  rememberDemoActivity(activity.id);
   const attemptsUsed = previous ? previous.attemptsUsed + 1 : 1;
 
   return {

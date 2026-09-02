@@ -681,7 +681,14 @@ export async function getDiaryFeed(input: DiaryFeedQuery = {}) {
 }
 
 export async function getActivity(activityId: number) {
-  const activity = await apiRequest<Activity>(`/activities/${activityId}`, undefined, false);
+  const activity = await withDemoFallback(
+    () => apiRequest<Activity>(`/activities/${activityId}`, undefined, false),
+    () => {
+      const demoActivity = demoActivities.find((item) => item.id === activityId);
+      if (!demoActivity) throw new Error('没有找到对应的玩法图片');
+      return demoActivity;
+    },
+  );
   return normalizeActivity(activity);
 }
 

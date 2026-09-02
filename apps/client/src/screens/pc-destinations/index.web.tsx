@@ -327,8 +327,7 @@ export default function PcDestinationsScreen() {
       <style>{pcDestinationsCss}</style>
       <header className="pc-destinations-hero">
         <div>
-          <span>PLAYABLE PLACES / 02</span>
-          <Title level={1}>翻一张旅行卡，<br />找到今天想去的地方。</Title>
+          <Title level={1}>翻一张旅行卡<br />找到今天想去的地方</Title>
         </div>
         <Text>真实地点 · 随时出发 · 不合适就换</Text>
       </header>
@@ -469,20 +468,19 @@ const pcDestinationsCss = `
 .pc-destinations-page::before { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: .2; background-image: radial-gradient(rgba(255,255,255,.28) .7px, transparent .7px); background-size: 18px 18px; mask-image: linear-gradient(to bottom,black,transparent 68%); }
 .pc-destinations-page > * { position: relative; z-index: 1; }
 .pc-destinations-hero { max-width: 1440px; margin: 0 auto 36px; display: flex; align-items: flex-end; justify-content: space-between; gap: 28px; }
-.pc-destinations-hero span { color: #c9ff62; font: 800 12px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing: .12em; }
-.pc-destinations-hero h1.ant-typography { margin: 14px 0 0; color: #f7f7f2; font-size: clamp(38px,4vw,60px); font-weight: 900; line-height: 1.06; letter-spacing: -.045em; }
-.pc-destinations-hero > .ant-typography { padding-bottom: 7px; color: rgba(255,255,255,.52); font-size: 14px; }
+.pc-destinations-hero h1.ant-typography { margin: 0; color: #f7f7f2; font-size: clamp(38px,4vw,60px); font-weight: 900; line-height: 1.22; letter-spacing: .035em; }
+.pc-destinations-hero > .ant-typography { padding-bottom: 7px; color: rgba(255,255,255,.62); font-size: 15px; line-height: 1.7; }
 .pc-destinations-search { max-width: 1440px; margin: 0 auto 28px; padding-top: 0; }
 .pc-destinations-search .ant-input-group-wrapper { height: 56px; }
 .pc-destinations-search .ant-input-affix-wrapper { min-height: 56px; padding-left: 20px; border-color: rgba(255,255,255,.12); border-radius: 18px 0 0 18px; color: #fff; background: rgba(255,255,255,.055); box-shadow: inset 0 1px 0 rgba(255,255,255,.04); backdrop-filter: blur(18px); }.pc-destinations-search .ant-input-affix-wrapper:focus-within { border-color: rgba(201,255,98,.48); box-shadow: 0 0 0 3px rgba(201,255,98,.08); }.pc-destinations-search input { color: #fff; background: transparent; font-size: 15px; }.pc-destinations-search input::placeholder { color: rgba(255,255,255,.36); }.pc-destinations-search .ant-btn { width: 68px; min-height: 56px; border: 0; border-radius: 0 18px 18px 0 !important; color: #10130d; background: #c9ff62; box-shadow: none; }.pc-destinations-search .ant-btn:hover { color: #10130d !important; background: #dcff9b !important; }
 .pc-destinations-layout { max-width: 1440px; margin: 0 auto; display: block; }
-.pc-destinations-filters { margin-bottom: 28px; border: 1px solid rgba(255,255,255,.1); border-radius: 20px; background: rgba(255,255,255,.045); box-shadow: 0 16px 38px rgba(0,0,0,.14); backdrop-filter: blur(18px); }
+.pc-destinations-filters { margin-bottom: 28px; border: 1px solid rgba(225,231,217,.96); border-radius: 20px; background: rgba(251,252,248,.98); box-shadow: 0 16px 38px rgba(0,0,0,.17); }
 .pc-destinations-filters .ant-card-body { padding: 20px; }
-.pc-destinations-filters .ant-segmented { padding: 4px; border-radius: 999px; background: rgba(255,255,255,.07); }.pc-destinations-filters .ant-segmented-item { color: rgba(255,255,255,.58); border-radius: 999px; }.pc-destinations-filters .ant-segmented-item-selected { color: #10130d; background: #c9ff62; box-shadow: none; }
-.pc-destinations-city-row { display: flex; align-items: flex-start; gap: 18px; margin-top: 18px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,.08); }.pc-destinations-city-row > .ant-typography { flex: 0 0 auto; padding-top: 5px; color: rgba(255,255,255,.42); font-size: 12px; font-weight: 750; }.pc-destinations-city-row > div { display: flex; flex-wrap: wrap; gap: 8px; }.pc-destinations-city-row .ant-tag { margin: 0; padding: 4px 12px; border: 1px solid rgba(255,255,255,.12); border-radius: 999px; color: rgba(255,255,255,.62); background: rgba(255,255,255,.04); }.pc-destinations-city-row .ant-tag-checkable-checked { color: #10130d; border-color: #c9ff62; background: #c9ff62; font-weight: 800; }
+.pc-destinations-filters .ant-segmented { padding: 4px; border-radius: 999px; background: #edf1e9; }.pc-destinations-filters .ant-segmented-item { color: #59615a; border-radius: 999px; font-size: 14px; }.pc-destinations-filters .ant-segmented-item-selected { color: #10130d; background: #c9ff62; box-shadow: none; }
+.pc-destinations-city-row { display: flex; align-items: flex-start; gap: 18px; margin-top: 18px; padding-top: 18px; border-top: 1px solid #e2e7dd; }.pc-destinations-city-row > .ant-typography { flex: 0 0 auto; padding-top: 5px; color: #606861; font-size: 14px; font-weight: 800; }.pc-destinations-city-row > div { display: flex; flex-wrap: wrap; gap: 8px; }.pc-destinations-city-row .ant-tag { margin: 0; padding: 5px 13px; border: 1px solid #dbe2d6; border-radius: 999px; color: #59615a; background: #f1f4ed; font-size: 14px; }.pc-destinations-city-row .ant-tag-checkable-checked { color: #10130d; border-color: #9ccc43; background: #c9ff62; font-weight: 800; }
 .pc-destinations-tag-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
-.pc-destinations-tag-row .ant-tag { margin: 0; padding: 4px 12px; border: 1px solid rgba(255,255,255,.12); border-radius: 999px; color: rgba(255,255,255,.6); background: rgba(255,255,255,.045); }
-.pc-destinations-tag-row .ant-tag-checkable-checked { color: #111419; border-color: #c9ff62; background: #c9ff62; }
+.pc-destinations-tag-row .ant-tag { margin: 0; padding: 5px 13px; border: 1px solid #dbe2d6; border-radius: 999px; color: #59615a; background: #f1f4ed; font-size: 14px; }
+.pc-destinations-tag-row .ant-tag-checkable-checked { color: #111419; border-color: #9ccc43; background: #c9ff62; }
 .pc-destinations-filter-label { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
 .pc-destinations-filter-label small {
   min-width: 18px;
@@ -522,7 +520,7 @@ const pcDestinationsCss = `
 .pc-destinations-results-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
 .pc-destinations-results-heading h2 { margin: 0; color: #fff; font-size: 28px; }.pc-destinations-results-heading .ant-typography { color: rgba(255,255,255,.45); }
 .pc-destinations-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
-.pc-destinations-card.ant-card { overflow: hidden; border: 1px solid rgba(255,255,255,.1); border-radius: 22px; color: #fff; background: #1a1c21; box-shadow: 0 18px 42px rgba(0,0,0,.2); transition: transform .32s cubic-bezier(.2,.8,.2,1), box-shadow .32s ease, border-color .32s ease; animation: destination-card-in .55s both; }
+.pc-destinations-card.ant-card { overflow: hidden; border: 1px solid rgba(225,231,217,.96); border-radius: 22px; color: #171c18; background: #fbfcf8; box-shadow: 0 18px 42px rgba(0,0,0,.2); transition: transform .32s cubic-bezier(.2,.8,.2,1), box-shadow .32s ease, border-color .32s ease; animation: destination-card-in .55s both; }
 .pc-destinations-card.ant-card:nth-child(3n+2) { animation-delay: .07s; }.pc-destinations-card.ant-card:nth-child(3n) { animation-delay: .14s; }
 .pc-destinations-card.ant-card:hover { transform: translateY(-8px) rotate(.35deg); border-color: rgba(201,255,98,.4); box-shadow: 0 26px 58px rgba(0,0,0,.34); }
 .pc-destinations-card .ant-card-body { padding: 0; }.pc-destinations-card-cover { position: relative; aspect-ratio: 4 / 3; overflow: hidden; background: #EEF2F7; }
@@ -532,8 +530,8 @@ const pcDestinationsCss = `
 .pc-destinations-cover-tags { position: absolute; top: 10px; right: 10px; display: flex; gap: 4px; }.pc-destinations-cover-tags .ant-tag { margin: 0; border: 0; color: #fff; background: rgba(15,23,42,.56); }
 .pc-destinations-rating { position: absolute; right: 12px; bottom: 10px; color: #fff; font-size: 13px; font-weight: 700; text-shadow: 0 1px 3px rgba(0,0,0,.42); }.pc-destinations-rating svg { color: #FBBF24; }
 .pc-destinations-card-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 7px; color: white; font-weight: 600; opacity: 0; background: rgba(15,23,42,.38); transition: opacity .24s ease; }.pc-destinations-card:hover .pc-destinations-card-overlay { opacity: 1; }
-.pc-destinations-card-body { padding: 19px 19px 20px; }.pc-destinations-card-body h4 { margin: 0 0 8px; color: #fff; font-size: 18px; font-weight: 800; }.pc-destinations-card-body p { min-height: 42px; margin: 0 0 15px; color: rgba(255,255,255,.5); font-size: 13px; line-height: 1.6; }
-.pc-destinations-meta { display: flex; justify-content: space-between; gap: 8px; color: rgba(255,255,255,.55); font-size: 12px; }.pc-destinations-meta span { display: inline-flex; align-items: center; gap: 4px; }.pc-destinations-meta svg { color: #c9ff62; }
+.pc-destinations-card-body { padding: 22px 22px 23px; }.pc-destinations-card-body h4 { margin: 0 0 9px; color: #171c18; font-size: 21px; font-weight: 900; letter-spacing: .01em; }.pc-destinations-card-body p { min-height: 50px; margin: 0 0 17px; color: #626a63; font-size: 15px; line-height: 1.7; }
+.pc-destinations-meta { display: flex; justify-content: space-between; gap: 8px; color: #59615a; font-size: 13px; font-weight: 650; }.pc-destinations-meta span { display: inline-flex; align-items: center; gap: 5px; }.pc-destinations-meta svg { color: #6f9821; }
 .pc-destinations-more { display: flex; justify-content: center; padding-top: 32px; }.pc-destinations-more .ant-btn { min-width: 164px; }
 .pc-destinations-skeleton .ant-card-body { min-height: 260px; padding-top: 26px; }
 .pc-destinations-content > .ant-empty { padding: 70px 24px; border: 1px dashed rgba(201,255,98,.25); border-radius: 22px; color: rgba(255,255,255,.58); background: rgba(255,255,255,.035); }.pc-destinations-content > .ant-empty .ant-empty-description { color: rgba(255,255,255,.58); }
