@@ -30,11 +30,12 @@ const pcExperienceShellCss = `
 }
 
 .pc-experience-shell-header {
+  --pc-unified-nav-height: clamp(84px, 5.2vw, 104px);
   position: sticky;
   top: 0;
   z-index: 100;
-  height: 76px;
-  padding: 0 56px;
+  height: var(--pc-unified-nav-height);
+  padding: 0 4.2vw;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -45,6 +46,17 @@ const pcExperienceShellCss = `
   border-bottom: 1px solid rgba(255, 255, 255, .08);
   box-shadow: 0 12px 40px rgba(0, 0, 0, .18);
   backdrop-filter: blur(22px);
+}
+
+.pc-experience-shell-header .pc-top-nav-menu.ant-menu-horizontal { gap: clamp(42px, 2.9vw, 64px); }
+.pc-experience-shell-header .pc-top-nav-menu.ant-menu-horizontal > .ant-menu-item {
+  height: var(--pc-unified-nav-height);
+  font-size: clamp(18px, 1.1vw, 24px);
+  font-weight: 760;
+  line-height: var(--pc-unified-nav-height);
+}
+.pc-experience-shell-header .pc-top-nav-menu.ant-menu-horizontal > .ant-menu-item::after {
+  bottom: clamp(18px, 1.2vw, 25px);
 }
 
 .pc-experience-shell-header .pc-experience-shell-brand { color: #fff; }
@@ -128,40 +140,46 @@ const pcExperienceShellCss = `
 .pc-experience-shell-brand {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  min-width: 148px;
+  gap: 13px;
+  min-width: 176px;
   color: #fff;
-  font-size: 18px;
+  font-size: clamp(18px, 1.05vw, 22px);
   font-weight: 900;
   line-height: 1;
   text-decoration: none;
 }
 
 .pc-experience-shell-brand img {
-  width: 38px;
-  height: 38px;
+  width: clamp(42px, 2.6vw, 52px);
+  height: clamp(42px, 2.6vw, 52px);
   object-fit: contain;
 }
 
 .pc-experience-shell-menu {
+  position: absolute;
+  left: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex: 1;
+  width: max-content;
+  min-width: max-content;
+  flex: none;
+  transform: translateX(-50%);
 }
 
 .pc-experience-shell-cta {
   min-width: 132px;
-  height: 42px;
+  height: clamp(48px, 3vw, 54px);
   border: 0;
   border-radius: ${radii.pill}px;
-  font-weight: 800;
+  font-size: clamp(14px, .8vw, 17px);
+  font-weight: 850;
   box-shadow: 0 10px 24px rgba(126, 166, 31, 0.3);
   background: linear-gradient(135deg, ${shellToken.primary} 0%, ${palette.sky} 100%);
 }
 
 .pc-experience-shell-content {
-  min-height: calc(100dvh - 76px);
+  min-height: calc(100dvh - 104px);
 }
 .pc-experience-shell-content .pc-page,
 .pc-experience-shell-content .pc-box-page,
@@ -169,7 +187,7 @@ const pcExperienceShellCss = `
 .pc-experience-shell-content .pc-layout,
 .pc-experience-shell-content .pc-box-layout,
 .pc-experience-shell-content .pc-box-open-layout {
-  min-height: calc(100dvh - 76px);
+  min-height: calc(100dvh - 104px);
 }
 
 @media (max-width: 980px) {
@@ -181,9 +199,12 @@ const pcExperienceShellCss = `
   }
 
   .pc-experience-shell-menu {
+    position: static;
     order: 3;
     width: 100%;
+    min-width: 0;
     flex-basis: 100%;
+    transform: none;
   }
 }
 
