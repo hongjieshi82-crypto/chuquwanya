@@ -10,18 +10,18 @@
   <body>
     <header class="topbar">
       <a class="brand" href="#hero" aria-label="回到首页">
-        <img src="../../apps/client/assets/images/chuquwanya-logo.png" alt="" />
+        <img src="./assets/ui/chuquwanya-logo.png" alt="" />
         <strong>粗去玩鸭！</strong>
       </a>
       <nav class="nav" aria-label="首页章节">
         <a href="#hero" data-section-link="hero">周末灵感</a>
-        <a href="http://localhost:8092/trips">我的行程</a>
-        <a href="http://localhost:8092/box/config">旅行抽取</a>
-        <a href="http://localhost:8092/destinations">可玩地点</a>
+        <a href="/trips" target="_top">我的行程</a>
+        <a href="/box/config" target="_top">旅行抽取</a>
+        <a href="/destinations" target="_top">可玩地点</a>
       </nav>
       <div class="topbar-actions">
         <span class="preview-pill">STYLE PREVIEW</span>
-        <a class="nav-cta" href="#">登录</a>
+        <span class="nav-cta" aria-label="登录">登录</span>
       </div>
     </header>
 
@@ -44,7 +44,7 @@
           <h1>周末别浪费 <em>粗去玩鸭</em></h1>
           <p>输入人数、预算和时间，一键生成你的周末逃跑计划。不用查攻略、不用做功课，周五下班说走就走。</p>
           <div class="hero-actions">
-            <a class="primary-button" href="http://localhost:8092/box/slot-preview">立即抽取</a>
+            <a class="primary-button" href="/box/slot-preview" target="_top">立即抽取</a>
             <button class="ghost-button" id="shuffle-button" type="button">重新撒一把</button>
           </div>
         </div>
@@ -59,26 +59,26 @@
           <p>先选一个旅行风格，再看看这次周末适合往哪个方向走。</p>
         </div>
         <div class="style-deck">
-          <a class="style-card photo-style-card" href="http://localhost:8092/theme?preset=scene">
-            <img src="../../apps/client/public/media/travel/beijing-798-art-district.jpg" alt="北京798艺术区" />
+          <a class="style-card photo-style-card" href="/theme?preset=scene" target="_top">
+            <img src="/media/travel/beijing-798-art-district.jpg" alt="北京798艺术区" />
             <div class="style-photo-shade"></div>
             <div class="style-card-top"><span>01</span><b>SCENE</b></div>
             <div class="style-card-copy"><small>风景人文</small><h3>去看山海与故事</h3><p>自然风景、历史建筑与当地文化。</p></div>
           </a>
-          <a class="style-card photo-style-card" href="http://localhost:8092/theme?preset=theme">
-            <img src="../../apps/client/public/media/travel/shanghai-wukang-road.jpg" alt="上海武康路" />
+          <a class="style-card photo-style-card" href="/theme?preset=theme" target="_top">
+            <img src="/media/travel/shanghai-wukang-road.jpg" alt="上海武康路" />
             <div class="style-photo-shade"></div>
             <div class="style-card-top"><span>02</span><b>WANDER</b></div>
             <div class="style-card-copy"><small>随心漫游</small><h3>慢一点逛一座城</h3><p>城市散步、街区探索与轻松户外。</p></div>
           </a>
-          <a class="style-card photo-style-card" href="http://localhost:8092/theme?preset=audience">
-            <img src="../../apps/client/public/media/travel/shenzhen-lianhuashan.jpg" alt="深圳莲花山" />
+          <a class="style-card photo-style-card" href="/theme?preset=audience" target="_top">
+            <img src="/media/travel/shenzhen-lianhuashan.jpg" alt="深圳莲花山" />
             <div class="style-photo-shade"></div>
             <div class="style-card-top"><span>03</span><b>TOGETHER</b></div>
             <div class="style-card-copy"><small>结伴同行</small><h3>和喜欢的人出发</h3><p>适合朋友、情侣与亲子的周末体验。</p></div>
           </a>
-          <a class="style-card photo-style-card" href="http://localhost:8092/theme?preset=food">
-            <img src="../../apps/client/public/media/travel/guangzhou-yongqingfang.jpg" alt="广州永庆坊" />
+          <a class="style-card photo-style-card" href="/theme?preset=food" target="_top">
+            <img src="/media/travel/guangzhou-yongqingfang.jpg" alt="广州永庆坊" />
             <div class="style-photo-shade"></div>
             <div class="style-card-top"><span>04</span><b>TASTE</b></div>
             <div class="style-card-copy"><small>寻味探购</small><h3>沿着烟火气去逛</h3><p>美食、夜市、老街与当地生活。</p></div>
@@ -92,8 +92,8 @@
           <p>挑一个有画面感的地点先看看，喜欢就继续了解完整玩法。</p>
         </div>
         <div class="place-grid">
-          <a class="place-card" href="http://localhost:8092/destinations?destinationId=1">
-            <img src="../../apps/client/public/media/travel/beijing-olympic-forest.jpg" alt="北京奥林匹克森林公园" />
+          <a class="place-card" href="/destinations?destinationId=1" target="_top">
+            <img src="/media/travel/beijing-olympic-forest.jpg" alt="北京奥林匹克森林公园" />
             <div class="place-shade"></div>
             <div class="place-card-top"><span>北京</span><b>♡ 热度 90</b></div>
             <div class="place-card-copy">
@@ -103,8 +103,8 @@
               <em>查看这个玩法 →</em>
             </div>
           </a>
-          <a class="place-card" href="http://localhost:8092/destinations?destinationId=2">
-            <img src="../../apps/client/public/media/travel/shanghai-wukang-road.jpg" alt="上海武康路" />
+          <a class="place-card" href="/destinations?destinationId=2" target="_top">
+            <img src="/media/travel/shanghai-wukang-road.jpg" alt="上海武康路" />
             <div class="place-shade"></div>
             <div class="place-card-top"><span>上海</span><b>♡ 热度 95</b></div>
             <div class="place-card-copy">
@@ -114,8 +114,8 @@
               <em>查看这个玩法 →</em>
             </div>
           </a>
-          <a class="place-card" href="http://localhost:8092/destinations?destinationId=3">
-            <img src="../../apps/client/assets/images/pc-hero-west-lake.jpg" alt="杭州西湖" />
+          <a class="place-card" href="/destinations?destinationId=3" target="_top">
+            <img src="/media/travel/hangzhou.jpg" alt="杭州西湖" />
             <div class="place-shade"></div>
             <div class="place-card-top"><span>杭州</span><b>♡ 热度 91</b></div>
             <div class="place-card-copy">
@@ -131,16 +131,16 @@
       <section class="screen start-screen" id="start" data-section="start" data-index="4">
         <div class="idea-machine-stage" aria-label="周末灵感机使用说明">
           <img class="idea-machine-shell" src="./assets/ui/idea-machine-shell-experience-v1.png" alt="周末灵感机" />
-          <img class="idea-machine-lever" src="../../apps/client/assets/images/slot-preview/travel-slot-lever-original-v1.png" alt="" />
-          <img class="idea-machine-pixel-duck" src="../../apps/client/assets/images/slot-preview/duck-pixel-panel-v1.png" alt="" />
-          <img class="idea-machine-duck-sticker" src="../../apps/client/assets/images/slot-preview/duck-lever-button-v1.png" alt="" />
+          <img class="idea-machine-lever" src="./assets/ui/travel-slot-lever-original-v1.png" alt="" />
+          <img class="idea-machine-pixel-duck" src="./assets/ui/duck-pixel-panel-v1.png" alt="" />
+          <img class="idea-machine-duck-sticker" src="./assets/ui/duck-lever-button-v1.png" alt="" />
           <div class="idea-machine-title">三步，把周末安排明白</div>
           <div class="idea-machine-steps">
             <article><b>01</b><strong>输入出行条件</strong><p>人数、预算和时间</p></article>
             <article><b>02</b><strong>启动周末灵感机</strong><p>获得一个匹配方案</p></article>
             <article><b>03</b><strong>领取周末逃跑计划</strong><p>不合适就换一个</p></article>
           </div>
-          <a class="idea-machine-cta" href="http://localhost:8092/box/slot-preview" aria-label="立即体验"></a>
+          <a class="idea-machine-cta" href="/box/slot-preview" target="_top" aria-label="立即体验"></a>
         </div>
       </section>
     </main>

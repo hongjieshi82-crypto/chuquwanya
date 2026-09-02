@@ -1,7 +1,3 @@
-if (window.location.protocol === 'file:') {
-  window.location.replace('http://localhost:8094/design/gravity-home-preview/');
-}
-
 const iconGroups = {
   city: [
     '01-长城烽火台', '02-西湖石桥', '03-张家界峰林', '04-桂林竹筏', '05-故宫角楼', '06-九寨沟瀑布',

@@ -65,6 +65,9 @@ const pcExperienceShellCss = `
   backdrop-filter: blur(22px);
 }
 
+.pc-experience-shell-header.pc-experience-shell-header-home { display: none; }
+.pc-experience-shell-header.pc-experience-shell-header-home + .pc-experience-shell-content { min-height: 100dvh; }
+
 .pc-experience-shell-header-home .pc-experience-shell-brand,
 .pc-experience-shell-header-home .pc-top-nav-menu.ant-menu-horizontal > .ant-menu-item,
 .pc-experience-shell-header-blindbox .pc-experience-shell-brand,
