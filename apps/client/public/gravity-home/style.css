@@ -12,6 +12,9 @@
   font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
 }
 
+:root.is-embedded { --nav-h: 0px; }
+:root.is-embedded .topbar { display: none; }
+
 * { box-sizing: border-box; }
 html { background: #0d0d13; }
 body { margin: 0; overflow: hidden; background: #0d0d13; color: var(--ink); }

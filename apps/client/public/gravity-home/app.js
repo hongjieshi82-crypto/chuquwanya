@@ -1,3 +1,6 @@
+const isEmbedded = new URLSearchParams(window.location.search).get('embedded') === '1';
+document.documentElement.classList.toggle('is-embedded', isEmbedded);
+
 const iconGroups = {
   city: [
     '01-长城烽火台', '02-西湖石桥', '03-张家界峰林', '04-桂林竹筏', '05-故宫角楼', '06-九寨沟瀑布',

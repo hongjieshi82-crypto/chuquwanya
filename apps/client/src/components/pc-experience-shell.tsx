@@ -77,9 +77,6 @@ const pcExperienceShellCss = `
   backdrop-filter: blur(22px);
 }
 
-.pc-experience-shell-header.pc-experience-shell-header-home { display: none; }
-.pc-experience-shell-header.pc-experience-shell-header-home + .pc-experience-shell-content { min-height: 100dvh; }
-
 .pc-experience-shell-header-home .pc-experience-shell-brand,
 .pc-experience-shell-header-home .pc-top-nav-menu.ant-menu-horizontal > .ant-menu-item,
 .pc-experience-shell-header-blindbox .pc-experience-shell-brand,
@@ -112,6 +109,23 @@ const pcExperienceShellCss = `
   color: #171520;
   background: #c9ff62;
   box-shadow: 0 10px 28px rgba(201, 255, 98, .18);
+}
+
+.pc-experience-shell-header-home .pc-top-nav-actions > .ant-btn {
+  min-width: 100px;
+  height: clamp(48px, 3vw, 54px);
+  padding-inline: clamp(22px, 1.5vw, 30px);
+  border: 0;
+  border-radius: ${radii.pill}px;
+  color: #171520;
+  background: #c9ff62;
+  font-size: clamp(14px, .8vw, 17px);
+  font-weight: 850;
+}
+
+.pc-experience-shell-header-home .pc-top-nav-actions > .ant-btn:hover {
+  color: #171520;
+  background: #dcff9b;
 }
 
 .pc-experience-shell-header-home .pc-experience-shell-cta.ant-btn:hover,
@@ -345,9 +359,9 @@ export function PcExperienceShell({ children }: PropsWithChildren) {
           }
           token={shellToken}
           dataAnime="nav"
-          showLogin={false}
+          showLogin={isHomeRoute}
           primaryAction={
-            pathname === '/box/open' || pathname === '/box/result'
+            isHomeRoute || pathname === '/box/open' || pathname === '/box/result'
               ? undefined
               : {
                   label: '立即抽取',
