@@ -81,14 +81,15 @@ const pcTopNavCss = `
   margin: 0;
   padding-inline: 0;
   color: var(--pc-top-nav-text);
-  font-weight: 700;
+  font-size: clamp(18px, 1.05vw, 22px);
+  font-weight: 760;
   line-height: 76px;
 }
 
 .pc-top-nav-menu.ant-menu-horizontal > .ant-menu-item::after {
   inset-inline: 0;
   bottom: 16px;
-  border-bottom-width: 3px;
+  border-bottom-width: 4px;
   border-bottom-color: transparent;
 }
 
@@ -187,7 +188,7 @@ export function getPcTopNavItems({
   homeHref?: string;
 } = {}): PcTopNavItem[] {
   return [
-    { key: PC_TOP_NAV_KEYS.home, label: '首页', href: homeHref },
+    { key: PC_TOP_NAV_KEYS.home, label: '周末灵感', href: homeHref },
     { key: PC_TOP_NAV_KEYS.trips, label: '我的行程', href: '/trips', active: activeKey === PC_TOP_NAV_KEYS.trips },
     {
       key: PC_TOP_NAV_KEYS.blindBox,

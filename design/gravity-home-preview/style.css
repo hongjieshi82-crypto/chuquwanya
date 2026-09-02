@@ -28,9 +28,9 @@ button { font: inherit; }
 }
 .brand { display: flex; align-items: center; gap: 13px; font-size: clamp(18px, 1.05vw, 22px); }
 .brand img { width: clamp(42px, 2.6vw, 52px); height: clamp(42px, 2.6vw, 52px); border-radius: 13px; object-fit: contain; }
-.nav { display: flex; gap: clamp(38px, 2.6vw, 58px); color: #c9c8cf; font-size: clamp(16px, .9vw, 19px); font-weight: 720; }
+.nav { display: flex; gap: clamp(42px, 2.9vw, 64px); color: #c9c8cf; font-size: clamp(18px, 1.1vw, 24px); font-weight: 760; }
 .nav a { position: relative; height: var(--nav-h); display: flex; align-items: center; padding: 0 2px; transition: color .25s ease; }
-.nav a::after { content: ""; position: absolute; left: 50%; right: 50%; bottom: clamp(18px, 1.2vw, 25px); height: 3px; border-radius: 3px; background: var(--lime); transition: .25s ease; }
+.nav a::after { content: ""; position: absolute; left: 50%; right: 50%; bottom: clamp(18px, 1.2vw, 25px); height: 4px; border-radius: 4px; background: var(--lime); transition: .25s ease; }
 .nav a.is-active { color: #fff; }
 .nav a.is-active::after { left: 0; right: 0; }
 .topbar-actions { display: flex; align-items: center; gap: 12px; }
