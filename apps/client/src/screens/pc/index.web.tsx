@@ -644,7 +644,7 @@ export default function PcLandingScreen() {
                     <span>开一局周末。</span>
                   </Title>
                   <Paragraph className="pc-hero-desc">
-                    把时间、预算和心情交给 AI。你只需要打开盲盒，领取一条现在就能出发的城市任务。
+                    把时间、预算和心情交给 AI。拉动旅行老虎机，领取一条现在就能出发的城市任务。
                   </Paragraph>
                   <Space className="pc-hero-actions" size={14} wrap>
                     <Button
@@ -658,7 +658,7 @@ export default function PcLandingScreen() {
                       先逛城市地图
                     </Button>
                   </Space>
-                  <div className="pc-hero-quest-chips" aria-label="旅行盲盒特色">
+                  <div className="pc-hero-quest-chips" aria-label="旅行抽取特色">
                     <span><CheckCircleOutlined /> 真实地点</span>
                     <span><ThunderboltOutlined /> 即开即走</span>
                     <span><SmileOutlined /> 不合适可重抽</span>
@@ -903,9 +903,9 @@ export default function PcLandingScreen() {
             <Flex justify="space-between" align="center" wrap="wrap" gap={16}>
               <Space>
                 <img src={assetUri(brandLogo)} alt="" />
-                <Text strong>粗去玩鸭！ · 旅行盲盒规划师</Text>
+                <Text strong>粗去玩鸭！ · 随机旅行规划师</Text>
               </Space>
-              <Text type="secondary">开盲盒，去未知，玩出新鲜感，攻略全省心</Text>
+              <Text type="secondary">拉一下，去未知，玩出新鲜感，攻略全省心</Text>
             </Flex>
           </Footer>
         </Layout>
@@ -2326,7 +2326,6 @@ const pcCss = `
 }
 
 .pc-hero-console strong { font-size: 13px; }
-
 .pc-main { position: relative; padding-top: 42px; }
 .pc-section { padding: 78px 0; }
 .pc-section + .pc-section { border-top: 1px solid rgba(36,30,75,.08); }

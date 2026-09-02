@@ -69,7 +69,7 @@ const matchPreferenceGroups: MatchPreferenceGroup[] = [
   { key: 'mood', label: '心情', options: ['放松', '探索', '热闹'] },
   {
     key: 'surpriseLevel',
-    label: '盲盒惊喜程度',
+    label: '抽取惊喜程度',
     options: ['轻度', '中度', '重度'],
     descriptions: {
       轻度: '锁定城市与风格，只随机具体玩法',
@@ -247,7 +247,7 @@ export default function PcBoxConfigScreen() {
     return () => { cancelled = true; };
   }, [cities, setSelectedCityId]);
 
-  const goStart = useCallback(() => {
+  const goStart = useCallback((target: '/box/open' | '/box/slot-preview' = '/box/slot-preview') => {
     if (isBooting || isStartingDraw) return;
 
     const partySize = partySizeValues[matchSelections.partySize] ?? 1;
@@ -315,7 +315,7 @@ export default function PcBoxConfigScreen() {
     setDrawError(null);
     clearError();
     setIsStartingDraw(true);
-    router.push('/box/open');
+    router.push(target);
   }, [
     cities,
     clearError,
@@ -332,7 +332,7 @@ export default function PcBoxConfigScreen() {
   ]);
 
   useEffect(() => {
-    const handleShellStart = () => goStart();
+    const handleShellStart = () => goStart('/box/slot-preview');
     window.addEventListener('pc-box-start-draw', handleShellStart);
     return () => window.removeEventListener('pc-box-start-draw', handleShellStart);
   }, [goStart]);
@@ -572,7 +572,7 @@ export default function PcBoxConfigScreen() {
                   <span className="pc-box-section-icon">
                     <GiftOutlined size={22} />
                   </span>
-                  <Text className="pc-box-section-title">盲盒惊喜程度</Text>
+                  <Text className="pc-box-section-title">抽取惊喜程度</Text>
                 </div>
                 <MatchOptionGroup
                   group={matchPreferenceGroups[4]}
@@ -605,8 +605,8 @@ export default function PcBoxConfigScreen() {
                   icon={<GiftOutlined />}
                   disabled={isBooting}
                   loading={isStartingDraw}
-                  onClick={goStart}>
-                  {isStartingDraw ? '正在抽取…' : '开启盲盒'}
+                  onClick={() => goStart('/box/slot-preview')}>
+                  {isStartingDraw ? '正在抽取…' : '立即抽取'}
                 </Button>
               </Space>
             </div>

@@ -271,7 +271,7 @@ export default function PcTripsScreen() {
 
           {loading ? <div className="pc-trips-loading"><Spin description="正在加载你的行程…" /></div> : null}
           {!loading && visibleItems.length > 0 ? <div className="pc-trips-grid">{visibleItems.map((item) => <TripCard isCompleting={completingId === item.id} isStarting={startingId === item.id} item={item} key={item.id} onComplete={(todo) => { void handleComplete(todo); }} onStart={(todo) => { void handleStart(todo); }} />)}</div> : null}
-          {!loading && visibleItems.length === 0 ? <Empty className="pc-trips-empty" description={filter === 'all' ? '还没有行程，去抽一个盲盒吧' : '这个分类里暂时没有行程'} image={Empty.PRESENTED_IMAGE_SIMPLE}><Button icon={<PlusOutlined />} type="primary" onClick={() => router.push('/box/config')}>创建新行程</Button></Empty> : null}
+          {!loading && visibleItems.length === 0 ? <Empty className="pc-trips-empty" description={filter === 'all' ? '还没有行程，去抽一个目的地吧' : '这个分类里暂时没有行程'} image={Empty.PRESENTED_IMAGE_SIMPLE}><Button icon={<PlusOutlined />} type="primary" onClick={() => router.push('/box/config')}>创建新行程</Button></Empty> : null}
         </div>
       </main>
     </ConfigProvider>

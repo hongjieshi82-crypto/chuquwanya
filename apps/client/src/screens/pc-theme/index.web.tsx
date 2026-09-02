@@ -44,7 +44,7 @@ const themes: Record<string, ThemeConfig> = {
   audience: {
     eyebrow: '结伴同行',
     title: '两个人不再互相问“去哪”',
-    lead: '把选择交给盲盒，你们只需要决定要不要现在出发。',
+    lead: '把选择交给旅行老虎机，你们只需要决定要不要现在出发。',
     image: demoCityImageUris.yantai,
     color: '#8A63E8',
     glow: 'rgba(255,178,109,.3)',
@@ -110,7 +110,7 @@ export default function PcThemeScreen() {
               <Paragraph>{config.lead}</Paragraph>
               <div className="pc-theme-features">{config.features.map((feature) => <div className="pc-theme-feature" key={feature}><CheckCircleFilled />{feature}</div>)}</div>
               <Space className="pc-theme-actions" size={12} wrap>
-                <Button type="primary" size="large" icon={<GiftOutlined />} onClick={() => router.push(`/box/config?preset=${presetKey}`)}>用这个主题开盲盒</Button>
+                <Button type="primary" size="large" icon={<GiftOutlined />} onClick={() => router.push(`/box/config?preset=${presetKey}`)}>用这个主题立即抽取</Button>
                 <Button size="large" icon={<ArrowRightOutlined />} onClick={() => router.push('/destinations')}>看看所有城市</Button>
               </Space>
             </div>

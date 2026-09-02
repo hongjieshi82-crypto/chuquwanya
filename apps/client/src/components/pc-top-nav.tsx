@@ -194,7 +194,7 @@ export function getPcTopNavItems({
     { key: PC_TOP_NAV_KEYS.trips, label: '我的行程', href: '/trips', active: activeKey === PC_TOP_NAV_KEYS.trips },
     {
       key: PC_TOP_NAV_KEYS.blindBox,
-      label: '旅行盲盒',
+      label: '旅行抽取',
       href: '/box/config',
       active: activeKey === PC_TOP_NAV_KEYS.blindBox,
     },

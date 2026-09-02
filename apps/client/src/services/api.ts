@@ -8,6 +8,7 @@ import {
   demoActivities,
   demoCities,
   demoPreferenceOptions,
+  resolveCuratedActivityCover,
 } from '@/services/demo-data';
 import type {
   Activity,
@@ -149,7 +150,7 @@ function normalizeDiaryComment(item: DiaryCommentItem): DiaryCommentItem {
 function normalizeActivity(item: Activity): Activity {
   return {
     ...item,
-    coverImageUri: resolveApiMediaUrl(item.coverImageUri),
+    coverImageUri: resolveCuratedActivityCover(item) ?? resolveApiMediaUrl(item.coverImageUri),
   };
 }
 

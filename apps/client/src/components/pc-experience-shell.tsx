@@ -148,7 +148,6 @@ const pcExperienceShellCss = `
 .pc-experience-shell-content {
   min-height: calc(100dvh - 76px);
 }
-
 .pc-experience-shell-content .pc-page,
 .pc-experience-shell-content .pc-box-page,
 .pc-experience-shell-content .pc-box-open-page,
@@ -316,7 +315,7 @@ export function PcExperienceShell({ children }: PropsWithChildren) {
             pathname === '/box/open' || pathname === '/box/result'
               ? undefined
               : {
-                  label: '免费开盲盒',
+                  label: '立即抽取',
                   href: pathname === '/box/config' ? undefined : '/box/config',
                   icon: <GiftOutlined />,
                   className: 'pc-experience-shell-cta pc-header-cta',

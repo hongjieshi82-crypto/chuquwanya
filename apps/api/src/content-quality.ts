@@ -30,6 +30,15 @@ function hasText(value: unknown) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function hasPlaceSpecificCover(value: unknown) {
+  if (!hasText(value)) return false;
+  const cover = (value as string).trim();
+  return !(
+    cover.includes("/assets/city-covers/") ||
+    /\/assets\/activity-covers\/(art|food|surprise|outdoor|explore)\./i.test(cover)
+  );
+}
+
 function hasArrayItems(value: unknown) {
   if (Array.isArray(value)) return value.length > 0;
   if (!hasText(value)) return false;
@@ -73,8 +82,8 @@ export function assessContentQuality(activity: QualityActivity) {
 
   if (hasText(activity.navigation_url)) score += 5;
   else issues.push("导航入口缺失");
-  if (hasText(activity.cover_image)) score += 5;
-  else issues.push("封面缺失");
+  if (hasPlaceSpecificCover(activity.cover_image)) score += 5;
+  else issues.push("地点级封面缺失");
 
   if (hasObject(activity.opening_hours)) score += 5;
   else issues.push("营业时间未核验");
@@ -89,6 +98,11 @@ export function assessContentQuality(activity: QualityActivity) {
   return {
     score,
     issues,
-    recommendable: score >= 70 && !issues.includes("地址或坐标缺失") && !issues.includes("预算或时长缺失") && !issues.includes("天气适用性未核验"),
+    recommendable:
+      score >= 70 &&
+      !issues.includes("地址或坐标缺失") &&
+      !issues.includes("预算或时长缺失") &&
+      !issues.includes("天气适用性未核验") &&
+      !issues.includes("地点级封面缺失"),
   };
 }

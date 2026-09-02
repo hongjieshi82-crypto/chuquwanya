@@ -40,3 +40,14 @@ test("缺少坐标和天气核验的内容不能发布", () => {
   assert.equal(result.issues.includes("地址或坐标缺失"), true);
   assert.equal(result.issues.includes("天气适用性未核验"), true);
 });
+
+test("城市或分类通用图不能作为可抽取活动封面", () => {
+  for (const cover_image of [
+    "/assets/city-covers/beijing.png",
+    "/assets/activity-covers/art.png",
+  ]) {
+    const result = assessContentQuality({ ...complete, cover_image });
+    assert.equal(result.recommendable, false);
+    assert.equal(result.issues.includes("地点级封面缺失"), true);
+  }
+});

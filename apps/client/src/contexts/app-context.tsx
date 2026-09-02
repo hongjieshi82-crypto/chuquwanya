@@ -19,6 +19,7 @@ import {
   rerollDraw,
   resolveApiMediaUrl,
 } from '@/services/api';
+import { resolveCuratedActivityCover } from '@/services/demo-data';
 import type { City, DrawResult, GuestUser, PreferenceOptions, Preferences } from '@/types';
 
 const DEVICE_KEY = '@lazyde/device-id';
@@ -80,7 +81,9 @@ function normalizeCurrentDrawCover(result: DrawResult): DrawResult {
     ...result,
     activity: {
       ...result.activity,
-      coverImageUri: resolveApiMediaUrl(result.activity.coverImageUri),
+      coverImageUri:
+        resolveCuratedActivityCover(result.activity) ??
+        resolveApiMediaUrl(result.activity.coverImageUri),
     },
   };
 }

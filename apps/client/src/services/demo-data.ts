@@ -31,8 +31,25 @@ const shenzhenImage = bundledTravelImage('shenzhen.jpg');
 const tianjinImage = bundledTravelImage('tianjin.jpg');
 const yantaiImage = bundledTravelImage('yantai.jpg');
 const beijingOlympicForestImage = bundledTravelImage('beijing-olympic-forest.jpg');
+const beijingWudaoyingHutongImage = bundledTravelImage('beijing-wudaoying-hutong.jpg');
+const beijing798ArtDistrictImage = bundledTravelImage('beijing-798-art-district.jpg');
+const beijingZhuantaHutongImage = bundledTravelImage('beijing-zhuanta-hutong.jpg');
+const shanghaiWukangRoadImage = bundledTravelImage('shanghai-wukang-road.jpg');
+const shanghaiXuhuiRiversideImage = bundledTravelImage('shanghai-xuhui-riverside.jpg');
 const shenzhenLianhuashanImage = bundledTravelImage('shenzhen-lianhuashan.jpg');
 const tianjinFiveAvenuesImage = bundledTravelImage('tianjin-five-avenues.jpg');
+const qingdaoBadaguanImage = bundledTravelImage('qingdao-badaguan.jpg');
+const nanjingLingyuanRoadImage = bundledTravelImage('nanjing-lingyuan-road.jpg');
+const wuhanEastLakeGreenwayImage = bundledTravelImage('wuhan-east-lake-greenway.jpg');
+const chengduPeopleParkImage = bundledTravelImage('chengdu-people-park.jpg');
+const xianCityWallImage = bundledTravelImage('xian-city-wall.jpg');
+const changshaOrangeIsleImage = bundledTravelImage('changsha-orange-isle.jpg');
+const guangzhouYongqingfangImage = bundledTravelImage('guangzhou-yongqingfang.jpg');
+const hefeiSwanLakeImage = bundledTravelImage('hefei-swan-lake.jpg');
+const chongqingShanchengAlleyImage = bundledTravelImage('chongqing-shancheng-alley.jpg');
+const xiamenHuandaoRoadImage = bundledTravelImage('xiamen-huandao-road.jpg');
+const jinanQushuitingDamingLakeImage = bundledTravelImage('jinan-qushuiting-daming-lake.jpg');
+const kunmingCuihuParkImage = bundledTravelImage('kunming-cuihu-park.jpg');
 const qingdaoImage = bundledTravelImage('qingdao.jpg');
 const nanjingImage = bundledTravelImage('nanjing.jpg');
 const wuhanImage = bundledTravelImage('wuhan.jpg');
@@ -69,9 +86,60 @@ export const demoCityImageUris = {
 
 export const demoPlaceImageUris = {
   beijingOlympicForest: beijingOlympicForestImage,
+  beijingWudaoyingHutong: beijingWudaoyingHutongImage,
+  beijing798ArtDistrict: beijing798ArtDistrictImage,
+  beijingZhuantaHutong: beijingZhuantaHutongImage,
+  shanghaiWukangRoad: shanghaiWukangRoadImage,
+  shanghaiXuhuiRiverside: shanghaiXuhuiRiversideImage,
   shenzhenLianhuashan: shenzhenLianhuashanImage,
   tianjinFiveAvenues: tianjinFiveAvenuesImage,
+  qingdaoBadaguan: qingdaoBadaguanImage,
+  nanjingLingyuanRoad: nanjingLingyuanRoadImage,
+  wuhanEastLakeGreenway: wuhanEastLakeGreenwayImage,
+  chengduPeoplePark: chengduPeopleParkImage,
+  xianCityWall: xianCityWallImage,
+  changshaOrangeIsle: changshaOrangeIsleImage,
+  guangzhouYongqingfang: guangzhouYongqingfangImage,
+  hefeiSwanLake: hefeiSwanLakeImage,
+  chongqingShanchengAlley: chongqingShanchengAlleyImage,
+  xiamenHuandaoRoad: xiamenHuandaoRoadImage,
+  jinanQushuitingDamingLake: jinanQushuitingDamingLakeImage,
+  kunmingCuihuPark: kunmingCuihuParkImage,
 } as const;
+
+const curatedActivityCoverRules = [
+  { keywords: ['奥林匹克森林公园', '奥森'], uri: beijingOlympicForestImage },
+  { keywords: ['五道营胡同'], uri: beijingWudaoyingHutongImage },
+  { keywords: ['798艺术区', '798 艺术区', '去798', '在 798'], uri: beijing798ArtDistrictImage },
+  { keywords: ['砖塔胡同'], uri: beijingZhuantaHutongImage },
+  { keywords: ['武康路'], uri: shanghaiWukangRoadImage },
+  { keywords: ['西湖', '北山街', '曲院风荷'], uri: assetUri(westLakeImage) },
+  { keywords: ['莲花山'], uri: shenzhenLianhuashanImage },
+  { keywords: ['五大道'], uri: tianjinFiveAvenuesImage },
+  { keywords: ['烟台', '滨海北路', '滨海路'], uri: yantaiImage },
+  { keywords: ['徐汇滨江'], uri: shanghaiXuhuiRiversideImage },
+  { keywords: ['八大关', '第二海水浴场'], uri: qingdaoBadaguanImage },
+  { keywords: ['陵园路', '明孝陵'], uri: nanjingLingyuanRoadImage },
+  { keywords: ['东湖绿道', '湖光序曲'], uri: wuhanEastLakeGreenwayImage },
+  { keywords: ['人民公园', '少城街巷'], uri: chengduPeopleParkImage },
+  { keywords: ['西安城墙', '永宁门'], uri: xianCityWallImage },
+  { keywords: ['橘子洲', '湘江风光带'], uri: changshaOrangeIsleImage },
+  { keywords: ['永庆坊', '荔枝湾'], uri: guangzhouYongqingfangImage },
+  { keywords: ['天鹅湖'], uri: hefeiSwanLakeImage },
+  { keywords: ['山城步道', '山城巷'], uri: chongqingShanchengAlleyImage },
+  { keywords: ['环岛路', '曾厝垵'], uri: xiamenHuandaoRoadImage },
+  { keywords: ['曲水亭街', '大明湖'], uri: jinanQushuitingDamingLakeImage },
+  { keywords: ['翠湖', '文化巷'], uri: kunmingCuihuParkImage },
+] as const;
+
+export function resolveCuratedActivityCover(
+  activity: Pick<Activity, 'title' | 'address' | 'cityName'>,
+) {
+  const searchable = `${activity.cityName} ${activity.title} ${activity.address}`;
+  return curatedActivityCoverRules.find((rule) =>
+    rule.keywords.some((keyword) => searchable.includes(keyword)),
+  )?.uri ?? null;
+}
 
 function assetUri(source: StaticAsset) {
   if (typeof source === 'string') return source;
@@ -259,7 +327,7 @@ const baseActivities: Activity[] = [
     latitude: 39.9463,
     longitude: 116.4177,
     navigationUrl: 'https://uri.amap.com/search?keyword=北京五道营胡同',
-    coverImageUri: assetUri(beijingImage),
+    coverImageUri: assetUri(beijingWudaoyingHutongImage),
     steps: ['从雍和宫一侧进入胡同', '连续完成三次随机转弯', '挑一家顺眼的小店休息'],
     tips: ['注意礼让胡同居民', '不要进入私人院落'],
     accentColor: '#78E8FF',
@@ -285,7 +353,7 @@ const baseActivities: Activity[] = [
     latitude: 39.9841,
     longitude: 116.4956,
     navigationUrl: 'https://uri.amap.com/search?keyword=北京798艺术区',
-    coverImageUri: assetUri(beijingImage),
+    coverImageUri: assetUri(beijing798ArtDistrictImage),
     steps: ['从南门进入园区', '选定一种今天的主题色', '在三件作品前分别停留五分钟'],
     tips: ['部分展馆周一闭馆', '收费展览以现场信息为准'],
     accentColor: '#AA72FF',
@@ -311,7 +379,7 @@ const baseActivities: Activity[] = [
     latitude: 39.9232,
     longitude: 116.3675,
     navigationUrl: 'https://uri.amap.com/search?keyword=北京砖塔胡同',
-    coverImageUri: assetUri(beijingImage),
+    coverImageUri: assetUri(beijingZhuantaHutongImage),
     steps: ['从胡同东口开始慢走', '在万松老人塔附近停留', '去书店挑一本北京主题旧书'],
     tips: ['胡同道路较窄注意车辆', '旧书价格以店内为准'],
     accentColor: '#FFCF68',
@@ -337,7 +405,7 @@ const baseActivities: Activity[] = [
     latitude: 31.205,
     longitude: 121.437,
     navigationUrl: 'https://uri.amap.com/marker?position=121.437,31.205&name=武康路',
-    coverImageUri: assetUri(shanghaiImage),
+    coverImageUri: assetUri(shanghaiWukangRoadImage),
     steps: ['武康大楼集合', '收集五种街区颜色', '随机挑一家小店休息'],
     tips: ['工作日上午人更少', '注意不影响沿街居民'],
     accentColor: '#78E8FF',
@@ -467,7 +535,7 @@ const baseActivities: Activity[] = [
     latitude: 31.182,
     longitude: 121.463,
     navigationUrl: 'https://uri.amap.com/marker?position=121.463,31.182&name=徐汇滨江',
-    coverImageUri: assetUri(shanghaiImage),
+    coverImageUri: assetUri(shanghaiXuhuiRiversideImage),
     steps: ['找到一张面向江面的长椅', '拍下三次天空变化', '日落后沿江散步'],
     tips: ['提前查看天气', '周末傍晚人较多'],
     accentColor: '#ff8f72',
@@ -515,7 +583,7 @@ const additionalActivities: Activity[] = [
     description: '从八大关景区慢走到第二海水浴场，只拍红瓦、树影和海面三组颜色，最后在岸边停留十分钟。',
     category: '风景人文', mood: '放松', durationMinutes: 150, budgetYuan: 50, distanceKm: 4.2,
     district: '市南区', address: '八大关风景区至第二海水浴场', latitude: 36.0524, longitude: 120.3452,
-    coverImageUri: qingdaoImage,
+    coverImageUri: qingdaoBadaguanImage,
     steps: ['从八大关林荫路出发', '收集红瓦、树影和海面三种颜色', '在海边停留十分钟'],
     tips: ['海边风大时带薄外套', '不进入未开放建筑'], accentColor: '#78E8FF',
   }),
@@ -526,7 +594,7 @@ const additionalActivities: Activity[] = [
     description: '从苜蓿园一带进入陵园路，沿梧桐大道慢走到明孝陵附近，只选择一处历史细节认真看。',
     category: '风景人文', mood: '放松', durationMinutes: 180, budgetYuan: 80, distanceKm: 5.1,
     district: '玄武区', address: '陵园路梧桐大道至明孝陵', latitude: 32.0584, longitude: 118.8333,
-    coverImageUri: nanjingImage,
+    coverImageUri: nanjingLingyuanRoadImage,
     steps: ['从陵园路入口出发', '沿梧桐大道慢走', '选一处历史细节停留'],
     tips: ['节假日尽量早到', '步行路线较长，穿舒适鞋'], accentColor: '#C9FF62',
   }),
@@ -537,7 +605,7 @@ const additionalActivities: Activity[] = [
     description: '从东湖绿道湖光序曲附近租车出发，沿湖骑行，不追求里程，只在最喜欢的一处湖湾停下。',
     category: '轻户外', mood: '探索', durationMinutes: 180, budgetYuan: 60, distanceKm: 7.5,
     district: '武昌区', address: '东湖绿道湖光序曲', latitude: 30.5621, longitude: 114.4097,
-    coverImageUri: wuhanImage,
+    coverImageUri: wuhanEastLakeGreenwayImage,
     steps: ['湖光序曲附近租车', '沿湖骑到想停下的位置', '在湖湾休息后原路返回'],
     tips: ['高温天气避开正午', '骑行时遵守绿道规则'], accentColor: '#78E8FF',
   }),
@@ -548,7 +616,7 @@ const additionalActivities: Activity[] = [
     description: '到人民公园找一处露天茶座，点一杯盖碗茶，至少坐满四十分钟，再沿少城街巷散步。',
     category: '城市漫游', mood: '放松', durationMinutes: 150, budgetYuan: 80, distanceKm: 3.4,
     district: '青羊区', address: '人民公园与少城街巷', latitude: 30.6614, longitude: 104.0555,
-    coverImageUri: chengduImage,
+    coverImageUri: chengduPeopleParkImage,
     steps: ['在公园找一处露天茶座', '安静喝茶四十分钟', '沿少城街巷随意散步'],
     tips: ['周末茶座可能需要等位', '尊重本地休闲秩序'], accentColor: '#D9A94E',
   }),
@@ -559,7 +627,7 @@ const additionalActivities: Activity[] = [
     description: '傍晚从永宁门登城墙，向东或向西慢走，在灯光亮起后选择一处城楼停留。',
     category: '历史夜游', mood: '探索', durationMinutes: 150, budgetYuan: 100, distanceKm: 5.0,
     district: '碑林区', address: '西安城墙永宁门', latitude: 34.2493, longitude: 108.9427,
-    coverImageUri: xianImage,
+    coverImageUri: xianCityWallImage,
     steps: ['日落前从永宁门登城', '沿城墙任选方向慢走', '灯亮后在城楼停留'],
     tips: ['确认当日开放时间', '城墙风大时注意保暖'], accentColor: '#FFCF68',
   }),
@@ -570,7 +638,7 @@ const additionalActivities: Activity[] = [
     description: '从湘江东岸出发，沿江慢走观察橘子洲与城市灯光，最后只选一种长沙小吃收尾。',
     category: '城市夜游', mood: '热闹', durationMinutes: 150, budgetYuan: 80, distanceKm: 4.6,
     district: '岳麓区', address: '橘子洲与湘江风光带', latitude: 28.1914, longitude: 112.9615,
-    coverImageUri: changshaImage,
+    coverImageUri: changshaOrangeIsleImage,
     steps: ['从湘江风光带出发', '沿江看橘子洲亮灯', '只选一种小吃收尾'],
     tips: ['热门时段提前规划交通', '江边注意步行安全'], accentColor: '#FF8F72',
   }),
@@ -581,7 +649,7 @@ const additionalActivities: Activity[] = [
     description: '从永庆坊进入西关街巷，沿恩宁路走到荔枝湾，途中选一栋骑楼和一家老字号认真观察。',
     category: '风景人文', mood: '探索', durationMinutes: 150, budgetYuan: 100, distanceKm: 4.1,
     district: '荔湾区', address: '永庆坊至荔枝湾', latitude: 23.1163, longitude: 113.2388,
-    coverImageUri: guangzhouImage,
+    coverImageUri: guangzhouYongqingfangImage,
     steps: ['从永庆坊进入西关', '找一栋喜欢的骑楼', '沿荔枝湾慢走收尾'],
     tips: ['夏季注意防晒补水', '老街区避免打扰居民'], accentColor: '#C9FF62',
   }),
@@ -592,7 +660,7 @@ const additionalActivities: Activity[] = [
     description: '沿天鹅湖公园步道慢走，分别拍下一张自然、一张公共建筑和一张城市灯光照片。',
     category: '未来城市', mood: '探索', durationMinutes: 120, budgetYuan: 30, distanceKm: 4.0,
     district: '蜀山区', address: '天鹅湖公园', latitude: 31.8157, longitude: 117.2272,
-    coverImageUri: hefeiImage,
+    coverImageUri: hefeiSwanLakeImage,
     steps: ['从湖岸步道出发', '记录自然、建筑和灯光三类画面', '在城市新中心方向停留'],
     tips: ['夜间注意湖边安全', '适合天气通透的傍晚'], accentColor: '#78E8FF',
   }),
@@ -603,7 +671,7 @@ const additionalActivities: Activity[] = [
     description: '从山城巷附近出发，沿步道寻找楼梯、穿楼交通和高低落差三种空间反转。',
     category: '城市漫游', mood: '探索', durationMinutes: 180, budgetYuan: 80, distanceKm: 5.6,
     district: '渝中区', address: '山城巷传统风貌区', latitude: 29.5549, longitude: 106.5702,
-    coverImageUri: chongqingImage,
+    coverImageUri: chongqingShanchengAlleyImage,
     steps: ['从山城巷进入步道', '寻找三种空间反转', '在江景平台结束路线'],
     tips: ['台阶较多，穿防滑鞋', '雨天调整为较短路线'], accentColor: '#FF795E',
   }),
@@ -614,7 +682,7 @@ const additionalActivities: Activity[] = [
     description: '从曾厝垵附近租车，沿环岛路向任意方向骑行，在第一处想停下的海滩休息。',
     category: '轻户外', mood: '放松', durationMinutes: 180, budgetYuan: 80, distanceKm: 8.0,
     district: '思明区', address: '环岛路曾厝垵附近', latitude: 24.4434, longitude: 118.1216,
-    coverImageUri: xiamenImage,
+    coverImageUri: xiamenHuandaoRoadImage,
     steps: ['曾厝垵附近租车', '沿环岛路任选方向骑行', '在第一处想停的海滩休息'],
     tips: ['注意骑行车道和行人', '海边紫外线强，做好防晒'], accentColor: '#78E8FF',
   }),
@@ -625,7 +693,7 @@ const additionalActivities: Activity[] = [
     description: '从曲水亭街出发，沿水渠慢走到大明湖，途中找一处泉水边观察当地生活。',
     category: '风景人文', mood: '放松', durationMinutes: 120, budgetYuan: 50, distanceKm: 3.2,
     district: '历下区', address: '曲水亭街至大明湖', latitude: 36.6747, longitude: 117.0249,
-    coverImageUri: jinanImage,
+    coverImageUri: jinanQushuitingDamingLakeImage,
     steps: ['从曲水亭街沿水渠出发', '在泉水边停留观察', '步行进入大明湖'],
     tips: ['保持泉池周边清洁', '夏季注意防晒'], accentColor: '#58BFA8',
   }),
@@ -636,7 +704,7 @@ const additionalActivities: Activity[] = [
     description: '从翠湖公园开始散步，经文林街到文化巷，只凭颜色选择一束当季花或一份小食。',
     category: '城市漫游', mood: '放松', durationMinutes: 150, budgetYuan: 80, distanceKm: 3.8,
     district: '五华区', address: '翠湖公园至文化巷', latitude: 25.0544, longitude: 102.7035,
-    coverImageUri: kunmingImage,
+    coverImageUri: kunmingCuihuParkImage,
     steps: ['沿翠湖慢走一圈', '经文林街前往文化巷', '只凭颜色选一束花或一份小食'],
     tips: ['高原紫外线强，注意防晒', '尊重市场和街区秩序'], accentColor: '#C9FF62',
   }),
