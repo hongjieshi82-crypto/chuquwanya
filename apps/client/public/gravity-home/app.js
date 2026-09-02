@@ -40,13 +40,9 @@ function setupSectionObserver() {
 
 function setupGravityField() {
   const field = document.querySelector('#gravity-field');
-  const label = document.querySelector('#selected-label');
-  if (!field || !window.Matter) {
-    label.textContent = '物理引擎未加载，请检查网络后刷新';
-    return;
-  }
+  if (!field || !window.Matter) return;
 
-  const { Body, Bodies, Composite, Engine, Events } = Matter;
+  const { Body, Bodies, Composite, Engine, Events, Sleeping } = Matter;
   const engine = Engine.create({ enableSleeping: true });
   // A noticeably weightier setup than Matter's default: quick fall, restrained bounce,
   // and very little "underwater" air resistance.
@@ -58,6 +54,16 @@ function setupGravityField() {
   let activeEntry = null;
   let pointer = { x: -9999, y: -9999, active: false, lastX: 0, lastY: 0, lastTime: 0, vx: 0, vy: 0 };
   let frameId = 0;
+  const supportsCursorFlick = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  const pointerRadius = Math.min(82, Math.max(44, field.clientWidth * 0.028));
+  const pointerBody = Bodies.circle(-9999, -9999, pointerRadius, {
+    isStatic: true,
+    restitution: 0.18,
+    friction: 0.12,
+    frictionStatic: 0.1,
+    collisionFilter: { category: 0x0002, mask: 0x0001 },
+  });
+  Composite.add(engine.world, pointerBody);
 
   const sizeFor = (index) => {
     const width = field.clientWidth;
@@ -91,7 +97,14 @@ function setupGravityField() {
       Math.random() * Math.max(field.clientWidth - 120, 160) + 60,
       48 + Math.random() * Math.max(field.clientHeight * 0.28, 130) - (index % 5) * 18,
       size / 2,
-      { restitution: 0.32, friction: 0.16, frictionAir: 0.002, density: 0.0022, sleepThreshold: 42 },
+      {
+        restitution: 0.32,
+        friction: 0.16,
+        frictionAir: 0.002,
+        density: 0.0022,
+        sleepThreshold: 42,
+        collisionFilter: { category: 0x0001, mask: 0x0003 },
+      },
     );
     Composite.add(engine.world, body);
     const entry = { body, element: button, icon, size };
@@ -101,14 +114,14 @@ function setupGravityField() {
       if (activeEntry && activeEntry !== entry) activeEntry.element.classList.remove('is-active');
       activeEntry = entry;
       button.classList.add('is-active');
-      label.textContent = icon.name.replace(/^\d+-/, '');
+      pointerBody.collisionFilter.mask = 0;
     };
 
     const deactivate = () => {
       if (dragging === entry) return;
       button.classList.remove('is-active');
       if (activeEntry === entry) activeEntry = null;
-      label.textContent = '移动鼠标，发现一个旅行灵感';
+      if (!activeEntry) pointerBody.collisionFilter.mask = 0x0001;
     };
 
     button.addEventListener('pointerenter', activate);
@@ -127,7 +140,6 @@ function setupGravityField() {
       Body.setStatic(body, true);
       Body.setPosition(body, pointerPosition(event));
       button.setPointerCapture?.(event.pointerId);
-      label.textContent = icon.name.replace(/^\d+-/, '');
     });
   });
 
@@ -149,7 +161,20 @@ function setupGravityField() {
     return { x: event.clientX - rect.left, y: event.clientY - rect.top };
   }
 
-  field.addEventListener('pointermove', (event) => {
+  window.addEventListener('pointermove', (event) => {
+    const fieldRect = field.getBoundingClientRect();
+    const isInsideField = event.clientX >= fieldRect.left
+      && event.clientX <= fieldRect.right
+      && event.clientY >= fieldRect.top
+      && event.clientY <= fieldRect.bottom;
+    if (!isInsideField && !dragging) {
+      pointer.active = false;
+      Body.setPosition(pointerBody, { x: -9999, y: -9999 });
+      Body.setVelocity(pointerBody, { x: 0, y: 0 });
+      return;
+    }
+
+    pointer.active = true;
     const next = pointerPosition(event);
     const now = performance.now();
     const elapsed = Math.max(now - pointer.lastTime, 16);
@@ -160,10 +185,51 @@ function setupGravityField() {
     pointer.lastX = event.clientX;
     pointer.lastY = event.clientY;
     pointer.lastTime = now;
+    const pointerSpeed = Math.hypot(pointer.vx, pointer.vy);
+    const canFlick = supportsCursorFlick && !activeEntry && !dragging && pointerSpeed >= 1.4;
+    if (canFlick) {
+      pointerBody.collisionFilter.mask = 0x0001;
+      Body.setPosition(pointerBody, next);
+      Body.setVelocity(pointerBody, { x: pointer.vx, y: pointer.vy });
+    } else {
+      pointerBody.collisionFilter.mask = 0;
+      Body.setPosition(pointerBody, { x: -9999, y: -9999 });
+      Body.setVelocity(pointerBody, { x: 0, y: 0 });
+    }
     if (dragging) Body.setPosition(dragging.body, next);
+    if (!canFlick) return;
+
+    entries.forEach((entry) => {
+      if (dragging === entry || activeEntry === entry) return;
+      const dx = entry.body.position.x - next.x;
+      const dy = entry.body.position.y - next.y;
+      const distance = Math.hypot(dx, dy);
+      const contactDistance = pointerRadius + entry.size / 2;
+      if (distance >= contactDistance) return;
+
+      const fallbackLength = Math.max(pointerSpeed, 1);
+      const normalX = distance > 0.01 ? dx / distance : pointer.vx / fallbackLength;
+      const normalY = distance > 0.01 ? dy / distance : pointer.vy / fallbackLength;
+      const overlap = contactDistance - distance;
+      const contactImpulse = Math.min(14, 4.8 + pointerSpeed * 0.8);
+      Sleeping.set(entry.body, false);
+      Body.translate(entry.body, {
+        x: normalX * overlap * 0.72,
+        y: normalY * overlap * 0.72,
+      });
+      Body.setVelocity(entry.body, {
+        x: entry.body.velocity.x * 0.68 + pointer.vx * 0.82 + normalX * contactImpulse,
+        y: entry.body.velocity.y * 0.68 + pointer.vy * 0.82 + normalY * contactImpulse,
+      });
+    });
   });
-  field.addEventListener('pointerenter', () => { pointer.active = true; });
-  field.addEventListener('pointerleave', () => { if (!dragging) pointer.active = false; });
+  field.addEventListener('pointerleave', () => {
+    if (!dragging) {
+      pointer.active = false;
+      Body.setPosition(pointerBody, { x: -9999, y: -9999 });
+      Body.setVelocity(pointerBody, { x: 0, y: 0 });
+    }
+  });
 
   const release = () => {
     if (!dragging) return;
@@ -173,13 +239,13 @@ function setupGravityField() {
     dragging = null;
     releasedEntry.element.classList.remove('is-active');
     if (activeEntry === releasedEntry) activeEntry = null;
-    label.textContent = '移动鼠标，发现一个旅行灵感';
+    pointerBody.collisionFilter.mask = 0x0001;
   };
   window.addEventListener('pointerup', release);
   window.addEventListener('pointercancel', release);
 
   Events.on(engine, 'beforeUpdate', () => {
-    if (!pointer.active || dragging) return;
+    if (!supportsCursorFlick || !pointer.active || dragging || activeEntry || Math.hypot(pointer.vx, pointer.vy) < 1.1) return;
     const influenceRadius = Math.min(250, Math.max(165, field.clientWidth * 0.075));
     entries.forEach(({ body }) => {
       const dx = body.position.x - pointer.x;
@@ -210,7 +276,6 @@ function setupGravityField() {
       Body.setVelocity(body, { x: (Math.random() - .5) * 10, y: 2 + Math.random() * 4 });
       Body.setAngularVelocity(body, (Math.random() - .5) * .14);
     });
-    label.textContent = '36 个旅行灵感重新落下';
   }
 
   document.querySelector('#shuffle-button').addEventListener('click', reshuffle);
