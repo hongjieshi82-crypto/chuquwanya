@@ -51,6 +51,7 @@
     "web:https": "expo start --web --tunnel",
     "web:https:local": "expo start --web --https --lan",
     "build:web": "expo export --platform web",
+    "preview:web": "node ./scripts/serve-web.mjs",
     "lint": "expo lint"
   },
   "private": true

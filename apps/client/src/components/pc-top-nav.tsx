@@ -58,7 +58,6 @@ export const PC_TOP_NAV_KEYS = {
   trips: 'trips',
   blindBox: 'blind-box',
   attractions: 'attractions',
-  ranking: 'ranking',
 } as const;
 
 const brandLogo = require('../../assets/images/chuquwanya-logo.png') as StaticAsset;
@@ -183,11 +182,9 @@ function navigateToPageSection(event: ReactMouseEvent<HTMLAnchorElement>, href: 
 export function getPcTopNavItems({
   activeKey,
   homeHref = '/pc#top',
-  sectionPrefix = '/pc#',
 }: {
   activeKey?: string;
   homeHref?: string;
-  sectionPrefix?: string;
 } = {}): PcTopNavItem[] {
   return [
     { key: PC_TOP_NAV_KEYS.home, label: '首页', href: homeHref },
@@ -199,7 +196,6 @@ export function getPcTopNavItems({
       active: activeKey === PC_TOP_NAV_KEYS.blindBox,
     },
     { key: PC_TOP_NAV_KEYS.attractions, label: '可玩地点', href: '/destinations' },
-    { key: PC_TOP_NAV_KEYS.ranking, label: '目的地榜单', href: `${sectionPrefix}目的地榜单` },
   ];
 }
 

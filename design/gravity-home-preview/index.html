@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0d0d13" />
+    <title>粗去玩鸭！· 重力首页样式预览</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#hero" aria-label="回到首页">
+        <img src="../../apps/client/assets/images/chuquwanya-logo.png" alt="" />
+        <strong>粗去玩鸭！</strong>
+      </a>
+      <nav class="nav" aria-label="首页章节">
+        <a href="#hero" data-section-link="hero">首页</a>
+        <a href="http://localhost:8092/trips">我的行程</a>
+        <a href="http://localhost:8092/box/config">旅行抽取</a>
+        <a href="http://localhost:8092/destinations">可玩地点</a>
+      </nav>
+      <div class="topbar-actions">
+        <span class="preview-pill">STYLE PREVIEW</span>
+        <a class="nav-cta" href="#">登录</a>
+      </div>
+    </header>
+
+    <aside class="chapter-rail" aria-label="页面进度">
+      <span class="chapter-number">01</span>
+      <div class="chapter-line"><i></i></div>
+      <div class="chapter-dots">
+        <a href="#hero" data-dot="hero" aria-label="第一屏"></a>
+        <a href="#styles" data-dot="styles" aria-label="第二屏"></a>
+        <a href="#places" data-dot="places" aria-label="第三屏"></a>
+        <a href="#start" data-dot="start" aria-label="第四屏"></a>
+      </div>
+      <span class="chapter-total">04</span>
+    </aside>
+
+    <main class="snap-stage" id="snap-stage">
+      <section class="screen hero-screen" id="hero" data-section="hero" data-index="1">
+        <div class="hero-grid" aria-hidden="true"></div>
+        <div class="hero-copy">
+          <h1>周末别浪费 <em>粗去玩鸭</em></h1>
+          <p>输入人数、预算和时间，一键生成你的周末逃跑计划。不用查攻略、不用做功课，周五下班说走就走。</p>
+          <div class="hero-actions">
+            <a class="primary-button" href="http://localhost:8092/box/slot-preview">立即抽取</a>
+            <button class="ghost-button" id="shuffle-button" type="button">重新撒一把</button>
+          </div>
+        </div>
+        <div class="gravity-field" id="gravity-field" aria-label="可拖拽的旅行灵感球池"></div>
+        <div class="selected-label" id="selected-label" aria-live="polite">移动鼠标，发现一个旅行灵感</div>
+        <a class="scroll-cue" href="#styles"><span>SCROLL TO EXPLORE</span><i>↓</i></a>
+      </section>
+
+      <section class="screen styles-screen" id="styles" data-section="styles" data-index="2">
+        <div class="section-heading">
+          <h2>今天想怎么玩</h2>
+          <p>先选一个旅行风格，再看看这次周末适合往哪个方向走。</p>
+        </div>
+        <div class="style-deck">
+          <a class="style-card photo-style-card" href="http://localhost:8092/theme?preset=scene">
+            <img src="../../apps/client/public/media/travel/beijing-798-art-district.jpg" alt="北京798艺术区" />
+            <div class="style-photo-shade"></div>
+            <div class="style-card-top"><span>01</span><b>SCENE</b></div>
+            <div class="style-card-copy"><small>风景人文</small><h3>去看山海与故事</h3><p>自然风景、历史建筑与当地文化。</p></div>
+          </a>
+          <a class="style-card photo-style-card" href="http://localhost:8092/theme?preset=theme">
+            <img src="../../apps/client/public/media/travel/shanghai-wukang-road.jpg" alt="上海武康路" />
+            <div class="style-photo-shade"></div>
+            <div class="style-card-top"><span>02</span><b>WANDER</b></div>
+            <div class="style-card-copy"><small>随心漫游</small><h3>慢一点逛一座城</h3><p>城市散步、街区探索与轻松户外。</p></div>
+          </a>
+          <a class="style-card photo-style-card" href="http://localhost:8092/theme?preset=audience">
+            <img src="../../apps/client/public/media/travel/shenzhen-lianhuashan.jpg" alt="深圳莲花山" />
+            <div class="style-photo-shade"></div>
+            <div class="style-card-top"><span>03</span><b>TOGETHER</b></div>
+            <div class="style-card-copy"><small>结伴同行</small><h3>和喜欢的人出发</h3><p>适合朋友、情侣与亲子的周末体验。</p></div>
+          </a>
+          <a class="style-card photo-style-card" href="http://localhost:8092/theme?preset=food">
+            <img src="../../apps/client/public/media/travel/guangzhou-yongqingfang.jpg" alt="广州永庆坊" />
+            <div class="style-photo-shade"></div>
+            <div class="style-card-top"><span>04</span><b>TASTE</b></div>
+            <div class="style-card-copy"><small>寻味探购</small><h3>沿着烟火气去逛</h3><p>美食、夜市、老街与当地生活。</p></div>
+          </a>
+        </div>
+      </section>
+
+      <section class="screen places-screen" id="places" data-section="places" data-index="3">
+        <div class="places-heading">
+          <h2>这周可以直接出发</h2>
+          <p>挑一个有画面感的地点先看看，喜欢就继续了解完整玩法。</p>
+        </div>
+        <div class="place-grid">
+          <a class="place-card" href="http://localhost:8092/destinations?destinationId=1">
+            <img src="../../apps/client/public/media/travel/beijing-olympic-forest.jpg" alt="北京奥林匹克森林公园" />
+            <div class="place-shade"></div>
+            <div class="place-card-top"><span>北京</span><b>♡ 热度 90</b></div>
+            <div class="place-card-copy">
+              <h3>在奥森盲走一段林间路</h3>
+              <p>不设终点，沿着树影和鸟声走四十分钟。</p>
+              <strong>北京 · 4.6分</strong>
+              <em>查看这个玩法 →</em>
+            </div>
+          </a>
+          <a class="place-card" href="http://localhost:8092/destinations?destinationId=2">
+            <img src="../../apps/client/public/media/travel/shanghai-wukang-road.jpg" alt="上海武康路" />
+            <div class="place-shade"></div>
+            <div class="place-card-top"><span>上海</span><b>♡ 热度 95</b></div>
+            <div class="place-card-copy">
+              <h3>武康路建筑色卡挑战</h3>
+              <p>沿老街收集五种颜色，顺便发现一家没去过的小店。</p>
+              <strong>上海 · 4.6分</strong>
+              <em>查看这个玩法 →</em>
+            </div>
+          </a>
+          <a class="place-card" href="http://localhost:8092/destinations?destinationId=3">
+            <img src="../../apps/client/assets/images/pc-hero-west-lake.jpg" alt="杭州西湖" />
+            <div class="place-shade"></div>
+            <div class="place-card-top"><span>杭州</span><b>♡ 热度 91</b></div>
+            <div class="place-card-copy">
+              <h3>骑到西湖边等一场日落</h3>
+              <p>沿湖轻骑，把终点交给当天最好看的那束光。</p>
+              <strong>杭州 · 4.6分</strong>
+              <em>查看这个玩法 →</em>
+            </div>
+          </a>
+        </div>
+      </section>
+
+      <section class="screen start-screen" id="start" data-section="start" data-index="4">
+        <div class="idea-machine-stage" aria-label="周末灵感机使用说明">
+          <img class="idea-machine-shell" src="./assets/ui/idea-machine-shell-experience-v1.png" alt="周末灵感机" />
+          <img class="idea-machine-lever" src="../../apps/client/assets/images/slot-preview/travel-slot-lever-original-v1.png" alt="" />
+          <img class="idea-machine-pixel-duck" src="../../apps/client/assets/images/slot-preview/duck-pixel-panel-v1.png" alt="" />
+          <img class="idea-machine-duck-sticker" src="../../apps/client/assets/images/slot-preview/duck-lever-button-v1.png" alt="" />
+          <div class="idea-machine-title">三步，把周末安排明白</div>
+          <div class="idea-machine-steps">
+            <article><b>01</b><strong>输入出行条件</strong><p>人数、预算和时间</p></article>
+            <article><b>02</b><strong>启动周末灵感机</strong><p>获得一个匹配方案</p></article>
+            <article><b>03</b><strong>领取周末逃跑计划</strong><p>不合适就换一个</p></article>
+          </div>
+          <a class="idea-machine-cta" href="http://localhost:8092/box/slot-preview" aria-label="立即体验"></a>
+        </div>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>

@@ -641,10 +641,10 @@ export default function PcLandingScreen() {
                   </div>
                   <Title className="pc-hero-title">
                     今天不做攻略，<br />
-                    <span>开一局周末。</span>
+                    <span>给周末一个新方向。</span>
                   </Title>
                   <Paragraph className="pc-hero-desc">
-                    把时间、预算和心情交给 AI。拉动旅行老虎机，领取一条现在就能出发的城市任务。
+                    把时间、预算和心情交给 AI。启动周末灵感机，领取一条现在就能出发的城市任务。
                   </Paragraph>
                   <Space className="pc-hero-actions" size={14} wrap>
                     <Button

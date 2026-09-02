@@ -44,7 +44,7 @@ const themes: Record<string, ThemeConfig> = {
   audience: {
     eyebrow: '结伴同行',
     title: '两个人不再互相问“去哪”',
-    lead: '把选择交给旅行老虎机，你们只需要决定要不要现在出发。',
+    lead: '把选择交给周末灵感机，你们只需要决定要不要现在出发。',
     image: demoCityImageUris.yantai,
     color: '#8A63E8',
     glow: 'rgba(255,178,109,.3)',

@@ -40,10 +40,21 @@ const pcExperienceShellCss = `
   justify-content: space-between;
   gap: 28px;
   line-height: normal;
-  background: rgba(255, 255, 255, 0.9);
-  border-bottom: 1px solid rgba(232, 225, 255, 0.86);
-  backdrop-filter: blur(18px);
+  color: #fff;
+  background: rgba(17, 16, 28, .94);
+  border-bottom: 1px solid rgba(255, 255, 255, .08);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .18);
+  backdrop-filter: blur(22px);
 }
+
+.pc-experience-shell-header .pc-experience-shell-brand { color: #fff; }
+.pc-experience-shell-header .pc-top-nav-menu.ant-menu-horizontal > .ant-menu-item { color: rgba(255, 255, 255, .72); }
+.pc-experience-shell-header .pc-top-nav-menu.ant-menu-horizontal > .ant-menu-item:hover,
+.pc-experience-shell-header .pc-top-nav-menu.ant-menu-horizontal > .ant-menu-item-selected { color: #c9ff62; }
+.pc-experience-shell-header .pc-top-nav-menu.ant-menu-horizontal > .ant-menu-item:hover::after,
+.pc-experience-shell-header .pc-top-nav-menu.ant-menu-horizontal > .ant-menu-item-selected::after { border-bottom-color: #c9ff62; }
+.pc-experience-shell-header .pc-experience-shell-cta.ant-btn { border-color: #c9ff62; color: #171520; background: #c9ff62; box-shadow: 0 10px 28px rgba(201, 255, 98, .18); }
+.pc-experience-shell-header .pc-experience-shell-cta.ant-btn:hover { border-color: #dcff9b; color: #171520; background: #dcff9b; }
 
 .pc-experience-shell-header.pc-experience-shell-header-home,
 .pc-experience-shell-header.pc-experience-shell-header-blindbox {
@@ -96,18 +107,19 @@ const pcExperienceShellCss = `
 }
 
 .pc-experience-shell-header.pc-experience-shell-header-destinations {
-  background: #fff;
-  border-bottom-color: transparent;
-  box-shadow: none;
-  backdrop-filter: none;
+  color: #fff;
+  background: rgba(17, 16, 28, .94);
+  border-bottom-color: rgba(255, 255, 255, .08);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .18);
+  backdrop-filter: blur(22px);
   transition: background .2s ease, border-color .2s ease, box-shadow .2s ease, backdrop-filter .2s ease;
 }
 
 .pc-experience-shell-header.pc-experience-shell-header-destinations.is-scrolled {
-  background: rgba(255, 255, 255, 0.88);
-  border-bottom-color: rgba(232, 225, 255, 0.86);
-  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
-  backdrop-filter: blur(16px);
+  background: rgba(17, 16, 28, .97);
+  border-bottom-color: rgba(255, 255, 255, .1);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .22);
+  backdrop-filter: blur(24px);
 }
 
 .pc-experience-shell-brand {
@@ -115,7 +127,7 @@ const pcExperienceShellCss = `
   align-items: center;
   gap: 10px;
   min-width: 148px;
-  color: ${shellToken.ink};
+  color: #fff;
   font-size: 18px;
   font-weight: 900;
   line-height: 1;
@@ -254,7 +266,6 @@ export function PcExperienceShell({ children }: PropsWithChildren) {
           ? PC_TOP_NAV_KEYS.trips
           : undefined,
     homeHref: '/pc#top',
-    sectionPrefix: '/pc#',
   });
 
   const startPcBoxDraw = () => {

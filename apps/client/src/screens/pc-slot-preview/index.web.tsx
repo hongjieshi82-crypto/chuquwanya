@@ -383,7 +383,7 @@ export default function PcSlotPreviewScreen() {
         ? `锁定滚轮 ${stoppedReels}/3`
         : stage === 'revealed'
           ? currentDraw?.activity.title ?? '目的地已锁定'
-          : '拉下摇杆，交给旅行运气';
+          : '启动灵感机，发现周末方向';
   const compactDisplayTitle = isBooting
     ? '准备中'
     : stage === 'launching'
@@ -423,10 +423,14 @@ export default function PcSlotPreviewScreen() {
             <Button
               className="travel-slot-back"
               icon={<ArrowLeftOutlined />}
-              onClick={() => router.replace('/box/config')}>
+              onClick={() => {
+                if (document.referrer) window.history.back();
+                else if (router.canGoBack()) router.back();
+                else router.replace('/box/config');
+              }}>
               返回
             </Button>
-            <span className="travel-slot-preview-badge">SLOT MACHINE / TRAVEL EDITION</span>
+            <span className="travel-slot-preview-badge">WEEKEND IDEA MACHINE</span>
             <div className="travel-slot-top-lights" aria-hidden="true">
               {Array.from({ length: 9 }, (_, index) => <i key={index} />)}
             </div>
@@ -496,7 +500,7 @@ export default function PcSlotPreviewScreen() {
               </div>
 
               <button
-                aria-label="拉下摇杆开始抽取"
+                aria-label="启动周末灵感机开始抽取"
                 className="travel-slot-lever"
                 disabled={isBooting || isActive || (stage === 'revealed' && (currentDraw?.attemptsRemaining ?? 0) <= 0)}
                 onClick={() => void startSlotDraw()}>
@@ -535,7 +539,7 @@ export default function PcSlotPreviewScreen() {
             className="travel-slot-error"
             type="error"
             showIcon
-            title="老虎机抽取失败"
+            title="周末灵感机抽取失败"
             description={errorMessage}
             action={stage === 'error'
               ? <Button size="small" icon={<ReloadOutlined />} onClick={resetPreview}>重新试一次</Button>
