@@ -21,18 +21,6 @@ const allIcons = Object.entries(iconGroups).flatMap(([category, names]) =>
   names.map((name) => ({ category, name, src: `./assets/icons/${category}/${name}.avif` })),
 );
 
-function renderClusters() {
-  document.querySelectorAll('[data-cluster]').forEach((cluster) => {
-    const names = iconGroups[cluster.dataset.cluster].slice(0, 3);
-    cluster.replaceChildren(...names.map((name) => {
-      const image = document.createElement('img');
-      image.src = `./assets/icons/${cluster.dataset.cluster}/${name}.avif`;
-      image.alt = '';
-      return image;
-    }));
-  });
-}
-
 function setupSectionObserver() {
   const sections = [...document.querySelectorAll('[data-section]')];
   const chapterNumber = document.querySelector('.chapter-number');
@@ -236,6 +224,5 @@ function setupGravityField() {
   window.addEventListener('pagehide', () => cancelAnimationFrame(frameId), { once: true });
 }
 
-renderClusters();
 setupSectionObserver();
 setupGravityField();
