@@ -1,8 +1,6 @@
 import CalendarOutlinedSvg from '@ant-design/icons-svg/es/asn/CalendarOutlined';
-import CompassOutlinedSvg from '@ant-design/icons-svg/es/asn/CompassOutlined';
 import EnvironmentOutlinedSvg from '@ant-design/icons-svg/es/asn/EnvironmentOutlined';
 import GiftOutlinedSvg from '@ant-design/icons-svg/es/asn/GiftOutlined';
-import ThunderboltOutlinedSvg from '@ant-design/icons-svg/es/asn/ThunderboltOutlined';
 import type { AbstractNode, IconDefinition } from '@ant-design/icons-svg/es/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Button, Card, ConfigProvider, Layout, Select, Space, Tag, Typography } from 'antd';
@@ -181,10 +179,8 @@ function createPcIcon(definition: IconDefinition) {
 }
 
 const CalendarOutlined = createPcIcon(CalendarOutlinedSvg);
-const CompassOutlined = createPcIcon(CompassOutlinedSvg);
 const EnvironmentOutlined = createPcIcon(EnvironmentOutlinedSvg);
 const GiftOutlined = createPcIcon(GiftOutlinedSvg);
-const ThunderboltOutlined = createPcIcon(ThunderboltOutlinedSvg);
 
 export default function PcBoxConfigScreen() {
   const router = useRouter();
@@ -475,15 +471,6 @@ export default function PcBoxConfigScreen() {
         <Layout className="pc-box-layout">
           <Content className="pc-box-content">
             <header className="pc-box-title">
-              <div className="pc-box-kicker">
-                <span aria-hidden="true" />
-                NEW QUEST / SETUP
-              </div>
-              <div className="pc-box-title-icons" aria-hidden="true">
-                <span><ThunderboltOutlined size={22} /></span>
-                <span><CompassOutlined size={22} /></span>
-                <span><GiftOutlined size={22} /></span>
-              </div>
               <Title>配置你的周末任务</Title>
               <Paragraph>
                 选好出发地、预算和心情，AI 会把它们组合成一条现在就能执行的城市冒险。
@@ -1222,15 +1209,6 @@ const pcBoxCss = `
   box-shadow: 0 0 14px rgba(201,255,98,.8);
 }
 
-.pc-box-title-icons { margin-bottom: 18px; color: var(--quest-cyan); }
-
-.pc-box-title-icons span {
-  border: 1px solid rgba(255,255,255,.13);
-  color: var(--quest-cyan);
-  background: rgba(255,255,255,.065);
-  box-shadow: none;
-}
-
 .pc-box-title h1.ant-typography {
   color: #fff;
   font-size: clamp(40px, 4vw, 58px);
@@ -1305,9 +1283,85 @@ const pcBoxCss = `
   background: #dcff9b;
 }
 
+/* Keep the whole configurator inside the same dark travel-console world. */
+.pc-box-page {
+  color: #f7f7f2;
+  background:
+    radial-gradient(circle at 12% 4%, rgba(201,255,98,.16), transparent 29%),
+    radial-gradient(circle at 88% 12%, rgba(120,232,255,.13), transparent 30%),
+    linear-gradient(145deg, #111419 0%, #101018 50%, #111712 100%);
+  background-attachment: fixed;
+}
+
+.pc-box-page::before {
+  position: fixed;
+  inset: 84px 0 0;
+  height: auto;
+  opacity: .2;
+  mask-image: linear-gradient(to bottom, black, transparent 72%);
+}
+
+.pc-box-content {
+  width: min(100% - 64px, 1080px);
+  padding-top: 78px;
+  padding-bottom: 96px;
+}
+
+.pc-box-title { margin-bottom: 48px; }
+.pc-box-title h1.ant-typography { font-size: clamp(44px, 4.2vw, 64px); line-height: 1.06; }
+.pc-box-title p.ant-typography { max-width: 760px; color: rgba(255,255,255,.54); }
+.pc-box-sections { gap: 22px; }
+
+.pc-box-section.ant-card {
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.105);
+  border-radius: 24px;
+  color: #f7f7f2;
+  background: linear-gradient(145deg, rgba(35,39,43,.9), rgba(20,21,27,.94));
+  box-shadow: 0 22px 58px rgba(0,0,0,.24);
+  backdrop-filter: blur(20px);
+}
+
+.pc-box-section .ant-card-body { padding: 34px 38px 38px; }
+.pc-box-section-heading { margin-bottom: 28px; }
+.pc-box-section-icon { width: 44px; height: 44px; border-radius: 13px; box-shadow: 0 8px 24px rgba(201,255,98,.12); }
+.pc-box-section-title, .pc-box-label { color: #fff; }
+.pc-box-location-notice, .pc-box-destination-hint { color: rgba(255,255,255,.4); }
+
+.pc-box-city-select .ant-select-selector,
+.pc-box-location-button.ant-btn,
+.pc-box-options .ant-tag-checkable-group-item.ant-tag {
+  border-color: rgba(255,255,255,.11) !important;
+  color: rgba(255,255,255,.66);
+  background: rgba(255,255,255,.055) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035) !important;
+}
+
+.pc-box-city-select .ant-select-selection-item,
+.pc-box-city-select .ant-select-arrow { color: rgba(255,255,255,.7); }
+.pc-box-locate-button.ant-btn { border-color: rgba(201,255,98,.22); color: #c9ff62; background: rgba(201,255,98,.07); }
+.pc-box-locate-button.ant-btn:hover { color: #dcff9b !important; background: rgba(201,255,98,.12) !important; }
+.pc-box-options .ant-tag-checkable-group-item.ant-tag:hover { border-color: rgba(201,255,98,.34) !important; color: #c9ff62; background: rgba(201,255,98,.075) !important; }
+.pc-box-options .ant-tag-checkable-group-item.ant-tag-checkable-checked {
+  border-color: #c9ff62 !important;
+  color: #111419;
+  background: #c9ff62 !important;
+  box-shadow: 0 10px 26px rgba(201,255,98,.13) !important;
+}
+
+.pc-box-group-surprise .ant-tag-checkable-group-item.ant-tag { min-height: 168px; }
+.pc-box-group-surprise .ant-tag-checkable-group-item.ant-tag-checkable-checked { color: #111419; background: linear-gradient(145deg,#c9ff62,#aeeeff) !important; }
+.pc-box-group-surprise .pc-box-surprise-option small { color: inherit; opacity: .62; }
+
+.pc-box-action {
+  border-color: rgba(201,255,98,.18);
+  background: rgba(15,17,20,.94);
+  box-shadow: 0 24px 60px rgba(0,0,0,.3);
+}
+
 @media (max-width: 720px) {
   .pc-box-page {
-    background: linear-gradient(180deg, #11101c 0, #171426 380px, #F4F7EE 380px, #FAFBF7 100%);
+    background: radial-gradient(circle at 20% 0, rgba(201,255,98,.13), transparent 30%), linear-gradient(145deg,#111419,#101018 58%,#111712);
   }
   .pc-box-content { width: min(100% - 28px, 980px); padding-top: 38px; }
   .pc-box-title h1.ant-typography { font-size: 39px; }

@@ -2,7 +2,6 @@ import {
   ArrowRightOutlined,
   CalendarOutlined,
   ClockCircleOutlined,
-  CompassOutlined,
   DollarOutlined,
   EnvironmentOutlined,
   MoreOutlined,
@@ -26,10 +25,10 @@ import {
 } from 'antd';
 import type { MenuProps } from 'antd';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 
 import { useApp } from '@/contexts/app-context';
-import { getTodos, startTodo, updateTodoStatus } from '@/services/api';
+import { getActivity, getTodos, startTodo, updateTodoStatus } from '@/services/api';
 import { palette, radii } from '@/theme';
 import type { Todo, TodoStatus } from '@/types';
 
@@ -54,49 +53,62 @@ const statusMeta: Record<TodoStatus, { label: string; color: string; className: 
 const tripsCss = `
 .pc-trips-page {
   min-height: calc(100dvh - 76px);
-  padding: 48px 56px 72px;
-  background: #f6f7fb;
+  padding: 58px 56px 88px;
+  color: #f7f7f2;
+  background:
+    radial-gradient(circle at 8% 8%, rgba(168, 216, 64, .15), transparent 30%),
+    radial-gradient(circle at 92% 12%, rgba(72, 173, 255, .14), transparent 32%),
+    linear-gradient(145deg, #111419 0%, #101018 48%, #111712 100%);
+  background-attachment: fixed;
 }
-.pc-trips-container { width: min(1200px, 100%); margin: 0 auto; }
-.pc-trips-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
-.pc-trips-kicker { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 8px; color: #7c6fe8; font-size: 13px; font-weight: 700; }
-.pc-trips-title.ant-typography { margin: 0; color: #1f2937; font-size: 32px; line-height: 1.25; letter-spacing: -.02em; }
-.pc-trips-subtitle.ant-typography { display: block; margin-top: 8px; color: #7b8496; font-size: 14px; }
-.pc-trips-create.ant-btn { height: 42px; padding-inline: 19px; border-radius: 12px; box-shadow: none; font-weight: 700; }
+.pc-trips-page::before { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: .22; background-image: radial-gradient(rgba(255,255,255,.28) .7px, transparent .7px); background-size: 18px 18px; mask-image: linear-gradient(to bottom, black, transparent 72%); }
+.pc-trips-container { position: relative; z-index: 1; width: min(1280px, 100%); margin: 0 auto; }
+.pc-trips-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 32px; margin-bottom: 38px; }
+.pc-trips-title.ant-typography { margin: 0; color: #f7f7f2; font-size: clamp(40px, 4vw, 62px); font-weight: 900; line-height: 1.04; letter-spacing: -.045em; }
+.pc-trips-subtitle.ant-typography { display: block; margin-top: 14px; color: rgba(255,255,255,.58); font-size: 16px; }
+.pc-trips-create.ant-btn { height: 52px; padding-inline: 24px; border: 0; border-radius: 999px; color: #111419; background: #c9ff62; box-shadow: 0 12px 34px rgba(201,255,98,.18); font-weight: 850; }
+.pc-trips-create.ant-btn:hover { color: #111419 !important; background: #dcff9b !important; transform: translateY(-2px); }
 .pc-trips-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
-.pc-trips-segmented.ant-segmented { padding: 4px; border: 1px solid #e9ecf2; border-radius: 12px; background: #fff; box-shadow: 0 1px 2px rgba(16, 24, 40, .03); }
-.pc-trips-segmented .ant-segmented-item { min-height: 32px; padding-inline: 14px; border-radius: 8px; color: #667085; font-size: 13px; font-weight: 600; }
-.pc-trips-segmented .ant-segmented-item-selected { color: #5145cd; box-shadow: none; }
-.pc-trips-summary { color: #98a2b3; font-size: 13px; }
-.pc-trips-summary b { color: #344054; font-weight: 700; }
+.pc-trips-segmented.ant-segmented { width: min(540px, 100%); padding: 5px; border: 1px solid rgba(255,255,255,.1); border-radius: 999px; background: rgba(255,255,255,.055); box-shadow: inset 0 1px 0 rgba(255,255,255,.05); }
+.pc-trips-segmented .ant-segmented-group { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; }
+.pc-trips-segmented .ant-segmented-item { min-width: 0; min-height: 36px; padding-inline: 0; border-radius: 999px; color: rgba(255,255,255,.58); font-size: 13px; font-weight: 600; text-align: center; }
+.pc-trips-segmented .ant-segmented-item-label { display: flex; align-items: center; justify-content: center; width: 100%; }
+.pc-trips-segmented .ant-segmented-item-selected { color: #10130d; background: #c9ff62; box-shadow: none; font-weight: 900; }
+.pc-trips-summary { color: rgba(255,255,255,.46); font-size: 13px; }
+.pc-trips-summary b { color: #c9ff62; font-weight: 800; }
 .pc-trips-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
-.pc-trip-card.ant-card { overflow: hidden; min-height: 282px; border: 1px solid #e9ecf2; border-radius: 16px; background: #fff; box-shadow: 0 2px 8px rgba(16, 24, 40, .035); transition: transform .18s ease, box-shadow .18s ease; }
-.pc-trip-card.ant-card:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgba(16, 24, 40, .09); }
-.pc-trip-card .ant-card-body { display: flex; flex-direction: column; height: 100%; min-height: 282px; padding: 22px; }
-.pc-trip-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.pc-trip-date { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; flex: 0 0 auto; width: 46px; height: 48px; border: 1px solid #ebe8ff; border-radius: 10px; background: #f8f7ff; color: #5548cf; }
-.pc-trip-date span { font-size: 11px; font-weight: 700; line-height: 1.1; }
-.pc-trip-date b { font-size: 19px; line-height: 1.1; }
-.pc-trip-status.ant-tag { margin: 0; border: 0; border-radius: 6px; font-size: 12px; font-weight: 600; line-height: 25px; }
-.pc-trip-status.is-pending { color: #b26a00; background: #fff7e6; }
-.pc-trip-status.is-progress { color: #2563b8; background: #edf6ff; }
-.pc-trip-status.is-completed { color: #247c52; background: #edf9f1; }
-.pc-trip-status.is-cancelled { color: #667085; background: #f2f4f7; }
-.pc-trip-title.ant-typography { margin: 20px 0 7px; color: #1d2939; font-size: 18px; line-height: 1.45; }
-.pc-trip-summary.ant-typography { display: -webkit-box; min-height: 40px; margin: 0; overflow: hidden; color: #7b8496; font-size: 13px; line-height: 20px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.pc-trip-meta { display: grid; gap: 9px; margin-top: 18px; padding-top: 17px; border-top: 1px solid #f0f1f4; color: #667085; font-size: 12px; }
+.pc-trip-card.ant-card { position: relative; overflow: hidden; min-height: 510px; border: 1px solid rgba(255,255,255,.11); border-radius: 24px; background: linear-gradient(145deg, rgba(35,39,43,.96), rgba(20,21,27,.98)); box-shadow: 0 18px 44px rgba(0,0,0,.18); transition: transform .28s cubic-bezier(.2,.8,.2,1), border-color .28s ease, box-shadow .28s ease; animation: trip-card-in .55s both; }
+.pc-trip-card.ant-card:nth-child(2) { animation-delay: .07s; }.pc-trip-card.ant-card:nth-child(3) { animation-delay: .14s; }.pc-trip-card.ant-card:nth-child(4) { animation-delay: .21s; }
+.pc-trip-card.ant-card::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(120deg, transparent 25%, rgba(201,255,98,.06), transparent 70%); transform: translateX(-110%); transition: transform .65s ease; }
+.pc-trip-card.ant-card:hover { transform: translateY(-7px); border-color: rgba(201,255,98,.42); box-shadow: 0 24px 54px rgba(0,0,0,.32); }.pc-trip-card.ant-card:hover::after { transform: translateX(110%); }
+.pc-trip-card .ant-card-body { display: flex; flex-direction: column; height: 100%; min-height: 510px; padding: 0; }
+.pc-trip-cover { position: relative; flex: 0 0 auto; height: 220px; overflow: hidden; background: radial-gradient(circle at 72% 28%, color-mix(in srgb, var(--trip-accent) 55%, transparent), transparent 34%), linear-gradient(145deg,#2b3930,#17202a); }
+.pc-trip-cover img { width: 100%; height: 100%; display: block; object-fit: cover; transition: transform .65s cubic-bezier(.2,.8,.2,1); }.pc-trip-card:hover .pc-trip-cover img { transform: scale(1.055); }
+.pc-trip-cover-placeholder { width: 100%; height: 100%; display: grid; place-items: center; color: rgba(255,255,255,.2); font-size: 36px; font-weight: 900; letter-spacing: -.04em; }
+.pc-trip-cover-shade { position: absolute; inset: 0; background: linear-gradient(180deg,rgba(4,7,8,.06),rgba(7,9,12,.58)); }
+.pc-trip-date { position: absolute; left: 18px; bottom: 18px; z-index: 1; display: inline-flex; flex-direction: column; align-items: flex-start; justify-content: center; width: 70px; height: 66px; padding-left: 13px; border: 1px solid rgba(201,255,98,.36); border-radius: 14px; color: #c9ff62; background: rgba(10,13,15,.7); box-shadow: 0 10px 26px rgba(0,0,0,.24); backdrop-filter: blur(13px); }
+.pc-trip-date span { font-size: 11px; font-weight: 750; line-height: 1.1; }.pc-trip-date b { margin-top: 4px; font: 900 25px/1 ui-monospace,SFMono-Regular,Menlo,monospace; }
+.pc-trip-cover-actions { position: absolute; top: 17px; right: 14px; z-index: 2; }
+.pc-trip-status.ant-tag { display: inline-flex; align-items: center; gap: 7px; height: 30px; margin: 0; padding: 0 12px; border: 1px solid rgba(255,255,255,.16); border-radius: 999px; color: #fff; background: rgba(10,13,15,.68); box-shadow: 0 8px 22px rgba(0,0,0,.18); font-size: 12px; font-weight: 750; line-height: 28px; backdrop-filter: blur(12px); }
+.pc-trip-status i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 10px currentColor; }
+.pc-trip-status.is-pending { color: #f4d277; }.pc-trip-status.is-progress { color: #84c8ff; }.pc-trip-status.is-completed { color: #c9ff62; }.pc-trip-status.is-cancelled { color: #aaaab3; }
+.pc-trip-overflow.ant-btn { width: 30px; height: 30px; color: #fff; background: rgba(10,13,15,.68); backdrop-filter: blur(12px); }
+.pc-trip-content { display: flex; flex: 1; flex-direction: column; padding: 24px 24px 22px; }
+.pc-trip-title.ant-typography { margin: 0 0 8px; color: #fff; font-size: 22px; line-height: 1.35; }
+.pc-trip-summary.ant-typography { display: -webkit-box; min-height: 42px; margin: 0; overflow: hidden; color: rgba(255,255,255,.52); font-size: 14px; line-height: 21px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.pc-trip-meta { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px 14px; margin-top: 20px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,.09); color: rgba(255,255,255,.58); font-size: 12px; }.pc-trip-meta-item:last-child { grid-column: 1 / -1; }
 .pc-trip-meta-item { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.pc-trip-meta-item svg { color: #c9ff62; }
 .pc-trip-meta-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pc-trip-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 19px; }
-.pc-trip-detail.ant-btn { padding: 0; color: #5145cd; font-size: 13px; font-weight: 700; }
-.pc-trip-detail.ant-btn:hover { color: #7c6fe8; }
-.pc-trip-start.ant-btn { height: 34px; border-radius: 8px; box-shadow: none; font-size: 13px; font-weight: 700; }
-.pc-trip-overflow.ant-btn { color: #98a2b3; }
-.pc-trips-empty.ant-empty { margin: 0; padding: 72px 24px; border: 1px dashed #d8dce6; border-radius: 16px; background: #fff; }
-.pc-trips-empty .ant-empty-description { color: #667085; }
-.pc-trips-loading { display: grid; min-height: 280px; place-items: center; border: 1px solid #e9ecf2; border-radius: 16px; background: #fff; }
+.pc-trip-detail.ant-btn { padding: 0; color: #c9ff62; font-size: 13px; font-weight: 750; }.pc-trip-detail.ant-btn:hover { color: #dcff9b !important; }
+.pc-trip-start.ant-btn { height: 36px; border: 0; border-radius: 999px; color: #10130d; background: #c9ff62; box-shadow: none; font-size: 13px; font-weight: 800; }
+.pc-trips-empty.ant-empty { margin: 0; padding: 78px 24px; border: 1px dashed rgba(201,255,98,.24); border-radius: 22px; background: rgba(255,255,255,.035); }.pc-trips-empty .ant-empty-description { color: rgba(255,255,255,.58); }.pc-trips-empty .ant-empty-image { filter: grayscale(1) brightness(1.9); opacity: .58; }
+.pc-trips-loading { display: grid; min-height: 280px; place-items: center; border: 1px solid rgba(255,255,255,.1); border-radius: 22px; background: rgba(255,255,255,.035); }.pc-trips-loading .ant-spin-text { color: rgba(255,255,255,.6); }
+@keyframes trip-card-in { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
 @media (max-width: 1100px) { .pc-trips-page { padding-inline: 28px; } .pc-trips-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 680px) { .pc-trips-page { padding: 30px 16px 48px; } .pc-trips-heading, .pc-trips-toolbar { align-items: flex-start; flex-direction: column; } .pc-trips-create { width: 100%; } .pc-trips-segmented { width: 100%; overflow-x: auto; } .pc-trips-grid { grid-template-columns: 1fr; } .pc-trips-title.ant-typography { font-size: 26px; } }
+@media (prefers-reduced-motion: reduce) { .pc-trip-card.ant-card { animation: none; transition: none; }.pc-trip-card.ant-card:hover { transform: none; }.pc-trip-card.ant-card::after { display: none; } }
 `;
 
 function getErrorMessage(reason: unknown) {
@@ -127,12 +139,14 @@ function matchesFilter(item: Todo, filter: TripFilter) {
 }
 
 function TripCard({
+  coverImageUri,
   item,
   isCompleting,
   isStarting,
   onComplete,
   onStart,
 }: {
+  coverImageUri?: string | null;
   item: Todo;
   isCompleting: boolean;
   isStarting: boolean;
@@ -149,27 +163,31 @@ function TripCard({
 
   return (
     <Card className="pc-trip-card" variant="borderless">
-      <div className="pc-trip-card-top">
+      <div className="pc-trip-cover" style={{ '--trip-accent': item.accentColor || '#c9ff62' } as CSSProperties}>
+        {coverImageUri ? <img alt="" src={coverImageUri} /> : <div className="pc-trip-cover-placeholder"><span>{item.cityName || '周末出发'}</span></div>}
+        <div className="pc-trip-cover-shade" />
         <div className="pc-trip-date"><span>{date.month}</span><b>{date.day}</b></div>
-        <Space size={4} align="start">
-          <Tag className={`pc-trip-status ${status.className}`} color={status.color}>{status.label}</Tag>
+        <Space className="pc-trip-cover-actions" size={7} align="start">
+          <Tag className={`pc-trip-status ${status.className}`} color={status.color}><i />{status.label}</Tag>
           <Dropdown menu={{ items: menuItems, onClick: ({ key }) => key === 'detail' && router.push(`/activity/${item.activityId}`) }} trigger={['click']}>
             <Button aria-label="行程更多操作" className="pc-trip-overflow" icon={<MoreOutlined />} type="text" />
           </Dropdown>
         </Space>
       </div>
-      <Title className="pc-trip-title" level={4}>{item.title}</Title>
-      <Paragraph className="pc-trip-summary">{item.summary || '一场为你准备的城市探索，随时出发。'}</Paragraph>
-      <div className="pc-trip-meta">
-        <div className="pc-trip-meta-item"><CalendarOutlined /><span>{formatDate(item.scheduledDate || item.createdAt)}</span></div>
-        <div className="pc-trip-meta-item"><EnvironmentOutlined /><span>{[item.cityName, item.district || item.address].filter(Boolean).join(' · ') || '地点待定'}</span></div>
-        <div className="pc-trip-meta-item"><ClockCircleOutlined /><span>{formatDuration(item.durationMinutes)} · <DollarOutlined /> {item.budgetYuan ? `预算 ¥${item.budgetYuan}` : '预算待定'}</span></div>
-      </div>
-      <div className="pc-trip-actions">
-        <Button className="pc-trip-detail" icon={<ArrowRightOutlined />} iconPlacement="end" type="link" onClick={() => router.push(`/activity/${item.activityId}`)}>查看详情</Button>
-        {item.status === 'pending' ? <Button className="pc-trip-start" icon={<PlayCircleOutlined />} loading={isStarting} type="primary" onClick={() => onStart(item)}>开始行程</Button> : null}
-        {item.status === 'in_progress' ? <Button className="pc-trip-start" loading={isCompleting} type="primary" onClick={() => onComplete(item)}>完成行程</Button> : null}
-        {item.status === 'completed' ? <Badge color="#52c41a" text="已留下回忆" /> : null}
+      <div className="pc-trip-content">
+        <Title className="pc-trip-title" level={4}>{item.title}</Title>
+        <Paragraph className="pc-trip-summary">{item.summary || '一场为你准备的城市探索，随时出发。'}</Paragraph>
+        <div className="pc-trip-meta">
+          <div className="pc-trip-meta-item"><CalendarOutlined /><span>{formatDate(item.scheduledDate || item.createdAt)}</span></div>
+          <div className="pc-trip-meta-item"><EnvironmentOutlined /><span>{[item.cityName, item.district || item.address].filter(Boolean).join(' · ') || '地点待定'}</span></div>
+          <div className="pc-trip-meta-item"><ClockCircleOutlined /><span>{formatDuration(item.durationMinutes)} · <DollarOutlined /> {item.budgetYuan ? `预算 ¥${item.budgetYuan}` : '预算待定'}</span></div>
+        </div>
+        <div className="pc-trip-actions">
+          <Button className="pc-trip-detail" icon={<ArrowRightOutlined />} iconPlacement="end" type="link" onClick={() => router.push(`/activity/${item.activityId}`)}>查看详情</Button>
+          {item.status === 'pending' ? <Button className="pc-trip-start" icon={<PlayCircleOutlined />} loading={isStarting} type="primary" onClick={() => onStart(item)}>开始行程</Button> : null}
+          {item.status === 'in_progress' ? <Button className="pc-trip-start" loading={isCompleting} type="primary" onClick={() => onComplete(item)}>完成行程</Button> : null}
+          {item.status === 'completed' ? <Badge color="#c9ff62" text={<span style={{ color: 'rgba(255,255,255,.6)' }}>已留下回忆</span>} /> : null}
+        </div>
       </div>
     </Card>
   );
@@ -180,6 +198,7 @@ export default function PcTripsScreen() {
   const { user } = useApp();
   const userId = user?.id;
   const [items, setItems] = useState<Todo[]>([]);
+  const [coverImages, setCoverImages] = useState<Record<number, string | null>>({});
   const [filter, setFilter] = useState<TripFilter>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -198,7 +217,17 @@ export default function PcTripsScreen() {
     if (showRefresh) setRefreshing(true); else setLoading(true);
     setError(null);
     try {
-      setItems(await getTodos(userId));
+      const nextItems = await getTodos(userId);
+      setItems(nextItems);
+      const covers = await Promise.all(nextItems.map(async (item) => {
+        try {
+          const activity = await getActivity(item.activityId);
+          return [item.activityId, activity.coverImageUri ?? null] as const;
+        } catch {
+          return [item.activityId, null] as const;
+        }
+      }));
+      setCoverImages(Object.fromEntries(covers));
     } catch (reason) {
       setError(getErrorMessage(reason));
     } finally {
@@ -253,9 +282,8 @@ export default function PcTripsScreen() {
         <div className="pc-trips-container">
           <div className="pc-trips-heading">
             <div>
-              <div className="pc-trips-kicker"><CompassOutlined /> TRIP CENTER</div>
-              <Title className="pc-trips-title" level={1}>我的行程</Title>
-              <Text className="pc-trips-subtitle">把想去的地方，变成真正会发生的计划。</Text>
+              <Title className="pc-trips-title" level={1}>旅行任务台</Title>
+              <Text className="pc-trips-subtitle">把每一次心动，装载成真正会发生的行程。</Text>
             </div>
             <Button className="pc-trips-create" icon={<PlusOutlined />} size="large" type="primary" onClick={() => router.push('/box/config')}>创建新行程</Button>
           </div>
@@ -270,7 +298,7 @@ export default function PcTripsScreen() {
           </div>
 
           {loading ? <div className="pc-trips-loading"><Spin description="正在加载你的行程…" /></div> : null}
-          {!loading && visibleItems.length > 0 ? <div className="pc-trips-grid">{visibleItems.map((item) => <TripCard isCompleting={completingId === item.id} isStarting={startingId === item.id} item={item} key={item.id} onComplete={(todo) => { void handleComplete(todo); }} onStart={(todo) => { void handleStart(todo); }} />)}</div> : null}
+          {!loading && visibleItems.length > 0 ? <div className="pc-trips-grid">{visibleItems.map((item) => <TripCard coverImageUri={coverImages[item.activityId]} isCompleting={completingId === item.id} isStarting={startingId === item.id} item={item} key={item.id} onComplete={(todo) => { void handleComplete(todo); }} onStart={(todo) => { void handleStart(todo); }} />)}</div> : null}
           {!loading && visibleItems.length === 0 ? <Empty className="pc-trips-empty" description={filter === 'all' ? '还没有行程，去抽一个目的地吧' : '这个分类里暂时没有行程'} image={Empty.PRESENTED_IMAGE_SIMPLE}><Button icon={<PlusOutlined />} type="primary" onClick={() => router.push('/box/config')}>创建新行程</Button></Empty> : null}
         </div>
       </main>
