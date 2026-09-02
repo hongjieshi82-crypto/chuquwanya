@@ -73,6 +73,12 @@ const pcTopNavCss = `
   line-height: normal;
 }
 
+.pc-top-nav-menu.ant-menu-horizontal::before,
+.pc-top-nav-menu.ant-menu-horizontal::after {
+  display: none !important;
+  content: none !important;
+}
+
 .pc-top-nav-menu.ant-menu-horizontal > .ant-menu-item {
   top: 0;
   display: inline-flex;
@@ -89,8 +95,10 @@ const pcTopNavCss = `
 .pc-top-nav-menu.ant-menu-horizontal > .ant-menu-item::after {
   inset-inline: 0;
   bottom: 16px;
-  border-bottom-width: 4px;
-  border-bottom-color: transparent;
+  height: 4px;
+  border: 0 !important;
+  border-radius: 4px;
+  background: transparent;
 }
 
 .pc-top-nav-menu.ant-menu-horizontal > .ant-menu-item:hover,
@@ -100,7 +108,7 @@ const pcTopNavCss = `
 
 .pc-top-nav-menu.ant-menu-horizontal > .ant-menu-item:hover::after,
 .pc-top-nav-menu.ant-menu-horizontal > .ant-menu-item-selected::after {
-  border-bottom-color: var(--pc-top-nav-primary);
+  background: var(--pc-top-nav-primary);
 }
 
 .pc-top-nav-menu.ant-menu-horizontal .ant-menu-title-content {
@@ -114,10 +122,14 @@ const pcTopNavCss = `
   display: inline-flex;
   align-items: center;
   height: 100%;
+  padding-inline: 2px;
   padding-bottom: 0;
   border-bottom: 0;
   color: inherit;
+  font-family: inherit;
+  font-size: inherit;
   font-weight: inherit;
+  letter-spacing: inherit;
   line-height: inherit;
   text-decoration: none;
   white-space: nowrap;

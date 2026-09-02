@@ -42,10 +42,11 @@ const pcExperienceShellCss = `
   gap: 28px;
   line-height: normal;
   color: #fff;
-  background: rgba(17, 16, 28, .94);
+  background: rgba(13, 13, 19, .96);
   border-bottom: 1px solid rgba(255, 255, 255, .08);
   box-shadow: 0 12px 40px rgba(0, 0, 0, .18);
   backdrop-filter: blur(22px);
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .pc-experience-shell-header .pc-top-nav-menu.ant-menu-horizontal { gap: clamp(42px, 2.9vw, 64px); }
@@ -54,6 +55,7 @@ const pcExperienceShellCss = `
   font-size: clamp(18px, 1.1vw, 24px);
   font-weight: 760;
   line-height: var(--pc-unified-nav-height);
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
 .pc-experience-shell-header .pc-top-nav-menu.ant-menu-horizontal > .ant-menu-item::after {
   bottom: clamp(18px, 1.2vw, 25px);
@@ -71,11 +73,14 @@ const pcExperienceShellCss = `
 .pc-experience-shell-header.pc-experience-shell-header-home,
 .pc-experience-shell-header.pc-experience-shell-header-blindbox {
   color: #fff;
-  background: rgba(17, 16, 28, .92);
+  background: rgba(13, 13, 19, .96);
   border-bottom-color: rgba(255, 255, 255, .08);
   box-shadow: 0 12px 40px rgba(0, 0, 0, .18);
   backdrop-filter: blur(22px);
 }
+
+.pc-experience-shell-header.pc-experience-shell-header-home { display: none; }
+.pc-experience-shell-header.pc-experience-shell-header-home + .pc-experience-shell-content { min-height: 100dvh; }
 
 .pc-experience-shell-header-home .pc-experience-shell-brand,
 .pc-experience-shell-header-home .pc-top-nav-menu.ant-menu-horizontal > .ant-menu-item,
@@ -137,7 +142,7 @@ const pcExperienceShellCss = `
 
 .pc-experience-shell-header.pc-experience-shell-header-destinations {
   color: #fff;
-  background: rgba(17, 16, 28, .94);
+  background: rgba(13, 13, 19, .96);
   border-bottom-color: rgba(255, 255, 255, .08);
   box-shadow: 0 12px 40px rgba(0, 0, 0, .18);
   backdrop-filter: blur(22px);
@@ -145,7 +150,7 @@ const pcExperienceShellCss = `
 }
 
 .pc-experience-shell-header.pc-experience-shell-header-destinations.is-scrolled {
-  background: rgba(17, 16, 28, .97);
+  background: rgba(13, 13, 19, .98);
   border-bottom-color: rgba(255, 255, 255, .1);
   box-shadow: 0 12px 40px rgba(0, 0, 0, .22);
   backdrop-filter: blur(24px);
@@ -338,7 +343,7 @@ export function PcExperienceShell({ children }: PropsWithChildren) {
       }}>
       <div className="pc-experience-shell">
         <style>{pcExperienceShellCss}</style>
-        <PcTopNav
+        {!isHomeRoute ? <PcTopNav
           className={
             `pc-experience-shell-header${isHomeRoute ? ' pc-experience-shell-header-home' : ''}${isBlindBoxRoute ? ' pc-experience-shell-header-blindbox' : ''}${isDestinationRoute ? ' pc-experience-shell-header-destinations' : ''}${
               isDestinationRoute && hasScrolled ? ' is-scrolled' : ''
@@ -359,9 +364,9 @@ export function PcExperienceShell({ children }: PropsWithChildren) {
           }
           token={shellToken}
           dataAnime="nav"
-          showLogin={isHomeRoute}
+          showLogin={false}
           primaryAction={
-            isHomeRoute || pathname === '/box/open' || pathname === '/box/result'
+            pathname === '/box/open' || pathname === '/box/result'
               ? undefined
               : {
                   label: '立即抽取',
@@ -372,7 +377,7 @@ export function PcExperienceShell({ children }: PropsWithChildren) {
                   onClick: pathname === '/box/config' ? startPcBoxDraw : undefined,
                 }
           }
-        />
+        /> : null}
         <div className="pc-experience-shell-content">{children}</div>
       </div>
     </ConfigProvider>

@@ -1,6 +1,3 @@
-const isEmbedded = new URLSearchParams(window.location.search).get('embedded') === '1';
-document.documentElement.classList.toggle('is-embedded', isEmbedded);
-
 const iconGroups = {
   city: [
     '01-长城烽火台', '02-西湖石桥', '03-张家界峰林', '04-桂林竹筏', '05-故宫角楼', '06-九寨沟瀑布',
@@ -19,6 +16,20 @@ const iconGroups = {
 const allIcons = Object.entries(iconGroups).flatMap(([category, names]) =>
   names.map((name) => ({ category, name, src: `./assets/icons/${category}/${name}.avif` })),
 );
+
+function setupAppNavigationBridge() {
+  if (window.parent === window) return;
+
+  document.addEventListener('click', (event) => {
+    const anchor = event.target.closest('a[target="_top"]');
+    if (!anchor || anchor.origin !== window.location.origin) return;
+    event.preventDefault();
+    window.parent.postMessage({
+      type: 'gravity-home:navigate',
+      href: `${anchor.pathname}${anchor.search}${anchor.hash}`,
+    }, window.location.origin);
+  });
+}
 
 function setupSectionObserver() {
   const sections = [...document.querySelectorAll('[data-section]')];
@@ -290,3 +301,4 @@ function setupGravityField() {
 
 setupSectionObserver();
 setupGravityField();
+setupAppNavigationBridge();
