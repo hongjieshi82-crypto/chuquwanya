@@ -198,6 +198,18 @@ export default function ActivityDetailScreen() {
       );
     }),
   );
+  const durationLabel = activity.moodTags.find((tag) => ['当天', '周末游', '小长假'].includes(tag))
+    ?? (activity.durationMinutes <= 480 ? '当天' : activity.durationMinutes <= 1_440 ? '周末游' : '小长假');
+  const budgetLabel = activity.moodTags.find((tag) => ['划算出行', '舒服躺玩', '品质享受'].includes(tag)) ?? '参考预算';
+  const partyLabel = activity.minPartySize === activity.maxPartySize
+    ? `${activity.minPartySize} 人`
+    : `${activity.minPartySize}–${activity.maxPartySize} 人`;
+  const routeSummary = itinerarySteps
+    .map((step) => step.replace(/^D\d+[:：]\s*/i, '').replace(/^(上午|午间|下午|傍晚|夜间)\s*/, ''))
+    .join(' → ');
+  const includedItems = activity.sourceType === 'itinerary_workbook'
+    ? ['市内交通', '正餐安排', '基础门票或体验', '完整执行路线']
+    : ['路线建议', '地点信息', '预算参考', '执行步骤'];
   const mapAddress = activity.address.trim();
   const mapPoints =
     activity.longitude !== null && activity.latitude !== null
@@ -214,6 +226,11 @@ export default function ActivityDetailScreen() {
 
   function openNavigation() {
     if (navigationUrl) void Linking.openURL(navigationUrl);
+  }
+
+  function returnFromDetail() {
+    if (router.canGoBack()) router.back();
+    else router.replace('/trips');
   }
 
   function goToDeparturePicker() {
@@ -266,13 +283,23 @@ export default function ActivityDetailScreen() {
     <AppShell desktopFullWidth={isDesktopWeb}>
       <View style={[styles.screen, isDesktopWeb && styles.desktopScreen]}>
         <View style={[styles.fixedHeader, isDesktopWeb && styles.desktopHeader]}>
-          <DesignBackHeader
-            title="方案详情"
-            step="03 · 结果详情 / 分享确认"
-            onBack={() => backOrReplace(router)}
-            onRightActionPress={isCalendarEntry ? () => void shareActivity() : undefined}
-            rightAction={isCalendarEntry ? 'share' : 'none'}
-          />
+          {isDesktopWeb ? (
+            <View style={styles.desktopNavigation}>
+              <Pressable accessibilityRole="button" onPress={returnFromDetail} style={({ pressed }) => [styles.desktopBackButton, pressed && styles.pressed]}>
+                <Text style={styles.desktopBackText}>←　返回</Text>
+              </Pressable>
+              <Text style={styles.desktopNavigationTitle}>攻略详情</Text>
+              {isCalendarEntry ? <Pressable accessibilityRole="button" onPress={() => void shareActivity()} style={({ pressed }) => [styles.desktopShareButton, pressed && styles.pressed]}><Text style={styles.desktopShareText}>分享 ↗</Text></Pressable> : <View style={styles.desktopHeaderSpacer} />}
+            </View>
+          ) : (
+            <DesignBackHeader
+              title="方案详情"
+              step="03 · 结果详情 / 分享确认"
+              onBack={() => backOrReplace(router)}
+              onRightActionPress={isCalendarEntry ? () => void shareActivity() : undefined}
+              rightAction={isCalendarEntry ? 'share' : 'none'}
+            />
+          )}
         </View>
 
         <ScrollView
@@ -302,11 +329,22 @@ export default function ActivityDetailScreen() {
         )}
 
         <View style={[styles.detailCard, isDesktopWeb && styles.desktopDetailCard]}>
-          <Text style={styles.locationMeta}>
+          <Text style={[styles.locationMeta, isDesktopWeb && styles.desktopAccentText]}>
             {activity.cityName} · {activity.district} · {formatDuration(activity.durationMinutes)} · {formatBudget(activity.budgetYuan)}
           </Text>
           <Text style={[styles.title, isDesktopWeb && styles.desktopTitle]}>{activity.title}</Text>
           <Text style={[styles.description, isDesktopWeb && styles.desktopLead]}>{activity.summary}</Text>
+        </View>
+
+        <View style={[styles.tripDashboard, isDesktopWeb && styles.desktopTripDashboard]}>
+          <View style={[styles.tripMetric, isDesktopWeb && styles.desktopTripMetric]}><Text style={[styles.tripMetricValue, isDesktopWeb && styles.desktopMetricValue]}>{durationLabel}</Text><Text style={[styles.tripMetricLabel, isDesktopWeb && styles.desktopMutedText]}>出游时长</Text></View>
+          <View style={[styles.tripMetric, isDesktopWeb && styles.desktopTripMetric]}><Text style={[styles.tripMetricValue, isDesktopWeb && styles.desktopMetricValue]}>{partyLabel}</Text><Text style={[styles.tripMetricLabel, isDesktopWeb && styles.desktopMutedText]}>适合人数</Text></View>
+          <View style={[styles.tripMetric, isDesktopWeb && styles.desktopTripMetric]}><Text style={[styles.tripMetricValue, isDesktopWeb && styles.desktopMetricValue]}>{budgetLabel}</Text><Text style={[styles.tripMetricLabel, isDesktopWeb && styles.desktopMutedText]}>预算方式</Text></View>
+          <View style={[styles.tripMetric, isDesktopWeb && styles.desktopTripMetric]}><Text style={[styles.tripMetricValue, isDesktopWeb && styles.desktopMetricValue]}>{itinerarySteps.length || 3} 步</Text><Text style={[styles.tripMetricLabel, isDesktopWeb && styles.desktopMutedText]}>执行节点</Text></View>
+          <View style={[styles.tripRouteBand, isDesktopWeb && styles.desktopTripRouteBand]}>
+            <Text style={[styles.tripRouteLabel, isDesktopWeb && styles.desktopAccentText]}>核心路线</Text>
+            <Text numberOfLines={2} style={[styles.tripRouteText, isDesktopWeb && styles.desktopRouteText]}>{routeSummary || activity.description}</Text>
+          </View>
         </View>
 
         <View style={[styles.detailColumns, isDesktopWeb && styles.desktopDetailColumns]}>
@@ -319,14 +357,18 @@ export default function ActivityDetailScreen() {
               : ['出发前：带耳机、充电宝和一本想翻的书。', '到达后：先点一杯饮品，再找靠窗位置坐下。', '完成标准：安静待够 20 分钟，拍一张完成照片。']
             ).map((step, index) => {
               const [heading, ...rest] = step.split(/[:：]/);
+              const phaseMatch = step.match(/^(上午|午间|下午|傍晚|夜间)/);
+              const phase = phaseMatch?.[1];
+              const stepHeading = rest.length > 0 ? heading : phase ?? `第 ${index + 1} 步`;
+              const stepBody = rest.length > 0 ? rest.join('：') : phase ? step.replace(phase, '').trim() : step;
               return (
                 <View key={`${step}-${index}`} style={[styles.timelineItem, isDesktopWeb && styles.desktopTimelineItem]}>
                   <View style={[styles.dot, isDesktopWeb && styles.desktopDot]}>
                     <Text style={[styles.dotText, isDesktopWeb && styles.desktopDotText]}>{String(index + 1).padStart(2, '0')}</Text>
                   </View>
                   <View style={[styles.timelineCopy, isDesktopWeb && styles.desktopTimelineCopy]}>
-                    <Text style={[styles.timelineTitle, isDesktopWeb && styles.desktopTimelineTitle]}>{rest.length > 0 ? heading : `第 ${index + 1} 步`}</Text>
-                    <Text style={[styles.timelineBody, isDesktopWeb && styles.desktopTimelineBody]}>{rest.length > 0 ? rest.join('：') : step}</Text>
+                    <Text style={[styles.timelineTitle, isDesktopWeb && styles.desktopTimelineTitle]}>{stepHeading}</Text>
+                    <Text style={[styles.timelineBody, isDesktopWeb && styles.desktopTimelineBody]}>{stepBody}</Text>
                   </View>
                 </View>
               );
@@ -335,10 +377,10 @@ export default function ActivityDetailScreen() {
         </View>
 
         <View style={[styles.section, isDesktopWeb && styles.desktopSection]}>
-          <Text style={[styles.sectionTitle, isDesktopWeb && styles.desktopSectionTitle]}>为什么值得去</Text>
+          <Text style={[styles.sectionTitle, isDesktopWeb && styles.desktopSectionTitle]}>攻略说明</Text>
           {recommendation ? (
             <View style={[styles.recommendationBox, isDesktopWeb && styles.desktopRecommendationBox]}>
-              <Text style={styles.recommendationLabel}>AI 决策依据</Text>
+              <Text style={[styles.recommendationLabel, isDesktopWeb && styles.desktopAccentText]}>匹配理由</Text>
               <Text style={[styles.recommendationText, isDesktopWeb && styles.desktopBodyText]}>{recommendation.display.detailPage}</Text>
             </View>
           ) : null}
@@ -349,6 +391,12 @@ export default function ActivityDetailScreen() {
         </View>
 
         <View style={[styles.detailAsideColumn, isDesktopWeb && styles.desktopAsideColumn]}>
+        <View style={[styles.section, isDesktopWeb && styles.desktopSection]}>
+          <Text style={[styles.sectionTitle, isDesktopWeb && styles.desktopAsideTitle]}>攻略包含</Text>
+          <View style={styles.includedGrid}>
+            {includedItems.map((item, index) => <View key={item} style={[styles.includedItem, isDesktopWeb && styles.desktopIncludedItem]}><Text style={[styles.includedIndex, isDesktopWeb && styles.desktopAccentText]}>{String(index + 1).padStart(2, '0')}</Text><Text style={[styles.includedText, isDesktopWeb && styles.desktopIncludedText]}>{item}</Text></View>)}
+          </View>
+        </View>
         <View style={[styles.mapSection, isDesktopWeb && styles.desktopMapSection]}>
           <View style={styles.mapHeader}>
             <Text style={[styles.mapTitle, isDesktopWeb && styles.desktopAsideTitle]}>位置</Text>
@@ -358,7 +406,7 @@ export default function ActivityDetailScreen() {
               disabled={!navigationUrl}
               onPress={openNavigation}
               style={({ pressed }) => [styles.mapLink, pressed && styles.pressed]}>
-              <Text style={[styles.mapLinkText, !navigationUrl && styles.disabledText]}>
+              <Text style={[styles.mapLinkText, isDesktopWeb && styles.desktopAccentText, !navigationUrl && styles.disabledText]}>
                 {navigationUrl ? '打开地图' : '暂无导航'}
               </Text>
             </Pressable>
@@ -514,6 +562,13 @@ const styles = StyleSheet.create({
     lineHeight: 23,
     fontWeight: '700',
   },
+  tripDashboard: { gap: spacing.sm },
+  tripMetric: { padding: spacing.md, borderRadius: 18, backgroundColor: 'rgba(255,255,255,.86)' },
+  tripMetricValue: { color: palette.ink, fontSize: 20, fontWeight: '900' },
+  tripMetricLabel: { marginTop: 5, color: palette.muted, fontSize: 11, fontWeight: '700' },
+  tripRouteBand: { padding: spacing.md, borderRadius: 18, backgroundColor: palette.ink },
+  tripRouteLabel: { color: palette.primary, fontSize: 11, fontWeight: '900' },
+  tripRouteText: { marginTop: 8, color: palette.white, fontSize: typography.caption, lineHeight: 21, fontWeight: '700' },
   mapSection: {
     borderRadius: 28,
     backgroundColor: 'rgba(255,255,255,0.86)',
@@ -603,6 +658,10 @@ const styles = StyleSheet.create({
   tripTipItem: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
   tripTipIndex: { color: palette.primary, fontSize: 11, fontWeight: '900' },
   tripTipText: { flex: 1, minWidth: 0, color: palette.text, fontSize: typography.caption, lineHeight: 20, fontWeight: '700' },
+  includedGrid: { gap: spacing.sm },
+  includedItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: palette.border },
+  includedIndex: { color: palette.primary, fontSize: 10, fontWeight: '900' },
+  includedText: { flex: 1, minWidth: 0, color: palette.text, fontSize: typography.caption, fontWeight: '800' },
   actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
   lightButton: {
     flex: 1,
@@ -644,6 +703,13 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,.09)',
     backgroundColor: '#0d1012',
   },
+  desktopNavigation: { width: '100%', minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  desktopBackButton: { minWidth: 112, minHeight: 42, paddingHorizontal: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,.16)', borderRadius: 14, backgroundColor: 'rgba(255,255,255,.045)', alignItems: 'center', justifyContent: 'center' },
+  desktopBackText: { color: '#f7f7f2', fontSize: 14, fontWeight: '850' },
+  desktopNavigationTitle: { color: 'rgba(255,255,255,.58)', fontSize: 13, fontWeight: '800', letterSpacing: 2 },
+  desktopShareButton: { minWidth: 92, minHeight: 42, paddingHorizontal: 16, borderWidth: 1, borderColor: 'rgba(201,255,98,.36)', borderRadius: 14, backgroundColor: 'rgba(201,255,98,.06)', alignItems: 'center', justifyContent: 'center' },
+  desktopShareText: { color: '#c9ff62', fontSize: 13, fontWeight: '850' },
+  desktopHeaderSpacer: { width: 112 },
   desktopPage: {
     width: '100%',
     maxWidth: '100%',
@@ -686,6 +752,12 @@ const styles = StyleSheet.create({
     lineHeight: 28,
     fontWeight: '600',
   },
+  desktopAccentText: { color: '#c9ff62' },
+  desktopTripDashboard: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  desktopTripMetric: { flex: 1, minWidth: 180, paddingHorizontal: 22, paddingVertical: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,.11)', borderRadius: 18, backgroundColor: '#111416' },
+  desktopMetricValue: { color: '#f7f7f2', fontSize: 24, lineHeight: 29 },
+  desktopTripRouteBand: { width: '100%', paddingHorizontal: 24, paddingVertical: 20, borderWidth: 1, borderColor: 'rgba(201,255,98,.18)', borderRadius: 18, backgroundColor: '#182014' },
+  desktopRouteText: { marginTop: 9, color: 'rgba(255,255,255,.76)', fontSize: 15, lineHeight: 24 },
   desktopDetailColumns: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -738,6 +810,8 @@ const styles = StyleSheet.create({
   },
   desktopBodyText: { color: 'rgba(255,255,255,.58)', fontSize: 15, lineHeight: 25 },
   desktopTripTipIndex: { color: '#c9ff62', fontSize: 12, lineHeight: 25 },
+  desktopIncludedItem: { minHeight: 48, borderBottomColor: 'rgba(255,255,255,.09)' },
+  desktopIncludedText: { color: 'rgba(255,255,255,.7)', fontSize: 14 },
   desktopMapSection: {
     padding: 24,
     borderWidth: 1,

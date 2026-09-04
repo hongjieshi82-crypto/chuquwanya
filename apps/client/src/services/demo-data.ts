@@ -826,6 +826,70 @@ function pickDemoActivity(candidates: Activity[], previous?: DrawResult | null) 
   return pool[Math.floor(Math.random() * pool.length)]!;
 }
 
+function buildCategoryDemoCandidates(input: DrawRequest, cityCandidates: Activity[]) {
+  const isCategoryBlindBox = input.preferences.clientSource === 'pc' &&
+    input.preferences.surpriseLevelLabel?.endsWith('分类盲盒') === true;
+  if (!isCategoryBlindBox || input.preferences.category === '不限') return cityCandidates;
+
+  const category = input.preferences.category;
+  const blueprints: Record<string, {
+    title: (place: string) => string;
+    summary: string;
+    steps: (place: string) => string[];
+  }> = {
+    约会: {
+      title: (place) => `和喜欢的人在${place}过一个不赶时间的下午`,
+      summary: '从见面、共同体验到散步收尾，一套适合两个人完成的城市约会攻略。',
+      steps: (place) => [`在${place}附近集合，先找一杯喜欢的饮品`, '一起完成一项有纪念感的体验', '沿街慢走，用一张合照结束今天'],
+    },
+    休闲躺平: {
+      title: (place) => `在${place}把半天调成松弛模式`,
+      summary: '减少赶路和打卡，用停留、散步和一顿舒服的饭把节奏慢下来。',
+      steps: (place) => [`慢慢抵达${place}，不设置打卡任务`, '找舒服的位置停留至少四十分钟', '在附近吃饭或散步后自然返程'],
+    },
+    娱乐玩乐: {
+      title: (place) => `去${place}解锁一场即兴玩乐挑战`,
+      summary: '以游戏和互动体验为核心，适合朋友临时组局的半日攻略。',
+      steps: (place) => [`确认${place}当天开放和预约情况`, '完成一项核心游戏或互动体验', '用合照或积分结果结束挑战'],
+    },
+    探险猎奇: {
+      title: (place) => `从${place}出发寻找一条冷门路线`,
+      summary: '避开最常规的打卡方式，用线索和观察完成一次城市微探险。',
+      steps: (place) => [`准备轻便装备并抵达${place}`, '沿推荐线索寻找一处少见的城市细节', '天黑前完成返程并记录探索发现'],
+    },
+    美食吃喝: {
+      title: (place) => `在${place}附近完成一条本地吃喝路线`,
+      summary: '从小吃、正餐到甜品或夜宵，用三站认识这个街区的味道。',
+      steps: (place) => [`从${place}附近的一家代表性小店开始`, '步行前往第二站，尝一道当地正餐', '用甜品、咖啡或夜宵完成第三站'],
+    },
+    城市散步: {
+      title: (place) => `从${place}开始随意转三个弯`,
+      summary: '用一条低压力步行路线观察建筑、街道和城市日常。',
+      steps: (place) => [`从${place}的主入口或地铁站出发`, '连续转三个弯，记录沿途三个细节', '在终点附近休息并整理照片'],
+    },
+  };
+  const blueprint = blueprints[category];
+  if (!blueprint) return cityCandidates;
+
+  return cityCandidates.slice(0, Math.max(3, Math.min(8, cityCandidates.length))).map((activity, index) => {
+    const place = activity.address || activity.district || activity.title;
+    return {
+      ...activity,
+      id: 700_000 + activity.id * 10 + index,
+      title: blueprint.title(place),
+      summary: blueprint.summary,
+      description: blueprint.summary,
+      category,
+      mood: category,
+      moodTags: [...new Set([...activity.moodTags, category, input.preferences.travelDurationLabel ?? '当天', input.preferences.budgetLabel ?? '划算出行'])],
+      minPartySize: category === '约会' ? 2 : 1,
+      maxPartySize: category === '约会' ? 2 : Math.max(4, input.preferences.partySize),
+      budgetYuan: input.preferences.budgetMax ?? Math.max(input.preferences.budgetMin ?? 0, activity.budgetYuan),
+      steps: blueprint.steps(place),
+    };
+  });
+}
+
 function createUuid() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -851,7 +915,8 @@ export function createDemoDraw(
   input: DrawRequest,
   previous?: DrawResult | null,
 ): DrawResult {
-  const candidates = demoActivities.filter((activity) => activity.cityId === input.cityId);
+  const cityCandidates = demoActivities.filter((activity) => activity.cityId === input.cityId);
+  const candidates = buildCategoryDemoCandidates(input, cityCandidates);
   if (!candidates.length) {
     const selectedCity = demoCities.find((city) => city.id === input.cityId)?.name ?? '当前城市';
     throw new Error(`${selectedCity}暂时没有符合条件的本地玩法，请调整条件或选择其他城市。`);

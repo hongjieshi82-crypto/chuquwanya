@@ -1,6 +1,5 @@
 import {
   EnvironmentOutlined,
-  GiftOutlined,
   SearchOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
@@ -19,12 +18,12 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { PcQuickDrawModal, type QuickDrawSubmission } from '@/components/pc-quick-draw-modal';
 import { useApp } from '@/contexts/app-context';
 import { savePendingPcBoxDraw } from '@/lib/pc-box-open-state';
 import { getDestinationDetail, getDestinations } from '@/services/travel-api';
 import { palette } from '@/theme';
 import type { Destination, DestinationDetail } from '@/types/travel';
-import type { Preferences } from '@/types';
 
 const { Paragraph, Text, Title } = Typography;
 
@@ -108,7 +107,7 @@ export default function PcDestinationsScreen() {
   const [search, setSearch] = useState('');
   const [visibleCount, setVisibleCount] = useState(initialVisibleCount);
   const [selected, setSelected] = useState<DestinationItem | null>(null);
-  const [isExplorePreview, setIsExplorePreview] = useState(false);
+  const [quickDrawDestination, setQuickDrawDestination] = useState<DestinationItem | null>(null);
   const appliedDestinationParamRef = useRef<number | null>(null);
 
   const cityNameById = useMemo(
@@ -206,37 +205,19 @@ export default function PcDestinationsScreen() {
     setVisibleCount(initialVisibleCount);
   };
 
-  const generateBlindBox = () => {
-    if (!selected) return;
-    const city = cities.find((item) => item.id === selected.cityId) ?? cities[0];
+  const startCityBlindBox = ({ preferences, summary }: QuickDrawSubmission) => {
+    if (!quickDrawDestination) return;
+    const city = cities.find((item) => item.id === quickDrawDestination.cityId) ?? cities[0];
     if (!city) return;
-    const preferences: Preferences = {
-      partySize: 1,
-      durationMinutes: null,
-      budgetMax: 300,
-      mood: '放松',
-      randomLevel: 35,
-      category: '不限',
-      environment: 'either',
-      radiusKm: 10,
-      originName: city.name,
-      originLatitude: null,
-      originLongitude: null,
-      originAccuracyMeters: null,
-      originSource: null,
-      destinationScope: 'nearby',
-      travelDuration: 'same-day',
-      destinationScopeLabel: `${city.name}本地`,
-    };
     savePendingPcBoxDraw({
       cityId: city.id,
       preferences,
-      summary: `目的地：${selected.name} · ${selected.cityName}`,
-      destinationId: selected.id,
-      destinationName: selected.name,
+      summary,
+      destinationId: quickDrawDestination.id,
+      destinationName: quickDrawDestination.name,
     });
-    setSelected(null);
-    router.push('/box/config');
+    setQuickDrawDestination(null);
+    router.push('/box/slot-preview');
   };
 
   return (
@@ -270,9 +251,9 @@ export default function PcDestinationsScreen() {
             <>
               <div className="pc-destinations-grid">
                 {visibleItems.map((item, index) => (
-                  <Card key={item.id} hoverable className={`pc-destinations-card pc-destinations-card-layout-${index % 3}`} onClick={() => { setIsExplorePreview(false); setSelected(item); }}>
-                    {cityCardAssetByName[item.name] ? <img className="pc-city-card-artwork" src={`/media/cards/cities/${cityCardAssetByName[item.name]}.png?v=city-master-7`} alt={`${item.name}·${item.categoryName}`} /> : <DestinationCover item={item} className="pc-city-card-artwork" />}
-                    <button className="pc-city-card-explore-hitarea" type="button" aria-label={`立刻探索${item.name}`} onClick={(event) => { event.stopPropagation(); setIsExplorePreview(true); setSelected(item); }} />
+                  <Card key={item.id} hoverable className={`pc-destinations-card pc-destinations-card-layout-${index % 3}`} onClick={() => setQuickDrawDestination(item)}>
+                    {cityCardAssetByName[item.name] ? <img className="pc-city-card-artwork" src={`/media/cards/cities/${cityCardAssetByName[item.name]}.png?v=city-painted-8`} alt={`${item.name}·${item.categoryName}`} /> : <DestinationCover item={item} className="pc-city-card-artwork" />}
+                    <button className="pc-city-card-explore-hitarea" type="button" aria-label={`立刻探索${item.name}`} onClick={(event) => { event.stopPropagation(); setQuickDrawDestination(item); }} />
                   </Card>
                 ))}
               </div>
@@ -290,23 +271,13 @@ export default function PcDestinationsScreen() {
         className="pc-destinations-modal"
         footer={[
           <Button key="close" onClick={() => setSelected(null)}>关闭</Button>,
-          <Button key="box" type="primary" icon={<GiftOutlined />} onClick={generateBlindBox}>{isExplorePreview ? `去抽${selected?.cityName ?? ''}玩法` : '生成盲盒'}</Button>,
+          <Button key="box" type="primary" onClick={() => { if (selected) { setQuickDrawDestination(selected); setSelected(null); } }}>抽这个城市的玩法</Button>,
         ]}
         open={Boolean(selected)}
         title={null}
         width={720}
         onCancel={() => setSelected(null)}>
-        {selected && isExplorePreview ? (
-          <div className="pc-city-explore-preview">
-            <div className="pc-city-explore-cover"><DestinationCover item={selected} className="pc-destinations-cover-image" /></div>
-            <div className="pc-city-explore-content">
-              <Tag>{selected.cityName.toUpperCase()} LOCAL DROP</Tag>
-              <Title level={2}>这次，只探索{selected.cityName}</Title>
-              <Paragraph>系统会锁定{selected.cityName}，根据你的时间、预算和心情，抽出一条当地可执行的周末玩法。</Paragraph>
-              <div className="pc-city-explore-facts"><span><small>目的地</small><strong>{selected.cityName}</strong></span><span><small>抽取范围</small><strong>当地玩法</strong></span><span><small>可调整</small><strong>时间 · 预算 · 心情</strong></span></div>
-            </div>
-          </div>
-        ) : selected ? (
+        {selected ? (
           <div className="pc-destinations-detail">
             <div className="pc-destinations-detail-cover"><DestinationCover item={selected} className="pc-destinations-cover-image" /></div>
             <div className="pc-destinations-detail-content">
@@ -325,6 +296,12 @@ export default function PcDestinationsScreen() {
           </div>
         ) : null}
       </Modal>
+      <PcQuickDrawModal
+        lock={quickDrawDestination ? { cityId: quickDrawDestination.cityId, cityName: quickDrawDestination.cityName || quickDrawDestination.name } : null}
+        open={Boolean(quickDrawDestination)}
+        onClose={() => setQuickDrawDestination(null)}
+        onSubmit={startCityBlindBox}
+      />
     </main>
   );
 }

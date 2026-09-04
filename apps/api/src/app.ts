@@ -768,13 +768,16 @@ function buildActivityQuery(
   const applyPartySize = options?.applyPartySize ?? true;
   const applyDuration = options?.applyDuration ?? true;
   const distance = createDistanceSql(preferences);
+  const isCategoryBlindBox = input.preferences.clientSource === "pc" &&
+    input.preferences.surpriseLevelLabel?.endsWith("分类盲盒") === true;
 
   const currentWeek = buildWeekWindow().weekStartDate;
   const conditions = [
     "a.city_id = ?",
     "a.is_active = TRUE",
-    "a.content_status = 'published'",
-    "a.content_score >= 70",
+    ...(isCategoryBlindBox
+      ? ["a.source_type = 'itinerary_workbook'"]
+      : ["a.content_status = 'published'", "a.content_score >= 70"]),
     `NOT EXISTS (
       SELECT 1
       FROM draw_results dr
@@ -825,8 +828,18 @@ function buildActivityQuery(
     }
 
     if (preferences.category !== "不限") {
-      conditions.push("a.category = ?");
-      values.push(preferences.category);
+      if (isCategoryBlindBox) {
+        conditions.push("(a.category = ? OR JSON_CONTAINS(a.mood_tags, JSON_QUOTE(?)))");
+        values.push(preferences.category, preferences.category);
+      } else {
+        conditions.push("a.category = ?");
+        values.push(preferences.category);
+      }
+    }
+
+    if (isCategoryBlindBox && preferences.travelDurationLabel) {
+      conditions.push("JSON_CONTAINS(a.mood_tags, JSON_QUOTE(?))");
+      values.push(preferences.travelDurationLabel);
     }
 
     if (preferences.environment !== "either") {
@@ -899,6 +912,8 @@ function buildCandidatePoolQuery(
   },
 ) {
   const distance = createDistanceSql(input.preferences);
+  const isCategoryBlindBox = input.preferences.clientSource === "pc" &&
+    input.preferences.surpriseLevelLabel?.endsWith("分类盲盒") === true;
   const safeLimit = Math.min(100, Math.max(1, Math.trunc(limit)));
   const activityIds = Array.from(new Set(options?.activityIds ?? []))
     .map((id) => Number(id))
@@ -908,8 +923,9 @@ function buildCandidatePoolQuery(
   const conditions = [
     "a.city_id = ?",
     "a.is_active = TRUE",
-    "a.content_status = 'published'",
-    "a.content_score >= 70",
+    ...(isCategoryBlindBox
+      ? ["a.source_type = 'itinerary_workbook'"]
+      : ["a.content_status = 'published'", "a.content_score >= 70"]),
     `NOT EXISTS (
           SELECT 1
           FROM draw_results dr
@@ -931,6 +947,27 @@ function buildCandidatePoolQuery(
     input.userId,
     currentWeek,
   ];
+
+  if (isCategoryBlindBox) {
+    conditions.push("a.min_party_size <= ?", "a.max_party_size >= ?");
+    values.push(input.preferences.partySize, input.preferences.partySize);
+    if (input.preferences.budgetMin !== null && input.preferences.budgetMin !== undefined) {
+      conditions.push("a.budget_yuan >= ?");
+      values.push(input.preferences.budgetMin);
+    }
+    if (input.preferences.budgetMax !== null) {
+      conditions.push("a.budget_yuan <= ?");
+      values.push(input.preferences.budgetMax);
+    }
+    if (input.preferences.category !== "不限") {
+      conditions.push("(a.category = ? OR JSON_CONTAINS(a.mood_tags, JSON_QUOTE(?)))");
+      values.push(input.preferences.category, input.preferences.category);
+    }
+    if (input.preferences.travelDurationLabel) {
+      conditions.push("JSON_CONTAINS(a.mood_tags, JSON_QUOTE(?))");
+      values.push(input.preferences.travelDurationLabel);
+    }
+  }
 
   if (activityIds.length > 0) {
     conditions.push(`a.id IN (${activityIdPlaceholders})`);
@@ -1366,11 +1403,18 @@ export function createApp() {
             id: row.id,
             title: row.title,
             summary: row.summary,
+            description: row.description,
             cityName: row.city_name,
             mood: row.mood,
             moodTags: parseJsonArray(row.mood_tags),
             category: row.category,
             budgetYuan: Number(row.budget_yuan),
+            durationMinutes: Number(row.duration_minutes),
+            minPartySize: Number(row.min_party_size),
+            maxPartySize: Number(row.max_party_size),
+            coverImageUri: row.cover_image,
+            steps: parseJsonArray(row.steps),
+            tips: parseJsonArray(row.tips),
             accentColor: row.accent_color || "#7357FF",
             district: row.district,
           })),

@@ -555,13 +555,16 @@ function setupCityRecommendations() {
   };
 
   const openCategoryModal = (category) => {
+    if (window.parent !== window) {
+      window.parent.postMessage({
+        type: 'gravity-home:open-quick-draw',
+        cityId: cityIds[currentCity] || 1,
+        cityName: currentCity,
+        categoryLabel: category,
+      }, window.location.origin);
+      return;
+    }
     selectedCategory = category;
-    const isRomance = category === '浪漫约会';
-    if (isRomance) categorySelections.partySize = '2 人';
-    if (categoryModalTitle) categoryModalTitle.textContent = `抽一个${category}盲盒`;
-    if (categoryCity) categoryCity.textContent = currentCity;
-    if (partyField) partyField.hidden = isRomance;
-    if (fixedParty) fixedParty.hidden = !isRomance;
     if (categoryModal) categoryModal.hidden = false;
   };
 
@@ -650,6 +653,40 @@ function setupCityRecommendations() {
       card.href = `/destinations?cityName=${encodeURIComponent(city)}`;
     });
   };
+
+  const requestRealGuides = () => {
+    if (window.parent === window) return;
+    window.parent.postMessage({
+      type: 'gravity-home:request-guides',
+      cityId: cityIds[currentCity] || 1,
+      offset: recommendationOffset,
+    }, window.location.origin);
+  };
+
+  const guideCategory = (item) => {
+    const tags = item.moodTags || [];
+    if (tags.includes('美食吃喝')) return '美食吃喝';
+    if (tags.includes('休闲躺平')) return '休闲躺平';
+    if (tags.includes('娱乐玩乐')) return '娱乐玩乐';
+    if (tags.includes('探险猎奇')) return '探险猎奇';
+    if (tags.includes('约会') || item.category === '约会') return '浪漫约会';
+    return tags.includes('城市散步') ? '城市散步' : item.category;
+  };
+
+  const guideDuration = (item) => {
+    const tag = (item.moodTags || []).find((value) => ['当天', '周末游', '小长假'].includes(value));
+    if (tag) return tag;
+    if (item.durationMinutes <= 480) return '当天';
+    if (item.durationMinutes <= 1440) return '周末游';
+    return '小长假';
+  };
+
+  const realGuideSteps = (item) => {
+    const steps = (item.steps || []).flatMap((entry) =>
+      String(entry).split(/[；;]/).flatMap((block) => block.replace(/^D\d+\s*/i, '').split('—')),
+    ).map((step) => step.trim()).filter(Boolean);
+    return steps.length ? steps.slice(0, 3) : ['确认路线与开放时间', '完成攻略的核心体验', '记录今天最喜欢的瞬间'];
+  };
   const cityCoordinates = {
     '北京': [39.9042, 116.4074], '上海': [31.2304, 121.4737], '杭州': [30.2741, 120.1551], '深圳': [22.5431, 114.0579],
     '天津': [39.0842, 117.2009], '烟台': [37.4638, 121.4479], '青岛': [36.0671, 120.3826], '南京': [32.0603, 118.7969],
@@ -675,6 +712,7 @@ function setupCityRecommendations() {
       item.href = `/theme?preset=theme&cityName=${encodeURIComponent(city)}`;
     });
     renderRecommendations(city);
+    requestRealGuides();
     if (persist) {
       localStorage.setItem('@weekend-oracle/home-city', city);
       localStorage.setItem('@weekend-oracle/pc-located-city', JSON.stringify({
@@ -695,16 +733,17 @@ function setupCityRecommendations() {
     if (!selectedCategory) return;
     const partySize = selectedCategory === '浪漫约会' ? 2 : (partySizeValues[categorySelections.partySize] || 1);
     const [budgetMin, budgetMax] = budgetRanges[categorySelections.travelDuration][categorySelections.budget];
+    const normalizedCategory = selectedCategory === '浪漫约会' ? '约会' : selectedCategory;
     const preferences = {
       partySize,
       durationMinutes: null,
       budgetMin,
       budgetMax,
-      mood: selectedCategory,
+      mood: normalizedCategory,
       randomLevel: 70,
-      category: selectedCategory,
+      category: normalizedCategory,
       environment: 'either',
-      radiusKm: 10,
+      radiusKm: null,
       originName: currentCity,
       originLatitude: null,
       originLongitude: null,
@@ -730,6 +769,7 @@ function setupCityRecommendations() {
   refreshButton?.addEventListener('click', () => {
     recommendationOffset += 4;
     renderRecommendations(currentCity);
+    requestRealGuides();
     refreshButton.classList.remove('is-spinning');
     void refreshButton.offsetWidth;
     refreshButton.classList.add('is-spinning');
@@ -757,6 +797,7 @@ function setupCityRecommendations() {
       const category = card.querySelector('.place-card-copy small')?.textContent?.trim() || '城市散步';
       return {
         type,
+        activityId: Number(card.dataset.activityId) || undefined,
         cityId: cityIds[currentCity] || 1,
         channel: categoryChannels[category] || category,
         offset: recommendationOffset + index,
@@ -783,7 +824,30 @@ function setupCityRecommendations() {
   });
 
   window.addEventListener('message', (event) => {
-    if (event.origin !== window.location.origin || event.data?.type !== 'gravity-home:add-trip-status') return;
+    if (event.origin !== window.location.origin) return;
+    if (event.data?.type === 'gravity-home:guides') {
+      const items = Array.isArray(event.data.items) ? event.data.items : [];
+      items.slice(0, 4).forEach((item, index) => {
+        const card = cards[index];
+        if (!card) return;
+        const category = guideCategory(item);
+        const party = item.minPartySize === item.maxPartySize ? `${item.minPartySize} 人` : `${item.minPartySize}–${item.maxPartySize} 人`;
+        card.dataset.activityId = String(item.id);
+        card.querySelector('.place-card-copy small').textContent = category;
+        card.querySelector('.place-card-copy h3').textContent = item.title;
+        card.querySelector('.place-card-facts').textContent = `${item.cityName} · ${guideDuration(item)} · ${party}`;
+        const steps = realGuideSteps(item);
+        card.querySelectorAll('.guide-checklist li span').forEach((node, stepIndex) => {
+          node.textContent = steps[stepIndex] || steps[steps.length - 1];
+        });
+      });
+      return;
+    }
+    if (event.data?.type === 'gravity-home:guides-error') {
+      showHomeToast(event.data.message || '攻略加载失败，请稍后再试', 'error');
+      return;
+    }
+    if (event.data?.type !== 'gravity-home:add-trip-status') return;
     if (event.data.status === 'loading') return;
     if (pendingAddButton) pendingAddButton.textContent = '＋ 加入我的行程';
     if (event.data.status === 'success') {

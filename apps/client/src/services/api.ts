@@ -245,6 +245,7 @@ export type HomeFeedItem = {
   id: number;
   title: string;
   summary: string;
+  description: string;
   cityName: string;
   district: string;
   mood: string;
@@ -699,6 +700,14 @@ export type RecommendedActivityItem = {
   cityName: string;
   category: string;
   mood: string;
+  moodTags?: string[];
+  durationMinutes: number;
+  budgetYuan: number;
+  minPartySize: number;
+  maxPartySize: number;
+  coverImageUri?: string | null;
+  steps: string[];
+  tips: string[];
 };
 
 export async function getRecommendedActivities(input: {
@@ -723,9 +732,18 @@ export async function getRecommendedActivities(input: {
           id: activity.id,
           title: activity.title,
           summary: activity.summary,
+          description: activity.description,
           cityName: activity.cityName,
           category: activity.category,
           mood: activity.mood,
+          moodTags: activity.moodTags,
+          durationMinutes: activity.durationMinutes,
+          budgetYuan: activity.budgetYuan,
+          minPartySize: activity.minPartySize,
+          maxPartySize: activity.maxPartySize,
+          coverImageUri: activity.coverImageUri,
+          steps: activity.steps,
+          tips: activity.tips,
         }));
       return { items, total: items.length };
     },

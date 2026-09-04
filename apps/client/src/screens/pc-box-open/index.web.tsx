@@ -56,7 +56,7 @@ type PcIconProps = SVGProps<SVGSVGElement> & {
   size?: number;
 };
 
-type DrawOutcome = { ok: true } | { ok: false; reason: unknown };
+type DrawOutcome = { ok: true; activityId?: number; drawSessionId?: string } | { ok: false; reason: unknown };
 
 function getRequestedDays(input: PendingPcBoxDraw) {
   const durationLabel = input.preferences.travelDurationLabel;
@@ -384,10 +384,15 @@ export default function PcBoxOpenScreen() {
             budget: multiDayBudget,
             mood: input.preferences.mood,
             budgetTier,
-          }).then((trip) => savePcMultiDayTrip(trip))
+          }).then((trip) => {
+            savePcMultiDayTrip(trip);
+            return null;
+          })
         : startDraw(input.cityId, input.preferences);
       const outcomePromise: Promise<DrawOutcome> = operation.then(
-        () => ({ ok: true }),
+        (result) => result
+          ? { ok: true, activityId: result.activity.id, drawSessionId: result.drawSessionId }
+          : { ok: true },
         (reason: unknown) => ({ ok: false, reason }),
       );
 
@@ -411,7 +416,11 @@ export default function PcBoxOpenScreen() {
       if (!mountedRef.current || runId !== runIdRef.current) return;
 
       clearPendingPcBoxDraw();
-      router.replace(requestedDays > 1 ? '/box/trip-result' : '/box/result');
+      router.replace(
+        requestedDays > 1
+          ? '/box/trip-result'
+          : `/activity/${outcome.activityId}?source=ai&drawSessionId=${encodeURIComponent(outcome.drawSessionId ?? '')}`,
+      );
     },
     [clearError, router, startDraw],
   );

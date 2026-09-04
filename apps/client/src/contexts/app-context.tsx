@@ -49,7 +49,7 @@ type AppContextValue = {
   isBooting: boolean;
   error: string | null;
   setSelectedCityId: (cityId: number) => void;
-  startDraw: (cityId: number, preferences: Preferences) => Promise<void>;
+  startDraw: (cityId: number, preferences: Preferences) => Promise<DrawResult>;
   reroll: () => Promise<DrawResult>;
   addCurrentDrawToTodos: (scheduledDate?: string) => Promise<{ id: number; alreadyExists: boolean }>;
   clearError: () => void;
@@ -191,6 +191,7 @@ export function AppProvider({ children }: PropsWithChildren) {
         setCurrentDraw(result);
         setLastDrawInput(input);
         await writeStoredCurrentDraw(guestUser.id, result, input);
+        return result;
       } catch (reason) {
         setError(reason instanceof Error ? reason.message : '方案生成失败');
         throw reason;

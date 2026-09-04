@@ -499,7 +499,7 @@ export default function PcSlotPreviewScreen() {
                         onClick={() => void startSlotDraw()}>
                         {currentDraw.attemptsRemaining > 0 ? '再抽一次' : '今日机会已用完'}
                       </button>
-                      <button onClick={() => router.push('/box/result')}>查看完整方案</button>
+                      <button onClick={() => router.push(`/activity/${currentDraw.activity.id}?source=ai&drawSessionId=${encodeURIComponent(currentDraw.drawSessionId)}`)}>查看方案详情</button>
                     </footer>
                   </section>
                 ) : null}
