@@ -434,6 +434,12 @@ function setupCityRecommendations() {
   const refreshButton = document.querySelector('#places-refresh');
   const stage = document.querySelector('.snap-stage');
   const placesSection = document.querySelector('.places-screen');
+  const categoryModal = document.querySelector('#category-draw-modal');
+  const categoryModalTitle = document.querySelector('#category-draw-title');
+  const categoryCity = document.querySelector('[data-category-city]');
+  const partyField = document.querySelector('[data-party-field]');
+  const fixedParty = document.querySelector('[data-fixed-party]');
+  const categorySubmit = document.querySelector('#category-draw-submit');
   if (cards.length !== 4) return;
 
   const image = (name) => `/media/travel/${name}.jpg`;
@@ -512,9 +518,64 @@ function setupCityRecommendations() {
     '美食吃喝': (place) => `沿着${place}尝三种当地味道`,
     '城市散步': (place) => `从${place}开始随意转三个弯`,
   };
-  let activeCategory = '浪漫约会';
+  const categoryChannels = {
+    '浪漫约会': '搭子', '休闲躺平': '治愈', '娱乐玩乐': '惊喜',
+    '探险猎奇': '探索', '美食吃喝': '美食', '城市散步': 'City Walk',
+  };
+  let activeCategory = null;
   let currentCity = '北京';
   let recommendationOffset = 0;
+  let pendingAddButton = null;
+  let selectedCategory = null;
+  const categorySelections = { partySize: '2 人', travelDuration: '当天', budget: '划算出行' };
+  const cityIds = Object.fromEntries(Object.keys(cityProfiles).map((city, index) => [city, index + 1]));
+  const partySizeValues = { '1 人': 1, '2 人': 2, '多人': 4 };
+  const travelDurationValues = { '当天': 'same-day', '周末游': '2-3days', '小长假': '4-5days' };
+  const budgetRanges = {
+    '当天': { '划算出行': [0, 200], '舒服躺玩': [200, 400], '品质享受': [400, null] },
+    '周末游': { '划算出行': [200, 700], '舒服躺玩': [700, 1300], '品质享受': [1300, null] },
+    '小长假': { '划算出行': [500, 1100], '舒服躺玩': [1100, 2000], '品质享受': [2000, null] },
+  };
+
+  const closeCategoryModal = () => {
+    if (!categoryModal) return;
+    categoryModal.hidden = true;
+  };
+
+  const openCategoryModal = (category) => {
+    selectedCategory = category;
+    const isRomance = category === '浪漫约会';
+    if (isRomance) categorySelections.partySize = '2 人';
+    if (categoryModalTitle) categoryModalTitle.textContent = `抽一个${category}盲盒`;
+    if (categoryCity) categoryCity.textContent = currentCity;
+    if (partyField) partyField.hidden = isRomance;
+    if (fixedParty) fixedParty.hidden = !isRomance;
+    if (categoryModal) categoryModal.hidden = false;
+  };
+
+  const navigateToSlot = () => {
+    const href = '/box/slot-preview';
+    if (window.parent !== window) {
+      window.parent.postMessage({ type: 'gravity-home:navigate', href }, window.location.origin);
+    } else {
+      window.location.href = href;
+    }
+  };
+
+  document.querySelectorAll('[data-category-options]').forEach((group) => {
+    group.addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-value]');
+      if (!button) return;
+      const key = group.dataset.categoryOptions;
+      categorySelections[key] = button.dataset.value;
+      group.querySelectorAll('button').forEach((item) => item.classList.toggle('is-selected', item === button));
+    });
+  });
+
+  document.querySelectorAll('[data-category-modal-close]').forEach((button) => button.addEventListener('click', closeCategoryModal));
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && categoryModal && !categoryModal.hidden) closeCategoryModal();
+  });
   const buildCityActivities = (city) => {
     const [places, images] = cityProfiles[city];
     if (places.length >= 9) {
@@ -541,11 +602,13 @@ function setupCityRecommendations() {
 
   const categoryPool = (city, category) => {
     const [places, images] = cityProfiles[city];
-    const template = categoryTemplates[category] || categoryTemplates['城市散步'];
+    const categories = Object.keys(categoryTemplates);
     return Array.from({ length: Math.max(8, places.length) }, (_, index) => {
       const place = places[index % places.length];
+      const itemCategory = category || categories[index % categories.length];
+      const template = categoryTemplates[itemCategory];
       return [
-        category,
+        itemCategory,
         template(place),
         index % 3 === 0 ? '半天 · 1–2 人' : index % 3 === 1 ? '2–3 小时 · 2 人' : '当天 · 1–4 人',
         [images[index % images.length], images[(index + 1) % images.length], images[(index + 2) % images.length]],
@@ -610,18 +673,100 @@ function setupCityRecommendations() {
   }));
   inputs.forEach((input) => input.addEventListener('change', () => applyCity(input.value)));
   categoryButtons.forEach((button) => button.addEventListener('click', () => {
-    activeCategory = button.dataset.playCategory;
-    recommendationOffset = 0;
-    categoryButtons.forEach((item) => item.classList.toggle('is-active', item === button));
-    renderRecommendations(currentCity);
-    if (stage && placesSection) stage.scrollTo({ top: placesSection.offsetTop, behavior: 'smooth' });
+    openCategoryModal(button.dataset.playCategory);
   }));
+  categorySubmit?.addEventListener('click', () => {
+    if (!selectedCategory) return;
+    const partySize = selectedCategory === '浪漫约会' ? 2 : (partySizeValues[categorySelections.partySize] || 1);
+    const [budgetMin, budgetMax] = budgetRanges[categorySelections.travelDuration][categorySelections.budget];
+    const preferences = {
+      partySize,
+      durationMinutes: null,
+      budgetMin,
+      budgetMax,
+      mood: selectedCategory,
+      randomLevel: 70,
+      category: selectedCategory,
+      environment: 'either',
+      radiusKm: 10,
+      originName: currentCity,
+      originLatitude: null,
+      originLongitude: null,
+      originAccuracyMeters: null,
+      originSource: 'manual',
+      destinationScope: 'nearby',
+      travelDuration: travelDurationValues[categorySelections.travelDuration],
+      clientSource: 'pc',
+      destinationScopeLabel: `${currentCity}本地`,
+      travelDurationLabel: categorySelections.travelDuration,
+      budgetLabel: categorySelections.budget,
+      surpriseLevelLabel: `${selectedCategory}分类盲盒`,
+    };
+    sessionStorage.setItem('lazyde:pc-box:pending-draw', JSON.stringify({
+      cityId: cityIds[currentCity] || 1,
+      preferences,
+      summary: `${currentCity} · ${selectedCategory} · ${partySize} 人 · ${categorySelections.travelDuration} · ${categorySelections.budget}`,
+      createdAt: Date.now(),
+    }));
+    closeCategoryModal();
+    navigateToSlot();
+  });
   refreshButton?.addEventListener('click', () => {
     recommendationOffset += 4;
     renderRecommendations(currentCity);
     refreshButton.classList.remove('is-spinning');
     void refreshButton.offsetWidth;
     refreshButton.classList.add('is-spinning');
+  });
+
+  const showHomeToast = (message, tone = 'success') => {
+    let toast = document.querySelector('#gravity-home-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'gravity-home-toast';
+      document.body.append(toast);
+    }
+    toast.textContent = message;
+    toast.dataset.tone = tone;
+    toast.classList.remove('is-visible');
+    void toast.offsetWidth;
+    toast.classList.add('is-visible');
+    window.clearTimeout(showHomeToast.timer);
+    showHomeToast.timer = window.setTimeout(() => toast.classList.remove('is-visible'), 2800);
+  };
+
+  cards.forEach((card, index) => {
+    const addButton = card.querySelector('.place-add-trip');
+    const addTrip = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (pendingAddButton) return;
+      const category = card.querySelector('.place-card-copy small')?.textContent?.trim() || '城市散步';
+      pendingAddButton = addButton;
+      addButton.textContent = '正在加入…';
+      window.parent.postMessage({
+        type: 'gravity-home:add-trip',
+        cityId: cityIds[currentCity] || 1,
+        channel: categoryChannels[category] || category,
+        offset: recommendationOffset + index,
+      }, window.location.origin);
+    };
+    addButton?.addEventListener('click', addTrip);
+    addButton?.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') addTrip(event);
+    });
+  });
+
+  window.addEventListener('message', (event) => {
+    if (event.origin !== window.location.origin || event.data?.type !== 'gravity-home:add-trip-status') return;
+    if (event.data.status === 'loading') return;
+    if (pendingAddButton) pendingAddButton.textContent = '＋ 加入我的行程';
+    if (event.data.status === 'success') {
+      showHomeToast(event.data.alreadyExists ? '这条攻略已经在你的行程里了' : `已加入：${event.data.title}`);
+    } else if (event.data.status === 'error') {
+      showHomeToast(event.data.message || '加入行程失败，请稍后再试', 'error');
+    }
+    pendingAddButton = null;
   });
 
   applyCity('北京', false, 'default');

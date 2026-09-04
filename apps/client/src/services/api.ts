@@ -692,6 +692,44 @@ export async function getActivity(activityId: number) {
   return normalizeActivity(activity);
 }
 
+export type RecommendedActivityItem = {
+  id: number;
+  title: string;
+  summary: string;
+  cityName: string;
+  category: string;
+  mood: string;
+};
+
+export async function getRecommendedActivities(input: {
+  cityId: number;
+  channel?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const params = new URLSearchParams({ cityId: String(input.cityId) });
+  if (input.channel) params.set('channel', input.channel);
+  params.set('limit', String(input.limit ?? 4));
+  params.set('offset', String(input.offset ?? 0));
+  return await withDemoFallback(
+    () => apiRequest<{ items: RecommendedActivityItem[]; total: number }>(`/activities?${params.toString()}`),
+    () => {
+      const items = demoActivities
+        .filter((activity) => activity.cityId === input.cityId)
+        .slice(input.offset ?? 0, (input.offset ?? 0) + (input.limit ?? 4))
+        .map((activity) => ({
+          id: activity.id,
+          title: activity.title,
+          summary: activity.summary,
+          cityName: activity.cityName,
+          category: activity.category,
+          mood: activity.mood,
+        }));
+      return { items, total: items.length };
+    },
+  );
+}
+
 export async function getMyDiary(diaryId: number) {
   const response = await apiRequest<MyDiaryItem>(`/diaries/${diaryId}`);
   return normalizeDiaryItem(response);

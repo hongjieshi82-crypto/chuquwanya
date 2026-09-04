@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0d0d13" />
     <title>粗去玩鸭！· 重力首页样式预览</title>
-    <link rel="stylesheet" href="./style.css?v=clean-third-heading-52" />
+    <link rel="stylesheet" href="./style.css?v=weekend-guides-53" />
   </head>
   <body>
     <header class="topbar">
@@ -54,18 +54,13 @@
 
       <section class="screen styles-screen" id="styles" data-section="styles" data-index="2">
         <div class="styles-sticky">
-          <div class="section-heading">
-            <div class="heading-title-row">
-              <h2>今天想怎么玩</h2>
-            </div>
-          </div>
           <div class="play-category-grid" aria-label="选择玩法分类">
-            <button class="play-category-card is-active" type="button" data-play-category="浪漫约会"><img src="/media/travel/shanghai.jpg" alt="" /><small>01 / TOGETHER</small><strong>浪漫约会</strong><span>把普通见面，安排得更有记忆点。</span><i>→</i></button>
-            <button class="play-category-card" type="button" data-play-category="休闲躺平"><img src="/media/travel/beijing-olympic-forest.jpg" alt="" /><small>02 / CHILL</small><strong>休闲躺平</strong><span>不赶路，也不急着完成什么。</span><i>→</i></button>
-            <button class="play-category-card" type="button" data-play-category="娱乐玩乐"><img src="/media/travel/beijing-798-art-district.jpg" alt="" /><small>03 / PLAY</small><strong>娱乐玩乐</strong><span>用一场游戏或体验释放周末。</span><i>→</i></button>
-            <button class="play-category-card" type="button" data-play-category="探险猎奇"><img src="/media/travel/chongqing.jpg" alt="" /><small>04 / WILD</small><strong>探险猎奇</strong><span>去看看地图上不太熟悉的角落。</span><i>→</i></button>
-            <button class="play-category-card" type="button" data-play-category="美食吃喝"><img src="/media/travel/guangzhou-yongqingfang.jpg" alt="" /><small>05 / TASTE</small><strong>美食吃喝</strong><span>用味道认识一座城市的日常。</span><i>→</i></button>
-            <button class="play-category-card" type="button" data-play-category="城市散步"><img src="/media/travel/beijing-wudaoying-hutong.jpg" alt="" /><small>06 / WALK</small><strong>城市散步</strong><span>随意转弯，让街道决定下一站。</span><i>→</i></button>
+            <button class="play-category-card play-card-image" type="button" data-play-category="浪漫约会"><img src="/media/cards/play/01-romance.png" alt="" /><span class="sr-only">浪漫约会</span></button>
+            <button class="play-category-card play-card-image" type="button" data-play-category="休闲躺平"><img src="/media/cards/play/02-relax.png" alt="" /><span class="sr-only">休闲躺平</span></button>
+            <button class="play-category-card play-card-image" type="button" data-play-category="娱乐玩乐"><img src="/media/cards/play/03-play.png" alt="" /><span class="sr-only">娱乐玩乐</span></button>
+            <button class="play-category-card play-card-image" type="button" data-play-category="探险猎奇"><img src="/media/cards/play/04-adventure.png" alt="" /><span class="sr-only">探险猎奇</span></button>
+            <button class="play-category-card play-card-image" type="button" data-play-category="美食吃喝"><img src="/media/cards/play/05-food.png" alt="" /><span class="sr-only">美食吃喝</span></button>
+            <button class="play-category-card play-card-image" type="button" data-play-category="城市散步"><img src="/media/cards/play/06-walk.png" alt="" /><span class="sr-only">城市散步</span></button>
           </div>
         </div>
       </section>
@@ -74,7 +69,7 @@
         <div class="places-sticky">
         <div class="places-heading">
           <div class="heading-title-row">
-          <h2>原来周末还能这样玩</h2>
+          <div class="places-eyebrow"><small>WEEKEND PICKS</small><strong>本周精选攻略</strong><span>4 条可直接加入行程</span></div>
           <button class="places-refresh" id="places-refresh" type="button"><span>↻</span> 换一批</button>
           </div>
         </div>
@@ -87,6 +82,7 @@
               <p>不设终点，沿着树影和鸟声走四十分钟。</p>
               <strong>公园漫游 · 轻松户外</strong>
               <em>看看怎么玩 →</em>
+              <span class="place-add-trip" role="button" tabindex="0">＋ 加入我的行程</span>
             </div>
             <div class="place-media">
               <img src="/media/travel/beijing-olympic-forest.jpg" alt="北京奥林匹克森林公园" />
@@ -102,6 +98,7 @@
               <p>沿着梧桐街区慢走，用照片收集砖红、树影和橱窗。</p>
               <strong>城市漫游 · 拍照任务</strong>
               <em>看看怎么玩 →</em>
+              <span class="place-add-trip" role="button" tabindex="0">＋ 加入我的行程</span>
             </div>
             <div class="place-media">
               <img src="/media/travel/shanghai-wukang-road.jpg" alt="上海武康路" />
@@ -117,6 +114,7 @@
               <p>沿湖轻骑，把终点交给当天最好看的那束光。</p>
               <strong>湖畔骑行 · 日落任务</strong>
               <em>看看怎么玩 →</em>
+              <span class="place-add-trip" role="button" tabindex="0">＋ 加入我的行程</span>
             </div>
             <div class="place-media">
               <img src="/media/travel/hangzhou.jpg" alt="杭州西湖" />
@@ -132,6 +130,7 @@
               <p>喝盖碗茶、看老人下棋，把时间调成成都速度。</p>
               <strong>茶馆闲坐 · 城市观察</strong>
               <em>看看怎么玩 →</em>
+              <span class="place-add-trip" role="button" tabindex="0">＋ 加入我的行程</span>
             </div>
             <div class="place-media">
               <img src="/media/travel/chengdu-people-park.jpg" alt="成都人民公园" />
@@ -160,7 +159,47 @@
       </section>
     </main>
 
+    <div class="category-draw-modal" id="category-draw-modal" hidden>
+      <button class="category-draw-backdrop" type="button" data-category-modal-close aria-label="关闭弹窗"></button>
+      <section class="category-draw-dialog" role="dialog" aria-modal="true" aria-labelledby="category-draw-title">
+        <button class="category-draw-close" type="button" data-category-modal-close aria-label="关闭">×</button>
+        <small class="category-draw-kicker">CATEGORY BLIND BOX</small>
+        <h2 id="category-draw-title">抽一个浪漫约会盲盒</h2>
+        <p class="category-draw-city">当前城市 · <strong data-category-city>北京</strong></p>
+
+        <div class="category-draw-field" data-party-field>
+          <label>同行人数</label>
+          <div class="category-draw-options" data-category-options="partySize">
+            <button type="button" data-value="1 人">1 人</button>
+            <button class="is-selected" type="button" data-value="2 人">2 人</button>
+            <button type="button" data-value="多人">多人</button>
+          </div>
+        </div>
+        <div class="category-draw-fixed-party" data-fixed-party hidden><span>同行人数</span><strong>固定 2 人</strong></div>
+
+        <div class="category-draw-field">
+          <label>出游时长</label>
+          <div class="category-draw-options" data-category-options="travelDuration">
+            <button class="is-selected" type="button" data-value="当天">当天</button>
+            <button type="button" data-value="周末游">周末游</button>
+            <button type="button" data-value="小长假">小长假</button>
+          </div>
+        </div>
+
+        <div class="category-draw-field">
+          <label>预算方式</label>
+          <div class="category-draw-options" data-category-options="budget">
+            <button class="is-selected" type="button" data-value="划算出行">划算出行</button>
+            <button type="button" data-value="舒服躺玩">舒服躺玩</button>
+            <button type="button" data-value="品质享受">品质享受</button>
+          </div>
+        </div>
+
+        <button class="category-draw-submit" id="category-draw-submit" type="button">开始抽选 <span>→</span></button>
+      </section>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js"></script>
-    <script src="./app.js?v=automatic-city-location-50"></script>
+    <script src="./app.js?v=weekend-guides-53"></script>
   </body>
 </html>
