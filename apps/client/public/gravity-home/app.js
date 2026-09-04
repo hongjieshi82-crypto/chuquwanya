@@ -342,7 +342,7 @@ function setupScrollStory() {
       const placesEnd = placesSection.offsetTop + placesScrollDistance;
       stage.classList.toggle(
         'is-natural-card-detail',
-        rawStackProgress >= .84 && stage.scrollTop < placesEnd - 2,
+        rawStackProgress >= .72 && stage.scrollTop < placesEnd - 2,
       );
       stackPreviewUnlocked = stackProgress >= .999;
       if (!stackPreviewUnlocked) previewIndex = null;
