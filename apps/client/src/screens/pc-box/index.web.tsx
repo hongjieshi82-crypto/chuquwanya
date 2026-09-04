@@ -1431,4 +1431,8 @@ const pcBoxCss = `
   .pc-box-visual { border-radius: 24px; }
 }
 
+/* Unified interactive-card hover. */
+.pc-box-group-surprise .ant-tag-checkable-group-item.ant-tag { transition: transform .34s cubic-bezier(.2,.8,.2,1),border-color .28s ease,box-shadow .34s ease,background .28s ease; }
+.pc-box-group-surprise .ant-tag-checkable-group-item.ant-tag:hover,.pc-box-group-surprise .ant-tag-checkable-group-item.ant-tag:focus-visible { transform: translateY(-4px) scale(1.012); border: 2px solid #c9ff62 !important; box-shadow: 0 0 0 1px rgba(201,255,98,.16),0 18px 42px rgba(0,0,0,.34),0 0 26px rgba(201,255,98,.12) !important; }
+
 `;

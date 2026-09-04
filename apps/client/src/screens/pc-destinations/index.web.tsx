@@ -2,7 +2,6 @@ import {
   EnvironmentOutlined,
   GiftOutlined,
   SearchOutlined,
-  StarFilled,
   WarningOutlined,
 } from '@ant-design/icons';
 import {
@@ -30,6 +29,11 @@ import type { Preferences } from '@/types';
 const { Paragraph, Text, Title } = Typography;
 
 const initialVisibleCount = 18;
+const cityCardAssetByName: Record<string, string> = {
+  北京: 'beijing', 上海: 'shanghai', 杭州: 'hangzhou', 深圳: 'shenzhen', 青岛: 'qingdao', 南京: 'nanjing',
+  武汉: 'wuhan', 成都: 'chengdu', 西安: 'xian', 长沙: 'changsha', 重庆: 'chongqing', 厦门: 'xiamen',
+  天津: 'tianjin', 烟台: 'yantai', 广州: 'guangzhou', 合肥: 'hefei', 济南: 'jinan', 昆明: 'kunming',
+};
 
 type DestinationItem = DestinationDetail & {
   cityName: string;
@@ -267,22 +271,8 @@ export default function PcDestinationsScreen() {
               <div className="pc-destinations-grid">
                 {visibleItems.map((item, index) => (
                   <Card key={item.id} hoverable className={`pc-destinations-card pc-destinations-card-layout-${index % 3}`} onClick={() => { setIsExplorePreview(false); setSelected(item); }}>
-                    <span className="pc-destinations-index">{String(index + 1).padStart(2, '0')}</span>
-                    <Tag className="pc-destinations-category">{item.categoryName}</Tag>
-                    <div className="pc-destinations-cover-tags">
-                      {item.normalizedTags.slice(0, 2).map((tag) => <Tag key={tag}>{tag}</Tag>)}
-                    </div>
-                    <div className="pc-destinations-card-cover">
-                      <DestinationCover item={item} className="pc-destinations-cover-image" />
-                      <span className="pc-destinations-rating"><StarFilled /> {Number(item.rating || 0).toFixed(1)}</span>
-                    </div>
-                    <div className="pc-destinations-card-body">
-                      <div className="pc-destinations-card-title-row">
-                        <Title level={4}>{item.name}</Title>
-                        <Button type="text" className="pc-destinations-explore" onClick={(event) => { event.stopPropagation(); setIsExplorePreview(true); setSelected(item); }}>立刻探索 ↗</Button>
-                      </div>
-                      <Paragraph ellipsis={{ rows: 2 }}>{item.description || item.summary || '暂无目的地介绍。'}</Paragraph>
-                    </div>
+                    {cityCardAssetByName[item.name] ? <img className="pc-city-card-artwork" src={`/media/cards/cities/${cityCardAssetByName[item.name]}.png?v=city-master-6`} alt={`${item.name}·${item.categoryName}`} /> : <DestinationCover item={item} className="pc-city-card-artwork" />}
+                    <button className="pc-city-card-explore-hitarea" type="button" aria-label={`立刻探索${item.name}`} onClick={(event) => { event.stopPropagation(); setIsExplorePreview(true); setSelected(item); }} />
                   </Card>
                 ))}
               </div>
@@ -547,6 +537,10 @@ const pcDestinationsCss = `
 @media (max-width: 1023px) { .pc-destinations-page { padding: 52px 6vw 80px; } }
 @media (max-width: 767px) { .pc-destinations-page { padding: 34px 16px 56px; } }
 
+/* Unified interactive-card hover. */
+.pc-destinations-card.ant-card { transition: transform .34s cubic-bezier(.2,.8,.2,1),border-color .28s ease,box-shadow .34s ease; }
+.pc-destinations-card.ant-card:hover { transform: translateY(-6px) scale(1.012); border: 2px solid #c9ff62; box-shadow: 0 0 0 1px rgba(201,255,98,.18),0 26px 62px rgba(0,0,0,.42),0 0 30px rgba(201,255,98,.13); }
+
 /* Editorial city-card family: three repeatable layouts for the 18-city collection. */
 .pc-destinations-grid { gap: 22px; }
 .pc-destinations-card.ant-card {
@@ -630,6 +624,19 @@ const pcDestinationsCss = `
   .pc-destinations-card-title-row h4.ant-typography,.pc-destinations-card-layout-1 .pc-destinations-card-title-row h4.ant-typography,.pc-destinations-card-layout-2 .pc-destinations-card-title-row h4.ant-typography { width: 52%; font-size: 42px; }
   .pc-destinations-card-body p.ant-typography,.pc-destinations-card-layout-2 .pc-destinations-card-body p.ant-typography { left: 18px; right: 132px; bottom: 23px; }
   .pc-destinations-explore.ant-btn,.pc-destinations-card-layout-2 .pc-destinations-explore.ant-btn { right: 17px; bottom: -71px; }
+}
+
+/* Fixed 18-city artwork family. The outer Card supplies the only rounded mask. */
+.pc-destinations-card.ant-card { aspect-ratio: 940 / 820; min-height: 0; overflow: hidden; border: 0; border-radius: 24px; background: #090b0e; box-shadow: 0 18px 46px rgba(0,0,0,.28); }
+.pc-destinations-card .ant-card-body { position: relative; width: 100%; height: 100%; min-height: 0; padding: 0; overflow: hidden; }
+.pc-destinations-card .ant-card-body::before,.pc-destinations-card .ant-card-body::after { content: none; }
+.pc-city-card-artwork { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: fill; }
+.pc-city-card-explore-hitarea { position: absolute; z-index: 10; right: 3.5%; bottom: 1.5%; width: 34%; height: 14%; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.pc-city-card-explore-hitarea:focus-visible { outline: 3px solid #c9ff62; outline-offset: -3px; }
+.pc-destinations-card.ant-card:hover { transform: translateY(-7px); border: 0; box-shadow: 0 28px 62px rgba(0,0,0,.42),0 0 0 4px rgba(201,255,98,.82),0 0 28px rgba(201,255,98,.16); }
+@media (max-width: 700px) {
+  .pc-destinations-card.ant-card { aspect-ratio: 940 / 820; min-height: 0; border-radius: 18px; }
+  .pc-destinations-card .ant-card-body { min-height: 0; }
 }
 
 `;

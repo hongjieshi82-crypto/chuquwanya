@@ -337,7 +337,7 @@ function setupScrollStory() {
       const rawStackProgress = sectionProgress(placesSection);
       const stackProgress = clamp((rawStackProgress - .04) / .7);
       const placesScrollDistance = Math.max(placesSection.offsetHeight - stage.clientHeight, 1);
-      const detailScrollStart = placesSection.offsetTop + placesScrollDistance * .84;
+      const detailScrollStart = placesSection.offsetTop + placesScrollDistance * .89;
       const detailScrollPixels = Math.max(0, stage.scrollTop - detailScrollStart);
       const placesEnd = placesSection.offsetTop + placesScrollDistance;
       stage.classList.toggle(
@@ -357,8 +357,11 @@ function setupScrollStory() {
       const peek = Math.ceil(measuredHeaderHeight + (stage.clientWidth <= 640 ? 10 : 18));
       const bottomGap = stage.clientWidth <= 640 ? 18 : 36;
       const stickyPaddingTop = placesSticky ? parseFloat(getComputedStyle(placesSticky).paddingTop) || 0 : 0;
+      const adaptiveCardHeight = stage.clientWidth <= 640
+        ? clamp(stage.clientHeight * .72, 480, 620)
+        : clamp(stage.clientHeight * .78, 620, 820);
       const cardHeight = Math.min(
-        placeGrid.clientWidth / 1.75,
+        adaptiveCardHeight,
         (placesSticky?.clientHeight ?? stage.clientHeight) - stickyPaddingTop - bottomGap,
       );
       const displayCardHeight = cardHeight;
@@ -374,7 +377,8 @@ function setupScrollStory() {
         const y = initialY - arrival * (initialY - targetY);
         card.style.removeProperty('height');
         card.style.zIndex = String(index + 1);
-        card.style.transform = `translate3d(0, ${y}px, 0)`;
+        const hoverScale = previewIndex === index ? 1.01 : 1;
+        card.style.transform = `translate3d(0, ${y}px, 0) scale(${hoverScale})`;
         card.classList.toggle('is-active', index === activeIndex);
       });
       const revealedIndex = previewIndex ?? cards.length - 1;
@@ -522,6 +526,14 @@ function setupCityRecommendations() {
     '浪漫约会': '搭子', '休闲躺平': '治愈', '娱乐玩乐': '惊喜',
     '探险猎奇': '探索', '美食吃喝': '美食', '城市散步': 'City Walk',
   };
+  const guideStepTemplates = {
+    '浪漫约会': ['提前确认集合点和日落时间', '一起完成一件有纪念感的小事', '选一张照片留作今天的纪念'],
+    '休闲躺平': ['慢慢抵达，不给行程设置打卡压力', '找舒服的位置停留至少四十分钟', '在附近散步或吃点喜欢的东西'],
+    '娱乐玩乐': ['提前确认预约与开放时间', '完成今天的核心游戏或体验项目', '用一张合照结束这次挑战'],
+    '探险猎奇': ['准备轻便装备并确认安全路线', '沿推荐线索探索一处冷门角落', '天黑前完成返程与探索记录'],
+    '美食吃喝': ['从第一家代表性小店开始', '沿路线尝试两到三种当地味道', '选出今天最值得再吃的一家'],
+    '城市散步': ['从推荐街区的起点慢慢出发', '按路线转三次弯并观察城市细节', '在终点附近休息并整理照片'],
+  };
   let activeCategory = null;
   let currentCity = '北京';
   let recommendationOffset = 0;
@@ -621,9 +633,13 @@ function setupCityRecommendations() {
     cards.forEach((card, index) => {
       const [category, title, meta, images] = pool[(recommendationOffset + index) % pool.length];
       card.classList.toggle('is-contrast-card', index === 3);
-      card.querySelector('.place-card-top b').textContent = `${city} · ${meta}`;
+      card.querySelector('.place-card-facts').textContent = `${city} · ${meta}`;
       card.querySelector('.place-card-copy small').textContent = category;
       card.querySelector('.place-card-copy h3').textContent = title;
+      const steps = guideStepTemplates[category] || ['确认路线与开放时间', '完成攻略的核心体验', '记录今天最喜欢的一个瞬间'];
+      card.querySelectorAll('.guide-checklist li span').forEach((node, stepIndex) => {
+        node.textContent = steps[stepIndex] || steps[steps.length - 1];
+      });
       const media = card.querySelector('.place-media');
       media.dataset.leftLabel = '玩法场景';
       media.dataset.rightLabel = '城市灵感';

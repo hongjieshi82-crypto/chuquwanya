@@ -898,6 +898,175 @@ button { font: inherit; }
   .place-card-top b { max-width: 56%; padding: 8px 9px; font-size: clamp(8px,2.15vw,10px); letter-spacing: 0; }
 }
 
+/* Guide-card content lives strictly below the locked 01–04 title header. */
+.guide-body { position: absolute; z-index: 5; left: clamp(30px,2.25vw,44px); top: 29%; bottom: clamp(28px,2vw,38px); width: 39%; min-width: 0; display: none; flex-direction: column; }
+.place-card.is-active .guide-body { display: flex; }
+.guide-body .guide-checklist { display: grid; flex: 1 1 auto; align-content: center; gap: 8px; width: 100%; margin: 0; }
+.guide-body .guide-checklist::before { left: 72px; top: 17%; bottom: 17%; background: linear-gradient(rgba(200,255,99,.18),var(--lime),rgba(200,255,99,.18)); }
+.guide-body .guide-checklist li { position: relative; grid-template-columns: 58px minmax(0,1fr); gap: 28px; min-height: 68px; padding: 0; }
+.guide-body .guide-checklist li::before { content: ''; position: absolute; z-index: 2; left: 67px; top: 50%; width: 11px; height: 11px; border: 3px solid #070708; border-radius: 50%; background: var(--lime); box-shadow: 0 0 0 1px rgba(200,255,99,.7),0 0 14px rgba(200,255,99,.28); transform: translateY(-50%); }
+.guide-body .guide-checklist li b { display: block; width: 58px; height: auto; border: 0; border-radius: 0; color: var(--lime); background: transparent; box-shadow: none; font: 850 clamp(10px,.72vw,13px)/1 ui-monospace,monospace; text-align: right; }
+.guide-body .guide-checklist li span { display: flex; align-items: center; min-height: 58px; padding: 12px 15px; border: 1px solid rgba(255,255,255,.11); border-radius: 14px; color: rgba(255,255,255,.72); background: rgba(255,255,255,.035); font-size: clamp(12px,.82vw,15px); line-height: 1.45; }
+.guide-body .place-add-trip { flex: 0 0 auto; display: inline-flex; width: 100%; min-height: 50px; margin-top: 16px; border-radius: 14px; color: #11150d; border-color: var(--lime); background: var(--lime); font-size: 15px; }
+.place-card.is-active .place-add-trip { display: inline-flex; }
+.place-media { top: 29%; left: 47%; right: clamp(30px,2.25vw,44px); bottom: clamp(28px,2vw,38px); grid-template-columns: .75fr 1.25fr; }
+.is-contrast-card .place-media { left: 47%; }
+
+@media (max-width: 980px) {
+  .guide-body { left: 30px; width: 42%; }
+  .guide-body .guide-checklist li { grid-template-columns: 48px minmax(0,1fr); gap: 22px; }
+  .guide-body .guide-checklist::before { left: 58px; }
+  .guide-body .guide-checklist li::before { left: 53px; }
+  .guide-body .guide-checklist li b { width: 48px; font-size: 10px; }
+  .place-media,.is-contrast-card .place-media { left: 49%; right: 30px; }
+}
+
+@media (max-width: 640px) {
+  .guide-body { left: 16px; right: 16px; top: 32%; bottom: 16px; width: auto; padding: 12px; border-radius: 15px; background: rgba(7,7,8,.82); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .guide-body .guide-checklist { gap: 5px; }
+  .guide-body .guide-checklist li { grid-template-columns: 38px minmax(0,1fr); gap: 16px; min-height: 42px; }
+  .guide-body .guide-checklist::before { left: 46px; top: 17%; bottom: 17%; }
+  .guide-body .guide-checklist li::before { left: 41px; }
+  .guide-body .guide-checklist li b { width: 38px; font-size: 8px; }
+  .guide-body .guide-checklist li span { min-height: 38px; padding: 7px 10px; border-radius: 10px; font-size: 9px; }
+  .guide-body .place-add-trip { min-height: 38px; margin-top: 8px; font-size: 11px; }
+  .place-media,.is-contrast-card .place-media { left: 16px; right: 16px; top: 28%; bottom: 16px; opacity: .4; }
+}
+
+/* Final itinerary treatment: typography and route rhythm take priority over imagery. */
+.place-media,.is-contrast-card .place-media { display: none; }
+.guide-body { left: clamp(30px,2.25vw,44px); right: clamp(30px,2.25vw,44px); top: 28%; bottom: clamp(28px,2vw,38px); width: auto; padding-top: 34px; }
+.guide-body::before { content: 'ITINERARY  ·  今日行程清单'; position: absolute; left: 0; top: 0; color: rgba(255,255,255,.38); font: 800 10px/1 ui-monospace,monospace; letter-spacing: .12em; }
+.guide-body .guide-checklist { align-content: start; gap: 10px; }
+.guide-body .guide-checklist::before { left: 106px; top: 34px; bottom: 34px; }
+.guide-body .guide-checklist li { grid-template-columns: 88px minmax(0,1fr); gap: 38px; min-height: 76px; }
+.guide-body .guide-checklist li::before { left: 101px; width: 12px; height: 12px; }
+.guide-body .guide-checklist li b { width: 88px; color: #c9ff62; font-size: clamp(11px,.78vw,14px); letter-spacing: .04em; }
+.guide-body .guide-checklist li span { min-height: 70px; padding: 16px 20px; border-color: rgba(255,255,255,.12); border-radius: 16px; color: rgba(255,255,255,.78); background: linear-gradient(90deg,rgba(255,255,255,.052),rgba(255,255,255,.025)); font-size: clamp(14px,.95vw,17px); font-weight: 720; }
+.guide-body .guide-checklist li:nth-child(2) span { border-color: rgba(200,255,99,.2); background: linear-gradient(90deg,rgba(200,255,99,.07),rgba(255,255,255,.025)); }
+.guide-body .place-add-trip { width: 220px; align-self: flex-end; min-height: 52px; margin-top: auto; }
+
+@media (max-width: 980px) {
+  .guide-body { left: 30px; right: 30px; width: auto; }
+  .guide-body .guide-checklist::before { left: 82px; }
+  .guide-body .guide-checklist li { grid-template-columns: 66px minmax(0,1fr); gap: 32px; }
+  .guide-body .guide-checklist li::before { left: 77px; }
+  .guide-body .guide-checklist li b { width: 66px; }
+}
+
+@media (max-width: 640px) {
+  .guide-body { left: 16px; right: 16px; top: 31%; bottom: 16px; width: auto; padding: 34px 12px 12px; background: rgba(7,7,8,.94); }
+  .guide-body::before { left: 12px; top: 14px; font-size: 8px; }
+  .guide-body .guide-checklist::before { left: 53px; top: 22px; bottom: 22px; }
+  .guide-body .guide-checklist li { grid-template-columns: 38px minmax(0,1fr); gap: 18px; min-height: 46px; }
+  .guide-body .guide-checklist li::before { left: 48px; width: 10px; height: 10px; }
+  .guide-body .guide-checklist li b { width: 38px; font-size: 8px; }
+  .guide-body .guide-checklist li span { min-height: 42px; padding: 8px 10px; border-radius: 10px; font-size: 10px; }
+  .guide-body .place-add-trip { width: 100%; min-height: 40px; }
+}
+
+/* Header meta follows the category; primary add action occupies the former right-side slot. */
+.place-card-top b { position: absolute; top: 0; left: clamp(260px,18.5vw,370px); right: auto; max-width: min(270px,24%); margin: 0; }
+.place-card > .place-add-trip { position: absolute; z-index: 8; top: clamp(28px,2vw,38px); right: clamp(30px,2.25vw,44px); display: none; width: auto; min-width: 210px; min-height: 50px; margin: 0; padding: 0 22px; border: 0; border-radius: 15px; color: #11150d; background: var(--lime); box-shadow: 0 12px 30px rgba(200,255,99,.2); font-size: 15px; font-weight: 950; }
+.place-card.is-active > .place-add-trip { display: inline-flex; }
+.place-card > .place-add-trip:hover,.place-card > .place-add-trip:focus-visible { color: #11150d; background: #dcff9b; box-shadow: 0 14px 36px rgba(200,255,99,.3); transform: translateY(-2px); }
+.guide-body { bottom: clamp(24px,1.8vw,34px); }
+.guide-body .guide-checklist { align-content: stretch; grid-template-rows: repeat(3,minmax(0,1fr)); }
+.guide-body .guide-checklist li { height: 100%; }
+.guide-body .guide-checklist li span { height: calc(100% - 8px); }
+
+@media (max-width: 980px) {
+  .place-card-top b { left: 230px; max-width: 230px; }
+  .place-card > .place-add-trip { right: 30px; min-width: 180px; }
+}
+
+@media (max-width: 640px) {
+  .place-card-top b { left: auto; right: 0; max-width: 42%; }
+  .place-card > .place-add-trip { top: auto; left: 28px; right: 28px; bottom: 16px; width: auto; min-width: 0; min-height: 40px; border-radius: 11px; font-size: 11px; }
+  .guide-body { bottom: 64px; }
+}
+
+/* One-line guide header: category followed by plain trip facts, no pill container. */
+.place-card-top b {
+  top: 0;
+  left: calc(clamp(150px,10.5vw,198px) + 104px);
+  max-width: min(360px,29%);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: rgba(255,255,255,.62);
+  background: transparent;
+  font-size: clamp(13px,.84vw,16px);
+  line-height: 1;
+  font-weight: 760;
+}
+.place-card > .place-add-trip { font-weight: 1000; letter-spacing: .01em; }
+.place-card > .place-add-trip::first-letter { font-size: 22px; font-weight: 1000; -webkit-text-stroke: 1px currentColor; }
+
+/* Separate the two category-card rows without changing their width. */
+.styles-screen .play-category-grid { column-gap: clamp(18px,1.5vw,28px); row-gap: clamp(38px,4.2vh,58px); }
+.place-card-label-row { display: flex; align-items: center; gap: 10px; min-width: 0; line-height: 1; }
+.place-card-label-row small { flex: 0 0 auto; display: inline-block; color: #fff; font-size: clamp(14px,.9vw,18px); font-weight: 850; letter-spacing: .03em; text-transform: none; }
+.place-card-facts { min-width: 0; overflow: hidden; color: rgba(255,255,255,.5); font-size: clamp(13px,.84vw,16px); font-weight: 760; letter-spacing: .01em; text-overflow: ellipsis; white-space: nowrap; }
+.place-card-facts::before { content: '·'; margin-right: 10px; color: rgba(255,255,255,.44); font-weight: 900; }
+
+@media (max-width: 980px) {
+  .place-card-top b { left: 232px; max-width: 270px; }
+}
+
+@media (max-width: 640px) {
+  .place-card-top b { top: 0; left: 142px; right: auto; max-width: calc(100% - 230px); font-size: 8px; }
+  .place-card > .place-add-trip::first-letter { font-size: 16px; }
+  .styles-screen .play-category-grid { row-gap: 18px; }
+  .place-card-label-row { gap: 6px; }
+  .place-card-label-row small { display: inline-block; font-size: 10px; }
+  .place-card-facts { font-size: 8px; }
+  .place-card-facts::before { margin-right: 6px; }
+}
+
+/* Readable itinerary scale and balanced use of the full row width. */
+.guide-body::before { color: rgba(255,255,255,.48); font-size: 12px; letter-spacing: .13em; }
+.guide-body .guide-checklist li b { color: #c9ff62; font-size: clamp(15px,1vw,19px); font-weight: 950; }
+.guide-body .guide-checklist li span { position: relative; padding: 18px 130px 18px 24px; color: rgba(255,255,255,.84); font-size: clamp(18px,1.25vw,23px); line-height: 1.35; font-weight: 820; }
+.guide-body .guide-checklist li span::after { position: absolute; right: 24px; top: 50%; color: rgba(200,255,99,.18); font: 900 clamp(17px,1.4vw,26px)/1 ui-monospace,monospace; letter-spacing: .08em; transform: translateY(-50%); }
+.guide-body .guide-checklist li:nth-child(1) span::after { content: '准备'; }
+.guide-body .guide-checklist li:nth-child(2) span::after { content: '核心'; color: rgba(200,255,99,.34); }
+.guide-body .guide-checklist li:nth-child(3) span::after { content: '收尾'; }
+.guide-body .guide-checklist li::before { width: 15px; height: 15px; border-width: 3px; }
+
+/* Equal row/column gaps; center the six-card group below the navigation. */
+.styles-screen .styles-sticky { justify-content: center; padding: var(--nav-h) 7.4vw 0; }
+.styles-screen .play-category-grid { flex: 0 0 auto; height: min(74vh,780px); column-gap: clamp(18px,1.5vw,28px); row-gap: clamp(18px,1.5vw,28px); }
+.styles-screen .play-category-card:nth-child(-n+3) { transform: translateY(-60px); }
+.styles-screen .play-category-card:nth-child(-n+3):hover,.styles-screen .play-category-card:nth-child(-n+3):focus-visible { transform: translateY(-65px); }
+
+@media (max-width: 980px) {
+  .styles-screen .styles-sticky { padding: var(--nav-h) 6vw 0; }
+}
+
+@media (max-width: 640px) {
+  .guide-body::before { font-size: 8px; }
+  .guide-body .guide-checklist li b { font-size: 10px; }
+  .guide-body .guide-checklist li span { padding: 9px 52px 9px 11px; font-size: 11px; }
+  .guide-body .guide-checklist li span::after { right: 10px; font-size: 10px; }
+  .styles-screen .styles-sticky { padding: var(--nav-h) 5vw 0; }
+  .styles-screen .play-category-grid { height: min(76vh,680px); column-gap: 11px; row-gap: 11px; }
+  .styles-screen .play-category-card:nth-child(-n+3) { transform: translateY(-28px); }
+  .styles-screen .play-category-card:nth-child(-n+3):hover,.styles-screen .play-category-card:nth-child(-n+3):focus-visible { transform: translateY(-31px); }
+}
+
+/* Unified interactive-card hover: thicker lime edge, subtle lift and scale. */
+.play-category-card { border-width: 1px; transition: opacity .32s ease,transform .34s cubic-bezier(.2,.8,.2,1),border-color .28s ease,box-shadow .34s ease,filter .34s ease; }
+.play-category-card:hover,.play-category-card:focus-visible { border-width: 2px; border-color: var(--lime); box-shadow: 0 0 0 1px rgba(200,255,99,.18),0 22px 58px rgba(0,0,0,.42),0 0 30px rgba(200,255,99,.13); }
+.styles-screen .play-category-card:nth-child(n+4):hover,.styles-screen .play-category-card:nth-child(n+4):focus-visible { transform: translateY(-5px) scale(1.012); }
+.styles-screen .play-category-card:nth-child(-n+3):hover,.styles-screen .play-category-card:nth-child(-n+3):focus-visible { transform: translateY(-65px) scale(1.012); }
+.place-card { transition: transform .34s cubic-bezier(.2,.8,.2,1),border-color .28s ease,box-shadow .34s ease; }
+.place-card:hover,.place-card:focus-visible { border-width: 2px; border-color: var(--lime); box-shadow: 0 0 0 1px rgba(200,255,99,.18),0 24px 60px rgba(0,0,0,.44),0 0 30px rgba(200,255,99,.13); }
+
+@media (max-width: 640px) {
+  .styles-screen .play-category-card:nth-child(-n+3):hover,.styles-screen .play-category-card:nth-child(-n+3):focus-visible { transform: translateY(-31px) scale(1.008); }
+}
+
 /* Category blind-box quick configurator. */
 .category-draw-modal[hidden] { display: none; }
 .category-draw-modal { position: fixed; z-index: 200; inset: 0; display: grid; place-items: center; padding: 24px; }
@@ -932,6 +1101,13 @@ button { font: inherit; }
 .place-add-trip { display: none; align-items: center; justify-content: center; width: max-content; min-height: 44px; margin-top: 20px; padding: 0 18px; border: 1px solid rgba(200,255,99,.56); border-radius: 14px; color: #dfffaa; background: rgba(200,255,99,.075); font-size: 14px; font-style: normal; font-weight: 900; cursor: pointer; transition: color .24s ease,border-color .24s ease,background .24s ease,transform .24s ease; }
 .place-card.is-active .place-add-trip { display: inline-flex; }
 .place-add-trip:hover,.place-add-trip:focus-visible { color: #11150d; border-color: var(--lime); background: var(--lime); transform: translateY(-2px); outline: none; }
+.guide-checklist { position: relative; display: none; width: 100%; margin: 22px 0 0; padding: 0; list-style: none; }
+.place-card.is-active .guide-checklist { display: grid; }
+.guide-checklist::before { content: ''; position: absolute; left: 17px; top: 18px; bottom: 18px; width: 1px; background: linear-gradient(var(--lime),rgba(200,255,99,.12)); }
+.guide-checklist li { position: relative; min-width: 0; display: grid; grid-template-columns: 36px minmax(0,1fr); align-items: center; gap: 13px; min-height: 52px; padding: 7px 0; color: rgba(255,255,255,.66); font-size: clamp(12px,.8vw,15px); line-height: 1.42; }
+.guide-checklist li b { position: relative; z-index: 1; display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid rgba(200,255,99,.62); border-radius: 50%; color: var(--lime); background: #0b0d0b; font: 850 10px/1 ui-monospace,monospace; box-shadow: 0 0 14px rgba(200,255,99,.08); }
+.guide-checklist li span { min-width: 0; }
+.place-card.is-active .place-add-trip { margin-top: 24px; }
 #gravity-home-toast { position: fixed; z-index: 260; left: 50%; bottom: 34px; max-width: min(520px,calc(100% - 32px)); padding: 14px 20px; border: 1px solid rgba(200,255,99,.4); border-radius: 14px; color: #efffd8; background: rgba(12,16,12,.94); box-shadow: 0 18px 54px rgba(0,0,0,.46),0 0 24px rgba(200,255,99,.08); font-size: 14px; font-weight: 800; opacity: 0; pointer-events: none; transform: translate(-50%,16px); transition: opacity .24s ease,transform .24s ease; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
 #gravity-home-toast[data-tone="error"] { border-color: rgba(255,116,116,.44); color: #ffd5d5; }
 #gravity-home-toast.is-visible { opacity: 1; transform: translate(-50%,0); }
@@ -948,6 +1124,10 @@ button { font: inherit; }
   .places-eyebrow small,.places-eyebrow span { display: none; }
   .places-eyebrow strong { font-size: 20px; }
   .place-add-trip { min-height: 36px; margin-top: 10px; padding-inline: 12px; border-radius: 11px; font-size: 11px; }
+  .guide-checklist { margin-top: 12px; }
+  .guide-checklist li { grid-template-columns: 28px minmax(0,1fr); gap: 8px; min-height: 38px; padding: 4px 0; font-size: 10px; }
+  .guide-checklist li b { width: 28px; height: 28px; font-size: 8px; }
+  .guide-checklist::before { left: 13px; }
 }
 
 /* 2026 editorial play-category system: title-first covers with six visual signatures. */

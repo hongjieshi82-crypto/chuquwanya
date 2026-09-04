@@ -53,7 +53,7 @@ export default function PcLandingScreen() {
       ref={iframeRef}
       allow="geolocation"
       aria-label="粗去玩鸭周末灵感首页"
-      src="/gravity-home/index.html?v=weekend-guides-53"
+      src="/gravity-home/index.html?v=unified-card-hover-67"
       style={{
         width: '100%',
         height: '100dvh',

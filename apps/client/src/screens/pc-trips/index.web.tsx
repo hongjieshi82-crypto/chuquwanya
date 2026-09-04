@@ -272,6 +272,10 @@ const tripsCss = `
   .pc-trips-toolbar-actions .ant-btn { width: 100%; padding-inline: 10px; }
   .pc-trips-refresh.ant-btn { width: 52px; }
 }
+
+/* Unified interactive-card hover. */
+.pc-trip-card.ant-card { transition: transform .34s cubic-bezier(.2,.8,.2,1),border-color .28s ease,box-shadow .34s ease; }
+.pc-trip-card.ant-card:hover,.pc-trip-card.ant-card:focus-within { transform: translateY(-6px) scale(1.01); border: 2px solid #c9ff62; box-shadow: 0 0 0 1px rgba(201,255,98,.18),0 26px 64px rgba(0,0,0,.42),0 0 30px rgba(201,255,98,.13); }
 `;
 
 function getErrorMessage(reason: unknown) {
