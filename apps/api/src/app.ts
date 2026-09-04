@@ -126,6 +126,7 @@ const drawSchema = z.object({
 
 const homeCommunityFeedSchema = z.object({
   cityId: z.coerce.number().int().positive().optional(),
+  sourceType: z.enum(["itinerary_workbook"]).optional(),
   channel: z
     .string()
     .trim()
@@ -1313,7 +1314,9 @@ export function createApp() {
     "/api/v1/activities",
     asyncRoute(async (request, response) => {
       const query = homeCommunityFeedSchema.parse(request.query);
-      const filters: string[] = ["a.is_active = TRUE", "a.content_status = 'published'", "a.content_score >= 70"];
+      const filters: string[] = query.sourceType === "itinerary_workbook"
+        ? ["a.is_active = TRUE", "a.source_type = 'itinerary_workbook'"]
+        : ["a.is_active = TRUE", "a.content_status = 'published'", "a.content_score >= 70"];
       const params: Array<string | number> = [];
       const tagFilters: Array<string | number> = [];
 

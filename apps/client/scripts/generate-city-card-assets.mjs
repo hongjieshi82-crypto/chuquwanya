@@ -7,7 +7,7 @@ const travelDir = join(root, 'public/media/travel');
 const outputDir = join(root, 'public/media/cards/cities');
 
 const cities = [
-  ['beijing', '北京', '古都人文', ['人文', '治愈'], 'beijing-cbd.jpg', '4.8', '古都轴线与公园绿意交织，适合一场不赶路的城市探索。'],
+  ['beijing', '北京', '古都人文', ['人文', '治愈'], 'beijing-cbd-card-web.jpg', '4.8', '古都轴线与公园绿意交织，适合一场不赶路的城市探索。'],
   ['shanghai', '上海', '都市漫游', ['美食', '人文'], 'shanghai.jpg', '4.9', '从街区漫游到滨江日落，把熟悉的城市换一种打开方式。'],
   ['hangzhou', '杭州', '湖山治愈', ['治愈', '松弛'], 'hangzhou.jpg', '4.9', '湖山、茶园与老街相连，慢慢走就能遇见好风景。'],
   ['shenzhen', '深圳', '山海轻户外', ['轻户外', '海边'], 'shenzhen.jpg', '4.8', '山海公园与年轻街区同框，适合随时出发的小冒险。'],

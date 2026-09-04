@@ -523,7 +523,7 @@ function setupCityRecommendations() {
     '城市散步': (place) => `从${place}开始随意转三个弯`,
   };
   const categoryChannels = {
-    '浪漫约会': '搭子', '休闲躺平': '治愈', '娱乐玩乐': '惊喜',
+    '浪漫约会': '约会', '休闲躺平': '治愈', '娱乐玩乐': '娱乐玩乐',
     '探险猎奇': '探索', '美食吃喝': '美食', '城市散步': 'City Walk',
   };
   const guideStepTemplates = {
@@ -753,23 +753,32 @@ function setupCityRecommendations() {
 
   cards.forEach((card, index) => {
     const addButton = card.querySelector('.place-add-trip');
+    const guidePayload = (type) => {
+      const category = card.querySelector('.place-card-copy small')?.textContent?.trim() || '城市散步';
+      return {
+        type,
+        cityId: cityIds[currentCity] || 1,
+        channel: categoryChannels[category] || category,
+        offset: recommendationOffset + index,
+      };
+    };
     const addTrip = (event) => {
       event.preventDefault();
       event.stopPropagation();
       if (pendingAddButton) return;
-      const category = card.querySelector('.place-card-copy small')?.textContent?.trim() || '城市散步';
       pendingAddButton = addButton;
       addButton.textContent = '正在加入…';
-      window.parent.postMessage({
-        type: 'gravity-home:add-trip',
-        cityId: cityIds[currentCity] || 1,
-        channel: categoryChannels[category] || category,
-        offset: recommendationOffset + index,
-      }, window.location.origin);
+      window.parent.postMessage(guidePayload('gravity-home:add-trip'), window.location.origin);
     };
     addButton?.addEventListener('click', addTrip);
     addButton?.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' || event.key === ' ') addTrip(event);
+    });
+    card.addEventListener('click', (event) => {
+      if (event.target.closest('.place-add-trip')) return;
+      event.preventDefault();
+      event.stopPropagation();
+      window.parent.postMessage(guidePayload('gravity-home:open-guide'), window.location.origin);
     });
   });
 

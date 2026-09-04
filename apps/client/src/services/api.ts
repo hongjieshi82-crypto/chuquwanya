@@ -704,11 +704,13 @@ export type RecommendedActivityItem = {
 export async function getRecommendedActivities(input: {
   cityId: number;
   channel?: string;
+  sourceType?: 'itinerary_workbook';
   limit?: number;
   offset?: number;
 }) {
   const params = new URLSearchParams({ cityId: String(input.cityId) });
   if (input.channel) params.set('channel', input.channel);
+  if (input.sourceType) params.set('sourceType', input.sourceType);
   params.set('limit', String(input.limit ?? 4));
   params.set('offset', String(input.offset ?? 0));
   return await withDemoFallback(

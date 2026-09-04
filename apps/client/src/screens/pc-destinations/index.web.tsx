@@ -271,7 +271,7 @@ export default function PcDestinationsScreen() {
               <div className="pc-destinations-grid">
                 {visibleItems.map((item, index) => (
                   <Card key={item.id} hoverable className={`pc-destinations-card pc-destinations-card-layout-${index % 3}`} onClick={() => { setIsExplorePreview(false); setSelected(item); }}>
-                    {cityCardAssetByName[item.name] ? <img className="pc-city-card-artwork" src={`/media/cards/cities/${cityCardAssetByName[item.name]}.png?v=city-master-6`} alt={`${item.name}·${item.categoryName}`} /> : <DestinationCover item={item} className="pc-city-card-artwork" />}
+                    {cityCardAssetByName[item.name] ? <img className="pc-city-card-artwork" src={`/media/cards/cities/${cityCardAssetByName[item.name]}.png?v=city-master-7`} alt={`${item.name}·${item.categoryName}`} /> : <DestinationCover item={item} className="pc-city-card-artwork" />}
                     <button className="pc-city-card-explore-hitarea" type="button" aria-label={`立刻探索${item.name}`} onClick={(event) => { event.stopPropagation(); setIsExplorePreview(true); setSelected(item); }} />
                   </Card>
                 ))}

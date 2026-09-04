@@ -188,6 +188,16 @@ export default function ActivityDetailScreen() {
   }
 
   const navigationUrl = buildNavigationUrl(activity);
+  const itinerarySteps = activity.steps.flatMap((entry) =>
+    entry.split(/[；;]/).flatMap((block) => {
+      const dayMatch = block.trim().match(/^(D\d+)\s*/i);
+      const dayLabel = dayMatch?.[1]?.toUpperCase();
+      const route = block.trim().replace(/^(D\d+)\s*/i, '');
+      return route.split('—').map((step) => step.trim()).filter(Boolean).map((step) =>
+        dayLabel ? `${dayLabel}：${step}` : step,
+      );
+    }),
+  );
   const mapAddress = activity.address.trim();
   const mapPoints =
     activity.longitude !== null && activity.latitude !== null
@@ -304,8 +314,8 @@ export default function ActivityDetailScreen() {
         <View style={[styles.section, isDesktopWeb && styles.desktopSection]}>
           <Text style={[styles.sectionTitle, isDesktopWeb && styles.desktopSectionTitle]}>行动路线</Text>
           <View style={styles.timeline}>
-            {(activity.steps.length > 0
-              ? activity.steps
+            {(itinerarySteps.length > 0
+              ? itinerarySteps
               : ['出发前：带耳机、充电宝和一本想翻的书。', '到达后：先点一杯饮品，再找靠窗位置坐下。', '完成标准：安静待够 20 分钟，拍一张完成照片。']
             ).map((step, index) => {
               const [heading, ...rest] = step.split(/[:：]/);
@@ -378,6 +388,20 @@ export default function ActivityDetailScreen() {
             />
           </View>
         </View>
+
+        {activity.tips.length > 0 ? (
+          <View style={[styles.section, isDesktopWeb && styles.desktopSection]}>
+            <Text style={[styles.sectionTitle, isDesktopWeb && styles.desktopSectionTitle]}>出发前确认</Text>
+            <View style={styles.tripTips}>
+              {activity.tips.map((tip, index) => (
+                <View style={styles.tripTipItem} key={`${tip}-${index}`}>
+                  <Text style={[styles.tripTipIndex, isDesktopWeb && styles.desktopTripTipIndex]}>{String(index + 1).padStart(2, '0')}</Text>
+                  <Text style={[styles.tripTipText, isDesktopWeb && styles.desktopBodyText]}>{tip}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
 
         <View style={[styles.actions, isDesktopWeb && styles.desktopActions]}>
           <Pressable
@@ -575,6 +599,10 @@ const styles = StyleSheet.create({
   timelineCopy: { flex: 1, minWidth: 0 },
   timelineTitle: { color: palette.ink, fontSize: typography.body, fontWeight: '900' },
   timelineBody: { marginTop: 3, color: palette.muted, fontSize: typography.caption, lineHeight: 18, fontWeight: '800' },
+  tripTips: { gap: spacing.sm },
+  tripTipItem: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+  tripTipIndex: { color: palette.primary, fontSize: 11, fontWeight: '900' },
+  tripTipText: { flex: 1, minWidth: 0, color: palette.text, fontSize: typography.caption, lineHeight: 20, fontWeight: '700' },
   actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
   lightButton: {
     flex: 1,
@@ -709,6 +737,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(201,255,98,.055)',
   },
   desktopBodyText: { color: 'rgba(255,255,255,.58)', fontSize: 15, lineHeight: 25 },
+  desktopTripTipIndex: { color: '#c9ff62', fontSize: 12, lineHeight: 25 },
   desktopMapSection: {
     padding: 24,
     borderWidth: 1,
