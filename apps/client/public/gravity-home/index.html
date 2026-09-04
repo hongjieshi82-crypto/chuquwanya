@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0d0d13" />
     <title>粗去玩鸭！· 重力首页样式预览</title>
-    <link rel="stylesheet" href="./style.css?v=nav-unified-1" />
+    <link rel="stylesheet" href="./style.css?v=natural-detail-scroll-45" />
   </head>
   <body>
     <header class="topbar">
@@ -53,77 +53,112 @@
       </section>
 
       <section class="screen styles-screen" id="styles" data-section="styles" data-index="2">
-        <div class="section-heading">
-          <h2>今天想怎么玩</h2>
-          <p>先选一个旅行风格，再看看这次周末适合往哪个方向走。</p>
-        </div>
-        <div class="style-deck">
-          <a class="style-card photo-style-card" href="/theme?preset=scene" target="_top">
-            <img src="/media/travel/beijing-798-art-district.jpg" alt="北京798艺术区" />
-            <div class="style-photo-shade"></div>
-            <div class="style-card-top"><span>01</span><b>SCENE</b></div>
-            <div class="style-card-copy"><small>风景人文</small><h3>去看山海与故事</h3><p>自然风景、历史建筑与当地文化。</p></div>
-          </a>
-          <a class="style-card photo-style-card" href="/theme?preset=theme" target="_top">
-            <img src="/media/travel/shanghai-wukang-road.jpg" alt="上海武康路" />
-            <div class="style-photo-shade"></div>
-            <div class="style-card-top"><span>02</span><b>WANDER</b></div>
-            <div class="style-card-copy"><small>随心漫游</small><h3>慢一点逛一座城</h3><p>城市散步、街区探索与轻松户外。</p></div>
-          </a>
-          <a class="style-card photo-style-card" href="/theme?preset=audience" target="_top">
-            <img src="/media/travel/shenzhen-lianhuashan.jpg" alt="深圳莲花山" />
-            <div class="style-photo-shade"></div>
-            <div class="style-card-top"><span>03</span><b>TOGETHER</b></div>
-            <div class="style-card-copy"><small>结伴同行</small><h3>和喜欢的人出发</h3><p>适合朋友、情侣与亲子的周末体验。</p></div>
-          </a>
-          <a class="style-card photo-style-card" href="/theme?preset=food" target="_top">
-            <img src="/media/travel/guangzhou-yongqingfang.jpg" alt="广州永庆坊" />
-            <div class="style-photo-shade"></div>
-            <div class="style-card-top"><span>04</span><b>TASTE</b></div>
-            <div class="style-card-copy"><small>寻味探购</small><h3>沿着烟火气去逛</h3><p>美食、夜市、老街与当地生活。</p></div>
-          </a>
+        <div class="styles-sticky">
+          <div class="section-heading">
+            <div class="heading-title-row">
+              <h2>今天想怎么玩</h2>
+              <form class="city-switcher city-switcher-secondary">
+                <label for="city-input-secondary">当前城市</label>
+                <select id="city-input-secondary" data-city-input name="city" aria-label="选择城市"><option value="北京">北京</option><option value="上海">上海</option><option value="杭州">杭州</option><option value="深圳">深圳</option><option value="天津">天津</option><option value="烟台">烟台</option><option value="青岛">青岛</option><option value="南京">南京</option><option value="武汉">武汉</option><option value="成都">成都</option><option value="西安">西安</option><option value="长沙">长沙</option><option value="广州">广州</option><option value="合肥">合肥</option><option value="重庆">重庆</option><option value="厦门">厦门</option><option value="济南">济南</option><option value="昆明">昆明</option></select>
+                <button type="submit">切换</button>
+              </form>
+            </div>
+          </div>
+          <div class="motion-gallery" aria-label="旅行风格图片流">
+            <div class="motion-lane" data-motion-lane data-direction="1">
+              <a href="/theme?preset=scene" target="_top"><img src="/media/travel/chengdu.jpg" alt="成都城市与雪山" /><span>山海远行</span></a>
+              <a href="/theme?preset=theme" target="_top"><img src="/media/travel/shanghai.jpg" alt="上海夜景" /><span>城市夜游</span></a>
+              <a href="/theme?preset=scene" target="_top"><img src="/media/travel/beijing-798-art-district.jpg" alt="北京 798 艺术区" /><span>艺术人文</span></a>
+            </div>
+            <div class="motion-lane motion-lane-offset" data-motion-lane data-direction="-1">
+              <a href="/theme?preset=food" target="_top"><img src="/media/travel/guangzhou-yongqingfang.jpg" alt="广州永庆坊" /><span>寻味老街</span></a>
+              <a href="/theme?preset=audience" target="_top"><img src="/media/travel/xiamen.jpg" alt="厦门城市夜景" /><span>结伴同行</span></a>
+              <a href="/theme?preset=scene" target="_top"><img src="/media/travel/beijing.jpg" alt="北京故宫" /><span>历史建筑</span></a>
+            </div>
+            <div class="motion-lane" data-motion-lane data-direction="1">
+              <a href="/theme?preset=theme" target="_top"><img src="/media/travel/tianjin-five-avenues.jpg" alt="天津五大道" /><span>建筑漫游</span></a>
+              <a href="/theme?preset=food" target="_top"><img src="/media/travel/jinan-qushuiting-daming-lake.jpg" alt="济南曲水亭" /><span>城市日常</span></a>
+              <a href="/theme?preset=theme" target="_top"><img src="/media/travel/chongqing.jpg" alt="重庆夜景" /><span>山城漫游</span></a>
+            </div>
+          </div>
         </div>
       </section>
 
       <section class="screen places-screen" id="places" data-section="places" data-index="3">
+        <div class="places-sticky">
         <div class="places-heading">
-          <h2>这周可以直接出发</h2>
-          <p>挑一个有画面感的地点先看看，喜欢就继续了解完整玩法。</p>
+          <div class="heading-title-row">
+          <h2>原来周末还能这样玩</h2>
+          <form class="city-switcher" id="city-switcher">
+            <label for="city-input">当前城市</label>
+            <select id="city-input" data-city-input name="city" aria-label="选择城市"><option value="北京">北京</option><option value="上海">上海</option><option value="杭州">杭州</option><option value="深圳">深圳</option><option value="天津">天津</option><option value="烟台">烟台</option><option value="青岛">青岛</option><option value="南京">南京</option><option value="武汉">武汉</option><option value="成都">成都</option><option value="西安">西安</option><option value="长沙">长沙</option><option value="广州">广州</option><option value="合肥">合肥</option><option value="重庆">重庆</option><option value="厦门">厦门</option><option value="济南">济南</option><option value="昆明">昆明</option></select>
+            <button type="submit">切换</button>
+          </form>
+          </div>
+          <p><span data-current-city>北京</span>周末不必走远，看看这一天或两天能怎么玩。</p>
         </div>
-        <div class="place-grid">
-          <a class="place-card" href="/destinations?destinationId=1" target="_top">
-            <img src="/media/travel/beijing-olympic-forest.jpg" alt="北京奥林匹克森林公园" />
-            <div class="place-shade"></div>
-            <div class="place-card-top"><span>北京</span><b>♡ 热度 90</b></div>
+          <div class="place-grid">
+          <a class="place-card" data-order="01" href="/destinations?destinationId=1" target="_top">
+            <div class="place-card-top"><span>01</span><b>北京 · 2 人 · 半天</b></div>
             <div class="place-card-copy">
+              <small>公园漫游</small>
               <h3>在奥森盲走一段林间路</h3>
               <p>不设终点，沿着树影和鸟声走四十分钟。</p>
-              <strong>北京 · 4.6分</strong>
-              <em>查看这个玩法 →</em>
+              <strong>公园漫游 · 轻松户外</strong>
+              <em>看看怎么玩 →</em>
+            </div>
+            <div class="place-media">
+              <img src="/media/travel/beijing-olympic-forest.jpg" alt="北京奥林匹克森林公园" />
+              <img src="/media/travel/beijing-wudaoying-hutong.jpg" alt="北京五道营胡同" />
+              <img src="/media/travel/beijing-798-art-district.jpg" alt="北京 798 艺术区" />
             </div>
           </a>
-          <a class="place-card" href="/destinations?destinationId=2" target="_top">
-            <img src="/media/travel/shanghai-wukang-road.jpg" alt="上海武康路" />
-            <div class="place-shade"></div>
-            <div class="place-card-top"><span>上海</span><b>♡ 热度 95</b></div>
+          <a class="place-card" data-order="02" href="/destinations?destinationId=2" target="_top">
+            <div class="place-card-top"><span>02</span><b>上海 · 2 人 · 3 小时</b></div>
             <div class="place-card-copy">
-              <h3>武康路建筑色卡挑战</h3>
-              <p>沿老街收集五种颜色，顺便发现一家没去过的小店。</p>
-              <strong>上海 · 4.6分</strong>
-              <em>查看这个玩法 →</em>
+              <small>城市漫游</small>
+              <h3>去武康路收集五种城市颜色</h3>
+              <p>沿着梧桐街区慢走，用照片收集砖红、树影和橱窗。</p>
+              <strong>城市漫游 · 拍照任务</strong>
+              <em>看看怎么玩 →</em>
+            </div>
+            <div class="place-media">
+              <img src="/media/travel/shanghai-wukang-road.jpg" alt="上海武康路" />
+              <img src="/media/travel/shanghai-xuhui-riverside.jpg" alt="上海徐汇滨江" />
+              <img src="/media/travel/shanghai.jpg" alt="上海城市风景" />
             </div>
           </a>
-          <a class="place-card" href="/destinations?destinationId=3" target="_top">
-            <img src="/media/travel/hangzhou.jpg" alt="杭州西湖" />
-            <div class="place-shade"></div>
-            <div class="place-card-top"><span>杭州</span><b>♡ 热度 91</b></div>
+          <a class="place-card" data-order="03" href="/destinations?destinationId=3" target="_top">
+            <div class="place-card-top"><span>03</span><b>杭州 · 2 人 · 傍晚</b></div>
             <div class="place-card-copy">
+              <small>湖畔骑行</small>
               <h3>骑到西湖边等一场日落</h3>
               <p>沿湖轻骑，把终点交给当天最好看的那束光。</p>
-              <strong>杭州 · 4.6分</strong>
-              <em>查看这个玩法 →</em>
+              <strong>湖畔骑行 · 日落任务</strong>
+              <em>看看怎么玩 →</em>
+            </div>
+            <div class="place-media">
+              <img src="/media/travel/hangzhou.jpg" alt="杭州西湖" />
+              <img src="/media/travel/wuhan-east-lake-greenway.jpg" alt="湖畔绿道" />
+              <img src="/media/travel/xiamen-huandao-road.jpg" alt="环岛骑行风景" />
             </div>
           </a>
+          <a class="place-card" data-order="04" href="/destinations?destinationId=4" target="_top">
+            <div class="place-card-top"><span>04</span><b>成都 · 2 人 · 午后</b></div>
+            <div class="place-card-copy">
+              <small>茶馆闲坐</small>
+              <h3>在人民公园消磨一个下午</h3>
+              <p>喝盖碗茶、看老人下棋，把时间调成成都速度。</p>
+              <strong>茶馆闲坐 · 城市观察</strong>
+              <em>看看怎么玩 →</em>
+            </div>
+            <div class="place-media">
+              <img src="/media/travel/chengdu-people-park.jpg" alt="成都人民公园" />
+              <img src="/media/travel/chengdu.jpg" alt="成都城市风景" />
+              <img src="/media/travel/chongqing-shancheng-alley.jpg" alt="巴蜀老街" />
+            </div>
+          </a>
+          </div>
         </div>
       </section>
 
@@ -145,6 +180,6 @@
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js"></script>
-    <script src="./app.js?v=navigation-bridge-1"></script>
+    <script src="./app.js?v=natural-detail-scroll-45"></script>
   </body>
 </html>

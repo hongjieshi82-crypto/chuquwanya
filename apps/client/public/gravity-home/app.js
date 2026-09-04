@@ -299,6 +299,310 @@ function setupGravityField() {
   window.addEventListener('pagehide', () => cancelAnimationFrame(frameId), { once: true });
 }
 
+function setupScrollStory() {
+  const stage = document.querySelector('.snap-stage');
+  const stylesSection = document.querySelector('.styles-screen');
+  const lanes = [...document.querySelectorAll('[data-motion-lane]')];
+  const cards = [...document.querySelectorAll('.place-card')];
+  const placesSection = document.querySelector('.places-screen');
+  const placesSticky = document.querySelector('.places-sticky');
+  const placesHeading = document.querySelector('.places-heading');
+  const placeGrid = document.querySelector('.place-grid');
+  if (!stage || !stylesSection || !lanes.length) return;
+
+  const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
+  const sectionProgress = (section) => {
+    const distance = Math.max(section.offsetHeight - stage.clientHeight, 1);
+    return clamp((stage.scrollTop - section.offsetTop) / distance);
+  };
+  let frame = 0;
+  let previewIndex = null;
+  let stackPreviewUnlocked = false;
+
+  const update = () => {
+    frame = 0;
+    const galleryProgress = clamp(sectionProgress(stylesSection) / .78);
+    const galleryTravel = Math.min(stage.clientWidth * .09, 150);
+    lanes.forEach((lane, index) => {
+      if (stylesSection.classList.contains('is-static-grid')) {
+        lane.style.removeProperty('transform');
+        return;
+      }
+      const direction = Number(lane.dataset.direction) || 1;
+      const horizontalOffset = (galleryProgress - .5) * galleryTravel * direction * (1 + index * .08);
+      lane.style.transform = `translate3d(${horizontalOffset}px, 0, 0)`;
+    });
+
+    if (placesSection && placeGrid && cards.length) {
+      const rawStackProgress = sectionProgress(placesSection);
+      const stackProgress = clamp((rawStackProgress - .04) / .7);
+      const placesScrollDistance = Math.max(placesSection.offsetHeight - stage.clientHeight, 1);
+      const detailScrollStart = placesSection.offsetTop + placesScrollDistance * .84;
+      const detailScrollPixels = Math.max(0, stage.scrollTop - detailScrollStart);
+      const placesEnd = placesSection.offsetTop + placesScrollDistance;
+      stage.classList.toggle(
+        'is-natural-card-detail',
+        rawStackProgress >= .84 && stage.scrollTop < placesEnd - 2,
+      );
+      stackPreviewUnlocked = stackProgress >= .999;
+      if (!stackPreviewUnlocked) previewIndex = null;
+      const total = stackProgress * (cards.length - 1);
+      const gridHeight = placeGrid.getBoundingClientRect().height;
+      const measuredHeaderHeight = Math.max(...cards.map((card) => {
+        const cardRect = card.getBoundingClientRect();
+        const numberRect = card.querySelector('.place-card-top').getBoundingClientRect();
+        const copyRect = card.querySelector('.place-card-copy').getBoundingClientRect();
+        return Math.max(numberRect.bottom, copyRect.bottom) - cardRect.top;
+      }));
+      const peek = Math.ceil(measuredHeaderHeight + (stage.clientWidth <= 640 ? 10 : 18));
+      const bottomGap = stage.clientWidth <= 640 ? 18 : 36;
+      const stickyPaddingTop = placesSticky ? parseFloat(getComputedStyle(placesSticky).paddingTop) || 0 : 0;
+      const cardHeight = Math.min(
+        placeGrid.clientWidth / 1.75,
+        (placesSticky?.clientHeight ?? stage.clientHeight) - stickyPaddingTop - bottomGap,
+      );
+      const displayCardHeight = cardHeight;
+      placeGrid.style.setProperty('--weekend-card-height', `${displayCardHeight}px`);
+      const activeIndex = previewIndex ?? Math.min(cards.length - 1, Math.floor(total + .5));
+      cards.forEach((card, index) => {
+        const initialY = index === 0 ? 0 : displayCardHeight + (index - 1) * peek;
+        const linearArrival = previewIndex === null
+          ? (index === 0 ? 1 : clamp(total - (index - 1)))
+          : (index <= previewIndex ? 1 : 0);
+        const arrival = linearArrival * linearArrival * (3 - 2 * linearArrival);
+        const targetY = index * peek;
+        const y = initialY - arrival * (initialY - targetY);
+        card.style.removeProperty('height');
+        card.style.zIndex = String(index + 1);
+        card.style.transform = `translate3d(0, ${y}px, 0)`;
+        card.classList.toggle('is-active', index === activeIndex);
+      });
+      const revealedIndex = previewIndex ?? cards.length - 1;
+      const headingLift = Math.max(0, placeGrid.offsetTop - stickyPaddingTop);
+      const requiredGridOffset = headingLift + revealedIndex * peek;
+      const gridOffset = previewIndex === null
+        ? Math.min(requiredGridOffset, detailScrollPixels)
+        : requiredGridOffset;
+      const revealProgress = previewIndex === null
+        ? clamp(detailScrollPixels / Math.max(requiredGridOffset, 1))
+        : 1;
+      placeGrid.style.transform = `translate3d(0, ${-gridOffset}px, 0)`;
+      if (placesHeading) {
+        placesHeading.style.opacity = String(1 - revealProgress);
+        placesHeading.style.transform = `translate3d(0, ${-revealProgress * (placesHeading.offsetHeight + 24)}px, 0)`;
+        placesHeading.style.pointerEvents = revealProgress > .2 ? 'none' : 'auto';
+      }
+      placesSticky?.classList.toggle('is-previewing-card', previewIndex !== null);
+    }
+  };
+
+  const requestUpdate = () => {
+    if (!frame) frame = requestAnimationFrame(update);
+  };
+  stage.addEventListener('scroll', requestUpdate, { passive: true });
+  window.addEventListener('resize', requestUpdate);
+  cards.forEach((card, index) => {
+    card.addEventListener('pointerenter', () => {
+      if (!stackPreviewUnlocked) return;
+      previewIndex = index;
+      requestUpdate();
+    });
+    card.addEventListener('focus', () => {
+      if (!stackPreviewUnlocked) return;
+      previewIndex = index;
+      requestUpdate();
+    });
+  });
+  placeGrid?.addEventListener('pointerleave', () => {
+    previewIndex = null;
+    requestUpdate();
+  });
+  placeGrid?.addEventListener('focusout', (event) => {
+    if (placeGrid.contains(event.relatedTarget)) return;
+    previewIndex = null;
+    requestUpdate();
+  });
+  update();
+}
+
+function setupCityRecommendations() {
+  const forms = [...document.querySelectorAll('.city-switcher')];
+  const inputs = [...document.querySelectorAll('[data-city-input]')];
+  const cityLabel = document.querySelector('[data-current-city]');
+  const cards = [...document.querySelectorAll('.place-card')];
+  if (!forms.length || !inputs.length || !cityLabel || cards.length !== 4) return;
+
+  const image = (name) => `/media/travel/${name}.jpg`;
+  const catalog = {
+    '北京': [
+      ['公园漫游', '在奥森盲走一段林间路', '1 天 · 2 人', ['beijing-olympic-forest', 'beijing-wudaoying-hutong', 'beijing-798-art-district']],
+      ['胡同漫游', '在五道营胡同随机转三次弯', '1 天 · 1–3 人', ['beijing-wudaoying-hutong', 'beijing-zhuanta-hutong', 'beijing']],
+      ['艺术搜集', '去 798 只看一种颜色的作品', '1 天 · 1–4 人', ['beijing-798-art-district', 'beijing-olympic-forest', 'beijing-zhuanta-hutong']],
+      ['城市人文', '用两天收集北京的新与旧', '2 天 · 2 人', ['beijing-zhuanta-hutong', 'beijing-cbd', 'beijing-cbd']],
+    ],
+    '上海': [
+      ['城市漫游', '去武康路收集五种城市颜色', '1 天 · 2 人', ['shanghai-wukang-road', 'shanghai-xuhui-riverside', 'shanghai']],
+      ['滨江散步', '在徐汇滨江等一场蓝调时刻', '1 天 · 1–2 人', ['shanghai-xuhui-riverside', 'shanghai', 'shanghai-wukang-road']],
+      ['建筑探索', '沿梧桐区只找圆形的建筑细节', '1 天 · 2 人', ['shanghai-wukang-road', 'tianjin-five-avenues', 'shanghai-xuhui-riverside']],
+      ['城市切片', '用两天从老街走到江边夜景', '2 天 · 2 人', ['shanghai', 'shanghai-wukang-road', 'shanghai-xuhui-riverside']],
+    ],
+    '杭州': [
+      ['湖畔骑行', '骑到西湖边等一场日落', '1 天 · 2 人', ['hangzhou', 'wuhan-east-lake-greenway', 'xiamen-huandao-road']],
+      ['湖边慢走', '沿西湖只走没走过的小路', '1 天 · 1–2 人', ['hangzhou', 'kunming-cuihu-park', 'wuhan-east-lake-greenway']],
+      ['早起计划', '赶在人群之前看一次西湖晨光', '1 天 · 2 人', ['hangzhou', 'jinan-qushuiting-daming-lake', 'wuhan-east-lake-greenway']],
+      ['山水周末', '用两天在湖景与老街之间切换', '2 天 · 2 人', ['hangzhou', 'nanjing-lingyuan-road', 'kunming-cuihu-park']],
+    ],
+    '成都': [
+      ['茶馆闲坐', '在人民公园消磨一个下午', '1 天 · 2 人', ['chengdu-people-park', 'chengdu', 'chongqing-shancheng-alley']],
+      ['城市观察', '坐在茶馆里记下五种成都声音', '1 天 · 1–2 人', ['chengdu-people-park', 'jinan-qushuiting-daming-lake', 'chengdu']],
+      ['街巷寻味', '只点没吃过的三样小吃', '1 天 · 2–4 人', ['chengdu', 'guangzhou-yongqingfang', 'chengdu-people-park']],
+      ['松弛周末', '用两天把时间调成成都速度', '2 天 · 2 人', ['chengdu', 'chengdu-people-park', 'chongqing-shancheng-alley']],
+    ],
+    '广州': [
+      ['西关夜游', '在永庆坊吃一场西关夜游', '1 天 · 2 人', ['guangzhou-yongqingfang', 'guangzhou', 'shenzhen']],
+      ['骑楼漫游', '只沿着骑楼的阴影往前走', '1 天 · 1–2 人', ['guangzhou-yongqingfang', 'guangzhou', 'shanghai-wukang-road']],
+      ['寻味任务', '每人只选一样没吃过的广式小吃', '1 天 · 2–4 人', ['guangzhou-yongqingfang', 'chengdu-people-park', 'guangzhou']],
+      ['岭南周末', '用两天从老城烟火走到珠江夜色', '2 天 · 2 人', ['guangzhou', 'guangzhou-yongqingfang', 'shenzhen']],
+    ],
+    '深圳': [
+      ['城市风景', '登上莲花山看城市亮灯', '1 天 · 2 人', ['shenzhen-lianhuashan', 'shenzhen', 'hefei-swan-lake']],
+      ['滨海漫游', '在海风里走到天色变蓝', '1 天 · 1–2 人', ['shenzhen', 'xiamen-huandao-road', 'shenzhen-lianhuashan']],
+      ['公园任务', '去城市中心找一条没走过的绿道', '1 天 · 2 人', ['shenzhen-lianhuashan', 'wuhan-east-lake-greenway', 'shenzhen']],
+      ['山海周末', '用两天从城市山顶走到海边', '2 天 · 2 人', ['shenzhen', 'shenzhen-lianhuashan', 'xiamen']],
+    ],
+  };
+  const cityProfiles = {
+    '北京': [
+      ['奥森林间', '五道营胡同', '798 艺术区', '砖塔胡同', '故宫角楼', '景山中轴线', '什刹海', '国贸 CBD', '首钢园'],
+      ['beijing-olympic-forest', 'beijing-wudaoying-hutong', 'beijing-798-art-district', 'beijing-zhuanta-hutong', 'beijing', 'beijing-jingshan', 'beijing-shichahai', 'beijing-cbd', 'beijing-shougang'],
+    ],
+    '上海': [['武康路', '徐汇滨江', '外滩夜景'], ['shanghai-wukang-road', 'shanghai-xuhui-riverside', 'shanghai']],
+    '杭州': [['西湖北山街', '湖畔绿道', '老街茶馆'], ['hangzhou', 'wuhan-east-lake-greenway', 'jinan-qushuiting-daming-lake']],
+    '深圳': [['莲花山', '滨海步道', '福田夜景'], ['shenzhen-lianhuashan', 'shenzhen', 'hefei-swan-lake']],
+    '天津': [['五大道', '海河沿岸', '民园广场'], ['tianjin-five-avenues', 'tianjin', 'tianjin-five-avenues']],
+    '烟台': [['海边灯塔', '老城街巷', '滨海日落'], ['yantai', 'tianjin-five-avenues', 'xiamen-huandao-road']],
+    '青岛': [['八大关', '海边栈道', '老城红瓦'], ['qingdao-badaguan', 'qingdao', 'shanghai-wukang-road']],
+    '南京': [['陵园路', '民国建筑群', '梧桐树影'], ['nanjing-lingyuan-road', 'nanjing', 'nanjing-lingyuan-road']],
+    '武汉': [['东湖绿道', '汉口老建筑', '江滩日落'], ['wuhan-east-lake-greenway', 'wuhan', 'hefei-swan-lake']],
+    '成都': [['人民公园', '老茶馆', '城市与雪山'], ['chengdu-people-park', 'chengdu-people-park', 'chengdu']],
+    '西安': [['明城墙', '钟楼夜色', '老城巷子'], ['xian-city-wall', 'xian', 'beijing-zhuanta-hutong']],
+    '长沙': [['橘子洲', '岳麓山脚', '湘江夜色'], ['changsha-orange-isle', 'changsha', 'chongqing']],
+    '广州': [['永庆坊', '西关骑楼', '珠江夜色'], ['guangzhou-yongqingfang', 'guangzhou-yongqingfang', 'guangzhou']],
+    '合肥': [['天鹅湖', '城市绿道', '湖畔夜景'], ['hefei-swan-lake', 'hefei', 'hefei-swan-lake']],
+    '重庆': [['山城巷', '两江夜景', '立体街道'], ['chongqing-shancheng-alley', 'chongqing', 'chongqing-shancheng-alley']],
+    '厦门': [['环岛路', '海边日落', '老城骑楼'], ['xiamen-huandao-road', 'xiamen', 'guangzhou-yongqingfang']],
+    '济南': [['曲水亭街', '大明湖', '泉水人家'], ['jinan-qushuiting-daming-lake', 'jinan', 'jinan-qushuiting-daming-lake']],
+    '昆明': [['翠湖公园', '老城花市', '湖畔日落'], ['kunming-cuihu-park', 'kunming', 'kunming-cuihu-park']],
+  };
+  const activityCategories = ['慢游', '拍照任务', '日落计划'];
+  const activityTemplates = [
+    (place) => `去${place}不设终点地慢走`,
+    (place) => `在${place}收集三种当地颜色`,
+    (place) => `把${place}留到日落以后`,
+  ];
+  const buildCityActivities = (city) => {
+    const [places, images] = cityProfiles[city];
+    if (places.length >= 9) {
+      return places.slice(0, 9).map((place, index) => ({
+        category: activityCategories[index % activityCategories.length],
+        title: activityTemplates[index % activityTemplates.length](place),
+        image: images[index],
+      }));
+    }
+    return places.flatMap((place) => activityTemplates.map((template, index) => ({
+      category: activityCategories[index], title: template(place), image: images[index],
+    })));
+  };
+  Object.keys(cityProfiles).forEach((city) => {
+    if (catalog[city]) return;
+    const activities = buildCityActivities(city);
+    catalog[city] = activities.slice(0, 4).map((activity, index) => [
+      activity.category,
+      activity.title,
+      index === 3 ? '2 天 · 2 人' : '1 天 · 1–2 人',
+      [activity.image, cityProfiles[city][1][(index + 1) % 3], cityProfiles[city][1][(index + 2) % 3]],
+    ]);
+  });
+  const cityCoordinates = {
+    '北京': [39.9042, 116.4074], '上海': [31.2304, 121.4737], '杭州': [30.2741, 120.1551], '深圳': [22.5431, 114.0579],
+    '天津': [39.0842, 117.2009], '烟台': [37.4638, 121.4479], '青岛': [36.0671, 120.3826], '南京': [32.0603, 118.7969],
+    '武汉': [30.5928, 114.3055], '成都': [30.5728, 104.0668], '西安': [34.3416, 108.9398], '长沙': [28.2282, 112.9388],
+    '广州': [23.1291, 113.2644], '合肥': [31.8206, 117.2272], '重庆': [29.4316, 106.9123], '厦门': [24.4798, 118.0894],
+    '济南': [36.6512, 117.1201], '昆明': [25.0389, 102.7183],
+  };
+  const normalizeCity = (value) => value.trim().replace(/[市区]$/, '');
+
+  const applyCity = (requestedCity, persist = true) => {
+    const normalized = normalizeCity(requestedCity);
+    const city = Object.keys(catalog).find((name) => normalizeCity(name) === normalized) || '北京';
+    inputs.forEach((input) => { input.value = city; });
+    cityLabel.textContent = city;
+    const galleryActivities = buildCityActivities(city);
+    document.querySelectorAll('.motion-lane a').forEach((item, index) => {
+      const activity = galleryActivities[index];
+      item.querySelector('img').src = image(activity.image);
+      item.querySelector('img').alt = `${city}${activity.title}`;
+      item.querySelector('span').textContent = activity.title;
+      item.href = `/theme?preset=theme&cityName=${encodeURIComponent(city)}`;
+    });
+    cards.forEach((card, index) => {
+      const [category, title, meta, images] = catalog[city][index];
+      card.classList.toggle('is-contrast-card', index === 3);
+      card.querySelector('.place-card-top b').textContent = `${city} · ${meta}`;
+      card.querySelector('.place-card-copy small').textContent = category;
+      card.querySelector('.place-card-copy h3').textContent = title;
+      const media = card.querySelector('.place-media');
+      media.dataset.leftLabel = city === '北京' ? '旧北京 · 胡同' : '第一天';
+      media.dataset.rightLabel = city === '北京' ? '新北京 · CBD' : '第二天';
+      media.querySelectorAll('img').forEach((node, imageIndex) => {
+        node.src = image(images[imageIndex]);
+        node.alt = `${city}${category}玩法场景`;
+      });
+      card.href = `/destinations?cityName=${encodeURIComponent(city)}`;
+    });
+    if (persist) {
+      localStorage.setItem('@weekend-oracle/home-city', city);
+      localStorage.setItem('@weekend-oracle/pc-located-city', JSON.stringify({
+        name: city, latitude: null, longitude: null, accuracyMeters: null, source: 'manual', savedAt: Date.now(),
+      }));
+    }
+  };
+
+  forms.forEach((form) => form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    applyCity(form.elements.city.value);
+  }));
+  inputs.forEach((input) => input.addEventListener('change', () => applyCity(input.value)));
+
+  let restoredCity = localStorage.getItem('@weekend-oracle/home-city');
+  if (!restoredCity) {
+    try {
+      restoredCity = JSON.parse(localStorage.getItem('@weekend-oracle/pc-located-city') || 'null')?.name || null;
+    } catch {
+      restoredCity = null;
+    }
+  }
+  applyCity(restoredCity || '北京', false);
+
+  if (!restoredCity && navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(({ coords }) => {
+      let nearestCity = '北京';
+      let nearestDistance = Infinity;
+      Object.entries(cityCoordinates).forEach(([city, [latitude, longitude]]) => {
+        const distance = Math.hypot(coords.latitude - latitude, (coords.longitude - longitude) * Math.cos(coords.latitude * Math.PI / 180));
+        if (distance < nearestDistance) {
+          nearestCity = city;
+          nearestDistance = distance;
+        }
+      });
+      if (nearestDistance < 2.5) applyCity(nearestCity, false);
+    }, () => applyCity('北京', false), { maximumAge: 86_400_000, timeout: 5_000 });
+  }
+}
+
 setupSectionObserver();
 setupGravityField();
 setupAppNavigationBridge();
+document.querySelector('.styles-screen')?.classList.add('is-static-grid');
+setupScrollStory();
+setupCityRecommendations();

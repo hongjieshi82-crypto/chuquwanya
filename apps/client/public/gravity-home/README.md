@@ -7,6 +7,13 @@
 - 图标来自桌面原始 960×960 PNG，仅在本目录生成 256×256 AVIF 轻量副本。
 - 36 张原图约 50MB；预览副本合计约 1MB，透明背景保留。
 
+## 图片授权
+
+- `beijing-cbd.jpg`：Yang Liu，[Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Beijing_CBD_sunset_-_Flickr.jpg)，CC BY-SA 2.0。
+- `beijing-jingshan.jpg`：Tojan76，[Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Forbidden_City_Panorama_4.JPG)，CC BY-SA 3.0。
+- `beijing-shichahai.jpg`：FANG Chen，[Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Beijing_Shichahai_1.jpg)，CC BY-SA 2.0。
+- `beijing-shougang.jpg`：N509FZ，[Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Shangri-La_Shougang_Park,_Beijing_(20230322143321).jpg)，CC BY-SA 4.0。
+
 启动前端后访问：
 
 ```text
