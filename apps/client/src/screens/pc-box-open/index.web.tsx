@@ -59,7 +59,10 @@ type PcIconProps = SVGProps<SVGSVGElement> & {
 type DrawOutcome = { ok: true } | { ok: false; reason: unknown };
 
 function getRequestedDays(input: PendingPcBoxDraw) {
-  const matched = input.preferences.travelDurationLabel?.match(/\d+/);
+  const durationLabel = input.preferences.travelDurationLabel;
+  if (durationLabel === '周末游') return 2;
+  if (durationLabel === '小长假') return 4;
+  const matched = durationLabel?.match(/\d+/);
   return matched ? Number(matched[0]) : 1;
 }
 
@@ -365,20 +368,19 @@ export default function PcBoxOpenScreen() {
       const requestedDays = getRequestedDays(input);
       const multiDayBudget = input.preferences.budgetMax === null
         ? null
-        : input.preferences.budgetMax * requestedDays * input.preferences.partySize;
-      const budgetTier = input.preferences.budgetLabel === '轻奢'
+        : input.preferences.budgetMax * input.preferences.partySize;
+      const budgetTier = input.preferences.budgetLabel === '品质享受'
         ? 'luxury'
-        : input.preferences.budgetLabel === '舒适'
+        : input.preferences.budgetLabel === '舒服躺玩'
           ? 'premium'
-          : input.preferences.budgetLabel === '穷游'
-            ? 'budget'
-            : 'standard';
+          : 'standard';
       const operation = requestedDays > 1
         ? composeMultiDayTrip({
             cityId: input.cityId,
             originName: input.preferences.originName,
             days: requestedDays,
             travelers: input.preferences.partySize,
+            budgetMin: (input.preferences.budgetMin ?? 0) * input.preferences.partySize,
             budget: multiDayBudget,
             mood: input.preferences.mood,
             budgetTier,
@@ -691,6 +693,8 @@ function PcBoxResultContent() {
   const [rerollStage, setRerollStage] = useState<'idle' | 'drawing' | 'revealed'>('idle');
   const [rerollReveal, setRerollReveal] = useState<Activity | null>(null);
   const [isAddingToPlan, setIsAddingToPlan] = useState(false);
+  const [isSavedToPlan, setIsSavedToPlan] = useState(false);
+  const autoSavedDrawRef = useRef<string | null>(null);
   const previewDraw = useMemo(
     () => {
       if (preview !== 'print') return null;
@@ -716,7 +720,7 @@ function PcBoxResultContent() {
             clientSource: 'pc',
             destinationScopeLabel: '周边',
             travelDurationLabel: '当天',
-            budgetLabel: '平价',
+            budgetLabel: '划算出行',
             surpriseLevelLabel: '中度',
           },
         });
@@ -725,6 +729,26 @@ function PcBoxResultContent() {
     [preview],
   );
   const activeDraw = currentDraw ?? previewDraw;
+
+  useEffect(() => {
+    if (!currentDraw) return;
+    const drawKey = `${currentDraw.drawSessionId}:${currentDraw.activity.id}`;
+    if (autoSavedDrawRef.current === drawKey) return;
+
+    autoSavedDrawRef.current = drawKey;
+    setIsAddingToPlan(true);
+    setIsSavedToPlan(false);
+    void addCurrentDrawToTodos()
+      .then((result) => {
+        setIsSavedToPlan(true);
+        message.success(result.alreadyExists ? '该行程已在我的行程中' : '已自动加入我的行程');
+      })
+      .catch((reason) => {
+        autoSavedDrawRef.current = null;
+        message.warning(getAddToPlanErrorMessage(reason));
+      })
+      .finally(() => setIsAddingToPlan(false));
+  }, [addCurrentDrawToTodos, currentDraw, message]);
 
   const handleReroll = async () => {
     if (!currentDraw || currentDraw.attemptsRemaining <= 0 || isRerolling) return;
@@ -747,11 +771,16 @@ function PcBoxResultContent() {
   };
 
   const handleAddToPlan = async () => {
+    if (isSavedToPlan) {
+      router.push('/trips');
+      return;
+    }
     if (!currentDraw || isAddingToPlan) return;
 
     setIsAddingToPlan(true);
     try {
       const result = await addCurrentDrawToTodos();
+      setIsSavedToPlan(true);
       message.success(result.alreadyExists ? '该行程已在本周约定中' : '已加入本周约定');
       router.replace('/trips');
     } catch (reason) {
@@ -769,6 +798,7 @@ function PcBoxResultContent() {
           <PcBoxResult
             draw={activeDraw}
             isAddingToPlan={isAddingToPlan}
+            isSavedToPlan={isSavedToPlan}
             isRerolling={isRerolling}
             onAddToPlan={() => void handleAddToPlan()}
             onReroll={() => void handleReroll()}
@@ -781,6 +811,7 @@ function PcBoxResultContent() {
       ) : (
         <main className="pc-box-result-empty">
           <Card>
+            <img className="pc-box-empty-mascot" src="/media/ui/empty-explorer-duck.png" alt="" />
             <Title level={3}>还没有盲盒结果</Title>
             <Paragraph>先选择偏好并开启盲盒，我们会为你生成一份可执行的出行建议。</Paragraph>
             <Button type="primary" icon={<GiftOutlined />} onClick={() => router.replace('/box/config')}>
@@ -838,6 +869,7 @@ function RerollRevealOverlay({
 function PcBoxResult({
   draw,
   isAddingToPlan,
+  isSavedToPlan,
   isRerolling,
   onAddToPlan,
   onReroll,
@@ -845,6 +877,7 @@ function PcBoxResult({
 }: {
   draw: DrawResult;
   isAddingToPlan: boolean;
+  isSavedToPlan: boolean;
   isRerolling: boolean;
   onAddToPlan: () => void;
   onReroll: () => void;
@@ -959,7 +992,7 @@ function PcBoxResult({
             </Button>
           </Space>
           <Space wrap>
-            <Text type="secondary">还可重抽 {attemptsRemaining} 次</Text>
+            <Text type="secondary">今日还可抽 {attemptsRemaining} 次</Text>
             {attemptsRemaining > 0 ? (
               <Button loading={isRerolling} icon={<ReloadOutlined />} onClick={onReroll}>
                 再抽一次
@@ -975,7 +1008,7 @@ function PcBoxResult({
               icon={<CheckCircleOutlined />}
               loading={isAddingToPlan}
               onClick={onAddToPlan}>
-              加入本周约定
+              {isSavedToPlan ? '查看我的行程' : '加入我的行程'}
             </Button>
           </Space>
         </Flex>
@@ -2779,6 +2812,8 @@ const pcBoxResultCss = `
   text-align: center;
   box-shadow: 0 16px 36px rgba(77, 111, 22, .1);
 }
+.pc-box-empty-mascot { width: 190px; height: 190px; margin: 0 auto 20px; display: block; object-fit: contain; }
+.pc-box-result-empty .ant-btn { height: 52px; padding-inline: 26px; border-radius: 999px; font-size: 16px; font-weight: 850; }
 
 .pc-box-result-empty h3.ant-typography {
   color: ${openToken.ink};

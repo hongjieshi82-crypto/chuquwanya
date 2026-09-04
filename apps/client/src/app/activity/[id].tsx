@@ -11,6 +11,7 @@ import {
   Share,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
@@ -69,6 +70,8 @@ function buildShareMessage(activity: Activity, shareUrl: string) {
 
 export default function ActivityDetailScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isDesktopWeb = Platform.OS === 'web' && width >= 900;
   const params = useLocalSearchParams<{ id: string; source?: string; drawSessionId?: string }>();
   const { currentDraw } = useApp();
   const { bottom } = useLayoutInsets();
@@ -250,9 +253,9 @@ export default function ActivityDetailScreen() {
   }
 
   return (
-    <AppShell>
-      <View style={styles.screen}>
-        <View style={styles.fixedHeader}>
+    <AppShell desktopFullWidth={isDesktopWeb}>
+      <View style={[styles.screen, isDesktopWeb && styles.desktopScreen]}>
+        <View style={[styles.fixedHeader, isDesktopWeb && styles.desktopHeader]}>
           <DesignBackHeader
             title="方案详情"
             step="03 · 结果详情 / 分享确认"
@@ -263,8 +266,13 @@ export default function ActivityDetailScreen() {
         </View>
 
         <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={[styles.page, { paddingBottom: bottom + spacing['3xl'] }]}
+          style={[styles.scroll, isDesktopWeb && styles.desktopScreen]}
+          contentContainerStyle={[
+            styles.page,
+            isDesktopWeb && styles.desktopPage,
+            isDesktopWeb && { paddingHorizontal: Math.max(40, width * .074) },
+            { paddingBottom: bottom + spacing['3xl'] },
+          ]}
           showsVerticalScrollIndicator={false}>
         {error ? <ErrorCard message={error} /> : null}
 
@@ -273,27 +281,67 @@ export default function ActivityDetailScreen() {
             accessibilityLabel="活动封面图"
             resizeMode="cover"
             source={{ uri: activity.coverImageUri }}
-            style={styles.photoHeroImage}
+            style={[styles.photoHeroImage, isDesktopWeb && styles.desktopHeroImage]}
           />
         ) : (
-          <View style={styles.photoHero}>
+          <View style={[styles.photoHero, isDesktopWeb && styles.desktopHeroImage]}>
             <Text style={styles.photoPlus}>＋</Text>
             <Text style={styles.photoTitle}>活动地点图片预留位</Text>
             <Text style={styles.photoSub}>后期可替换为真实地点照片 / 活动海报</Text>
           </View>
         )}
 
-        <View style={styles.detailCard}>
+        <View style={[styles.detailCard, isDesktopWeb && styles.desktopDetailCard]}>
           <Text style={styles.locationMeta}>
             {activity.cityName} · {activity.district} · {formatDuration(activity.durationMinutes)} · {formatBudget(activity.budgetYuan)}
           </Text>
-          <Text style={styles.title}>{activity.title}</Text>
-          <Text style={styles.description}>{activity.summary}</Text>
+          <Text style={[styles.title, isDesktopWeb && styles.desktopTitle]}>{activity.title}</Text>
+          <Text style={[styles.description, isDesktopWeb && styles.desktopLead]}>{activity.summary}</Text>
         </View>
 
-        <View style={styles.mapSection}>
+        <View style={[styles.detailColumns, isDesktopWeb && styles.desktopDetailColumns]}>
+        <View style={[styles.detailMainColumn, isDesktopWeb && styles.desktopMainColumn]}>
+        <View style={[styles.section, isDesktopWeb && styles.desktopSection]}>
+          <Text style={[styles.sectionTitle, isDesktopWeb && styles.desktopSectionTitle]}>行动路线</Text>
+          <View style={styles.timeline}>
+            {(activity.steps.length > 0
+              ? activity.steps
+              : ['出发前：带耳机、充电宝和一本想翻的书。', '到达后：先点一杯饮品，再找靠窗位置坐下。', '完成标准：安静待够 20 分钟，拍一张完成照片。']
+            ).map((step, index) => {
+              const [heading, ...rest] = step.split(/[:：]/);
+              return (
+                <View key={`${step}-${index}`} style={[styles.timelineItem, isDesktopWeb && styles.desktopTimelineItem]}>
+                  <View style={[styles.dot, isDesktopWeb && styles.desktopDot]}>
+                    <Text style={[styles.dotText, isDesktopWeb && styles.desktopDotText]}>{String(index + 1).padStart(2, '0')}</Text>
+                  </View>
+                  <View style={[styles.timelineCopy, isDesktopWeb && styles.desktopTimelineCopy]}>
+                    <Text style={[styles.timelineTitle, isDesktopWeb && styles.desktopTimelineTitle]}>{rest.length > 0 ? heading : `第 ${index + 1} 步`}</Text>
+                    <Text style={[styles.timelineBody, isDesktopWeb && styles.desktopTimelineBody]}>{rest.length > 0 ? rest.join('：') : step}</Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={[styles.section, isDesktopWeb && styles.desktopSection]}>
+          <Text style={[styles.sectionTitle, isDesktopWeb && styles.desktopSectionTitle]}>为什么值得去</Text>
+          {recommendation ? (
+            <View style={[styles.recommendationBox, isDesktopWeb && styles.desktopRecommendationBox]}>
+              <Text style={styles.recommendationLabel}>AI 决策依据</Text>
+              <Text style={[styles.recommendationText, isDesktopWeb && styles.desktopBodyText]}>{recommendation.display.detailPage}</Text>
+            </View>
+          ) : null}
+          <Text style={[styles.description, isDesktopWeb && styles.desktopBodyText]}>
+            {activity.description || '这里不是那种必须打卡的热门点，更像一块能把人慢慢接住的安静角落。'}
+          </Text>
+        </View>
+        </View>
+
+        <View style={[styles.detailAsideColumn, isDesktopWeb && styles.desktopAsideColumn]}>
+        <View style={[styles.mapSection, isDesktopWeb && styles.desktopMapSection]}>
           <View style={styles.mapHeader}>
-            <Text style={styles.mapTitle}>位置</Text>
+            <Text style={[styles.mapTitle, isDesktopWeb && styles.desktopAsideTitle]}>位置</Text>
             <Pressable
               accessibilityRole="button"
               accessibilityState={{ disabled: !navigationUrl }}
@@ -306,11 +354,11 @@ export default function ActivityDetailScreen() {
             </Pressable>
           </View>
           {mapAddress ? (
-            <Text numberOfLines={2} style={styles.mapAddress}>
+            <Text numberOfLines={2} style={[styles.mapAddress, isDesktopWeb && styles.desktopMutedText]}>
               {mapAddress}
             </Text>
           ) : null}
-          <View style={styles.mapCanvas}>
+          <View style={[styles.mapCanvas, isDesktopWeb && styles.desktopMapCanvas]}>
             <AmapView
               address={mapAddress}
               city={activity.cityName}
@@ -331,43 +379,7 @@ export default function ActivityDetailScreen() {
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>行动路线</Text>
-          <View style={styles.timeline}>
-            {(activity.steps.length > 0
-              ? activity.steps
-              : ['出发前：带耳机、充电宝和一本想翻的书。', '到达后：先点一杯饮品，再找靠窗位置坐下。', '完成标准：安静待够 20 分钟，拍一张完成照片。']
-            ).map((step, index) => {
-              const [heading, ...rest] = step.split(/[:：]/);
-              return (
-                <View key={`${step}-${index}`} style={styles.timelineItem}>
-                  <View style={styles.dot}>
-                    <Text style={styles.dotText}>{index + 1}</Text>
-                  </View>
-                  <View style={styles.timelineCopy}>
-                    <Text style={styles.timelineTitle}>{rest.length > 0 ? heading : `第 ${index + 1} 步`}</Text>
-                    <Text style={styles.timelineBody}>{rest.length > 0 ? rest.join('：') : step}</Text>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>为什么值得去</Text>
-          {recommendation ? (
-            <View style={styles.recommendationBox}>
-              <Text style={styles.recommendationLabel}>AI 决策依据</Text>
-              <Text style={styles.recommendationText}>{recommendation.display.detailPage}</Text>
-            </View>
-          ) : null}
-          <Text style={styles.description}>
-            {activity.description || '这里不是那种必须打卡的热门点，更像一块能把人慢慢接住的安静角落。'}
-          </Text>
-        </View>
-
-        <View style={styles.actions}>
+        <View style={[styles.actions, isDesktopWeb && styles.desktopActions]}>
           <Pressable
             accessibilityRole="button"
             accessibilityState={{ disabled: !navigationUrl }}
@@ -375,19 +387,22 @@ export default function ActivityDetailScreen() {
             onPress={openNavigation}
             style={({ pressed }) => [
               styles.lightButton,
+              isDesktopWeb && styles.desktopLightButton,
               !navigationUrl && styles.disabled,
               pressed && styles.pressed,
             ]}>
-            <Text style={styles.lightButtonText}>{navigationUrl ? '打开地图' : '暂无导航'}</Text>
+            <Text style={[styles.lightButtonText, isDesktopWeb && styles.desktopLightButtonText]}>{navigationUrl ? '打开地图' : '暂无导航'}</Text>
           </Pressable>
           {isDrawEntry ? (
             <Pressable
               accessibilityRole="button"
               onPress={goToDeparturePicker}
-              style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
-              <Text style={styles.primaryButtonText}>选择出发日期</Text>
+              style={({ pressed }) => [styles.primaryButton, isDesktopWeb && styles.desktopPrimaryButton, pressed && styles.pressed]}>
+              <Text style={[styles.primaryButtonText, isDesktopWeb && styles.desktopPrimaryButtonText]}>选择出发日期</Text>
             </Pressable>
           ) : null}
+        </View>
+        </View>
         </View>
         </ScrollView>
       </View>
@@ -589,4 +604,133 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.5 },
   disabledText: { color: palette.placeholder },
   pressed: { opacity: 0.78 },
+  detailColumns: { gap: spacing.md },
+  detailMainColumn: { gap: spacing.md, minWidth: 0 },
+  detailAsideColumn: { gap: spacing.md, minWidth: 0 },
+  desktopScreen: { backgroundColor: '#0d1012' },
+  desktopHeader: {
+    paddingHorizontal: 48,
+    paddingTop: 16,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,.09)',
+    backgroundColor: '#0d1012',
+  },
+  desktopPage: {
+    width: '100%',
+    maxWidth: '100%',
+    alignSelf: 'center',
+    paddingTop: 28,
+    gap: 28,
+    backgroundColor: '#0d1012',
+  },
+  desktopHeroImage: {
+    height: 560,
+    borderRadius: 34,
+    backgroundColor: '#171b1d',
+  },
+  desktopDetailCard: {
+    width: '72%',
+    maxWidth: 980,
+    minHeight: 250,
+    marginTop: -170,
+    marginLeft: 44,
+    paddingHorizontal: 42,
+    paddingVertical: 36,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,.15)',
+    borderRadius: 28,
+    backgroundColor: 'rgba(8,10,11,.94)',
+    zIndex: 3,
+  },
+  desktopTitle: {
+    marginTop: 16,
+    color: '#f7f7f2',
+    fontSize: 52,
+    lineHeight: 57,
+    letterSpacing: -2.2,
+  },
+  desktopLead: {
+    maxWidth: 780,
+    marginTop: 18,
+    color: 'rgba(255,255,255,.62)',
+    fontSize: 17,
+    lineHeight: 28,
+    fontWeight: '600',
+  },
+  desktopDetailColumns: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 24,
+  },
+  desktopMainColumn: { flex: 1.65 },
+  desktopAsideColumn: { flex: .85 },
+  desktopSection: {
+    padding: 32,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,.12)',
+    borderRadius: 26,
+    backgroundColor: '#111416',
+    shadowColor: '#000',
+    shadowOpacity: .22,
+    shadowRadius: 28,
+    shadowOffset: { width: 0, height: 16 },
+  },
+  desktopSectionTitle: {
+    marginBottom: 24,
+    color: '#f7f7f2',
+    fontSize: 28,
+    lineHeight: 34,
+  },
+  desktopTimelineItem: {
+    gap: 18,
+    paddingBottom: 24,
+    marginBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,.09)',
+  },
+  desktopDot: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1,
+    borderColor: 'rgba(201,255,98,.7)',
+    backgroundColor: '#182014',
+  },
+  desktopDotText: { color: '#c9ff62', fontSize: 12 },
+  desktopTimelineCopy: { paddingTop: 1 },
+  desktopTimelineTitle: { color: '#f7f7f2', fontSize: 19, lineHeight: 25 },
+  desktopTimelineBody: { marginTop: 8, color: 'rgba(255,255,255,.53)', fontSize: 14, lineHeight: 23 },
+  desktopRecommendationBox: {
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(201,255,98,.18)',
+    borderRadius: 18,
+    backgroundColor: 'rgba(201,255,98,.055)',
+  },
+  desktopBodyText: { color: 'rgba(255,255,255,.58)', fontSize: 15, lineHeight: 25 },
+  desktopMapSection: {
+    padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,.12)',
+    borderRadius: 26,
+    backgroundColor: '#111416',
+  },
+  desktopAsideTitle: { color: '#f7f7f2', fontSize: 22 },
+  desktopMapCanvas: { height: 300, borderRadius: 20, backgroundColor: '#171b1d' },
+  desktopMutedText: { color: 'rgba(255,255,255,.5)', fontSize: 13, lineHeight: 20 },
+  desktopActions: { gap: 12, marginTop: 0 },
+  desktopLightButton: {
+    minHeight: 54,
+    borderColor: 'rgba(201,255,98,.42)',
+    borderRadius: 18,
+    backgroundColor: 'rgba(201,255,98,.06)',
+  },
+  desktopLightButtonText: { color: '#c9ff62', fontSize: 14 },
+  desktopPrimaryButton: {
+    minHeight: 54,
+    borderRadius: 18,
+    backgroundColor: '#c9ff62',
+  },
+  desktopPrimaryButtonText: { color: '#11150d', fontSize: 14 },
 });

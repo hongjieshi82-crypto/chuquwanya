@@ -468,33 +468,39 @@ export default function PcSlotPreviewScreen() {
                 <span className="travel-slot-pointer travel-slot-pointer-right">◀</span>
                 {stage === 'revealed' && currentDraw ? (
                   <section className="travel-slot-result" aria-label={`推荐结果：${currentDraw.activity.title}`}>
-                    <div className="travel-slot-result-media">
-                      {currentDraw.activity.coverImageUri?.trim() ? (
-                        <img src={currentDraw.activity.coverImageUri} alt={currentDraw.activity.title} />
-                      ) : (
-                        <span aria-hidden="true">🗺️</span>
-                      )}
-                    </div>
-                    <div className="travel-slot-result-copy">
-                      <span className="travel-slot-result-badge">
-                        {currentDraw.recommendation?.display.badge ?? `${currentDraw.activity.cityName}已锁定`}
-                      </span>
-                      <h1>{currentDraw.activity.title}</h1>
-                      <p>{currentDraw.activity.summary}</p>
-                      <div className="travel-slot-result-meta">
-                        <span>{currentDraw.activity.cityName} · {currentDraw.activity.district}</span>
-                        <span>{formatDuration(currentDraw.activity.durationMinutes)}</span>
-                        <span>{formatBudget(currentDraw.activity.budgetYuan)}</span>
+                    <header className="travel-slot-result-header">
+                      <span>本次抽中</span>
+                      <span>今日剩 {currentDraw.attemptsRemaining} 次</span>
+                    </header>
+                    <div className="travel-slot-result-body">
+                      <div className="travel-slot-result-media">
+                        {currentDraw.activity.coverImageUri?.trim() ? (
+                          <img src={currentDraw.activity.coverImageUri} alt={currentDraw.activity.title} />
+                        ) : (
+                          <span aria-hidden="true">🗺️</span>
+                        )}
                       </div>
-                      <div className="travel-slot-result-actions">
-                        <button
-                          disabled={currentDraw.attemptsRemaining <= 0}
-                          onClick={() => void startSlotDraw()}>
-                          {currentDraw.attemptsRemaining > 0 ? `再抽一次 · 剩 ${currentDraw.attemptsRemaining} 次` : '本轮机会已用完'}
-                        </button>
-                        <button onClick={() => router.push('/box/result')}>查看完整方案</button>
+                      <div className="travel-slot-result-copy">
+                        <span className="travel-slot-result-badge">
+                          {currentDraw.recommendation?.display.badge ?? '本地可玩方案'}
+                        </span>
+                        <h1>{currentDraw.activity.title}</h1>
+                        <p>{currentDraw.activity.summary}</p>
+                        <div className="travel-slot-result-meta">
+                          <span>{currentDraw.activity.cityName} · {currentDraw.activity.district}</span>
+                          <span>{formatDuration(currentDraw.activity.durationMinutes)}</span>
+                          <span>{pendingDraw?.preferences.budgetLabel ?? formatBudget(currentDraw.activity.budgetYuan)}</span>
+                        </div>
                       </div>
                     </div>
+                    <footer className="travel-slot-result-actions">
+                      <button
+                        disabled={currentDraw.attemptsRemaining <= 0}
+                        onClick={() => void startSlotDraw()}>
+                        {currentDraw.attemptsRemaining > 0 ? '再抽一次' : '今日机会已用完'}
+                      </button>
+                      <button onClick={() => router.push('/box/result')}>查看完整方案</button>
+                    </footer>
                   </section>
                 ) : null}
               </div>
@@ -804,7 +810,7 @@ html, body { overflow: hidden; background: #171b12; }
   width: 84%;
   height: 72%;
   image-rendering: pixelated;
-  filter: brightness(1.34) contrast(1.12) drop-shadow(0 0 7px rgba(190,255,255,1)) drop-shadow(0 0 15px rgba(75,207,255,.9));
+  filter: brightness(1.06) contrast(1.18) drop-shadow(0 0 3px rgba(190,255,255,.72)) drop-shadow(0 0 7px rgba(75,207,255,.42));
   animation: travelSlotMatrixIn .38s steps(5,end) both;
 }
 .travel-slot-marquee small {
@@ -962,15 +968,36 @@ html, body { overflow: hidden; background: #171b12; }
   inset: 0;
   z-index: 12;
   display: grid;
-  grid-template-columns: minmax(150px, .68fr) minmax(0, 1.32fr);
-  gap: clamp(16px,1.8vw,30px);
-  padding: clamp(18px,2vw,32px);
+  grid-template-rows: auto minmax(0,1fr) auto;
+  padding: clamp(18px,1.7vw,28px) clamp(20px,2vw,34px) clamp(16px,1.5vw,24px);
   color: #f8fff0;
   background:
     radial-gradient(circle at 15% 18%, rgba(201,255,98,.3), transparent 35%),
     linear-gradient(125deg, rgba(17,29,14,.97), rgba(29,55,32,.96) 52%, rgba(26,70,77,.96));
   opacity: 0;
   animation: travelSlotResultIn .72s .3s cubic-bezier(.16,1,.3,1) forwards;
+}
+.travel-slot-result-header {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: clamp(16px,1.8vh,24px);
+  color: rgba(244,255,236,.72);
+  font-size: clamp(14px,1.05vw,17px);
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+.travel-slot-result-header span:first-child { color: #d9ff68; }
+.travel-slot-result-body {
+  position: relative;
+  z-index: 2;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(220px,1.08fr) minmax(0,.92fr);
+  gap: clamp(20px,2.4vw,40px);
+  padding-bottom: clamp(15px,1.8vh,26px);
 }
 .travel-slot-result::before {
   content: '';
@@ -987,7 +1014,7 @@ html, body { overflow: hidden; background: #171b12; }
   min-width: 0;
   overflow: hidden;
   border: 2px solid rgba(226,255,173,.56);
-  border-radius: clamp(14px,1.5vw,24px);
+  border-radius: clamp(14px,1.35vw,22px);
   background: linear-gradient(145deg, #c9ff62, #76bce3);
   box-shadow: 0 15px 30px rgba(0,0,0,.28), inset 0 0 18px rgba(255,255,255,.28);
 }
@@ -1004,7 +1031,7 @@ html, body { overflow: hidden; background: #171b12; }
 }
 .travel-slot-result-badge {
   max-width: 100%;
-  margin-bottom: clamp(7px,.9vh,12px);
+  margin-bottom: clamp(13px,1.5vh,20px);
   padding: 5px 11px;
   overflow: hidden;
   border: 1px solid rgba(217,255,104,.55);
@@ -1019,12 +1046,12 @@ html, body { overflow: hidden; background: #171b12; }
 }
 .travel-slot-result h1 {
   max-width: 100%;
-  margin: 0 0 clamp(7px,.9vh,12px);
+  margin: 0 0 clamp(13px,1.5vh,20px);
   overflow: hidden;
   color: #fff;
   font-size: clamp(27px,2.8vw,48px);
   font-weight: 1000;
-  line-height: 1.04;
+  line-height: 1.12;
   letter-spacing: -.03em;
   text-wrap: balance;
   text-shadow: 0 3px 16px rgba(0,0,0,.35);
@@ -1032,7 +1059,7 @@ html, body { overflow: hidden; background: #171b12; }
 .travel-slot-result p {
   display: -webkit-box;
   max-width: 100%;
-  margin: 0 0 clamp(10px,1.2vh,16px);
+  margin: 0 0 clamp(15px,1.7vh,22px);
   overflow: hidden;
   color: rgba(244,255,236,.82);
   font-size: clamp(12px,1.05vw,16px);
@@ -1040,7 +1067,7 @@ html, body { overflow: hidden; background: #171b12; }
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
-.travel-slot-result-meta { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: clamp(11px,1.4vh,18px); }
+.travel-slot-result-meta { display: flex; flex-wrap: wrap; gap: 9px; margin-bottom: 0; }
 .travel-slot-result-meta span {
   padding: 5px 10px;
   border-radius: 10px;
@@ -1049,21 +1076,23 @@ html, body { overflow: hidden; background: #171b12; }
   font-size: clamp(10px,.82vw,13px);
   line-height: 1;
 }
-.travel-slot-result-actions { display: flex; gap: 8px; width: 100%; }
+.travel-slot-result-actions { position: relative; z-index: 5; display: flex; align-items: center; justify-content: flex-end; gap: 12px; width: 100%; padding-top: clamp(13px,1.5vh,20px); border-top: 1px solid rgba(255,255,255,.13); }
 .travel-slot-result-actions button {
   min-width: 0;
-  min-height: 38px;
-  padding: 9px 14px;
+  min-height: 42px;
+  padding: 10px 18px;
   border: 1px solid rgba(217,255,104,.46);
   border-radius: 10px;
   color: #f5ffe8;
-  background: rgba(201,255,98,.12);
+  background: transparent;
   font: inherit;
   font-size: clamp(10px,.88vw,14px);
   font-weight: 900;
   cursor: pointer;
 }
-.travel-slot-result-actions button:last-child { color: #263816; background: #d9ff68; }
+.travel-slot-result-actions button:first-child { min-width: clamp(118px,10vw,164px); min-height: 46px; border-color: rgba(217,255,104,.58); color: #efffd6; background: rgba(201,255,98,.09); font-size: clamp(14px,1.05vw,17px); }
+.travel-slot-result-actions button:first-child:not(:disabled):hover { border-color: #d9ff68; color: #d9ff68; background: rgba(201,255,98,.15); box-shadow: 0 0 18px rgba(201,255,98,.1); }
+.travel-slot-result-actions button:last-child { min-width: clamp(168px,14vw,220px); min-height: 50px; padding-inline: 24px; color: #263816; border-color: #d9ff68; background: #d9ff68; box-shadow: 0 8px 28px rgba(201,255,98,.24); font-size: clamp(16px,1.18vw,19px); }
 .travel-slot-result-actions button:disabled { opacity: .48; cursor: default; }
 .travel-slot-lever {
   position: absolute;
@@ -1234,7 +1263,7 @@ html, body { overflow: hidden; background: #171b12; }
 .stage-settling .travel-slot-marquee::after { animation: travelSlotDisplaySweep .52s ease-out infinite; }
 .stage-revealed .travel-slot-machine { animation: travelSlotWinV2 1s cubic-bezier(.16,1,.3,1) both; }
 .stage-revealed .travel-slot-win-flash { animation: travelSlotWinFlash .9s ease-out both; }
-.stage-revealed .travel-slot-marquee { filter: brightness(1.18) drop-shadow(0 0 18px rgba(142,200,255,.7)); }
+.stage-revealed .travel-slot-marquee { animation: none; filter: brightness(1.02) drop-shadow(0 0 7px rgba(142,200,255,.28)); }
 .stage-revealed .travel-slot-confetti { opacity: 1; animation: travelSlotConfettiBurst 1s ease-out both; }
 @keyframes travelSlotReelSpinV2 { from { transform: translateY(0); } to { transform: translateY(var(--cycle-offset-active)); } }
 @keyframes travelSlotReelIdle { from { transform: translateY(0); } to { transform: translateY(var(--cycle-offset-active)); } }
@@ -1302,7 +1331,9 @@ html, body { overflow: hidden; background: #171b12; }
   .travel-slot-matrix-title { left: 2%; top: 13%; width: 96%; height: 82%; }
   .travel-slot-display-pips { display: none; }
   .travel-slot-window { left: 18.4%; top: 22.6%; width: 63.5%; height: 45.8%; border-radius: clamp(18px,5vw,30px); }
-  .travel-slot-result { display: block; padding: 12px; }
+  .travel-slot-result { display: grid; grid-template-rows: auto minmax(0,1fr) auto; padding: 12px; }
+  .travel-slot-result-header { padding-bottom: 7px; font-size: clamp(8px,2.2vw,10px); }
+  .travel-slot-result-body { display: block; min-height: 0; padding-bottom: 7px; }
   .travel-slot-result-media { position: absolute; inset: 0; border: 0; border-radius: 0; opacity: .5; }
   .travel-slot-result-media::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10,25,17,.18), rgba(10,25,17,.92) 62%); }
   .travel-slot-result-copy { height: 100%; justify-content: flex-end; align-items: center; text-align: center; }
@@ -1311,7 +1342,7 @@ html, body { overflow: hidden; background: #171b12; }
   .travel-slot-result p { display: none; }
   .travel-slot-result-meta { justify-content: center; margin-bottom: 7px; }
   .travel-slot-result-meta span:nth-child(n+2) { display: none; }
-  .travel-slot-result-actions { justify-content: center; gap: 5px; }
+  .travel-slot-result-actions { justify-content: flex-end; gap: 6px; padding-top: 7px; }
   .travel-slot-result-actions button { padding: 6px 8px; font-size: clamp(8px,2.4vw,11px); }
   .travel-slot-reel { --cell-h: 118px; }
   .travel-slot-track { top: calc(50% - 177px); --cycle-offset-active: var(--cycle-offset-portrait); }

@@ -136,6 +136,7 @@ export type PreferenceOptions = {
 export type Preferences = {
   partySize: number;
   durationMinutes: number | null;
+  budgetMin?: number | null;
   budgetMax: number | null;
   mood: string;
   randomLevel: number;
@@ -148,7 +149,7 @@ export type Preferences = {
   originAccuracyMeters?: number | null;
   originSource?: 'device' | 'manual' | null;
   destinationScope?: 'nearby' | 'province' | 'nationwide';
-  travelDuration?: 'same-day' | '1-2days' | '1-3days' | '3-5days' | '5-7days';
+  travelDuration?: 'same-day' | '1-2days' | '1-3days' | '2-3days' | '3-5days' | '4-5days' | '5-7days';
   clientSource?: 'mobile' | 'pc';
   destinationScopeLabel?: string | null;
   travelDurationLabel?: string | null;

@@ -68,6 +68,7 @@ const tripComposeSchema = z.object({
   originName: z.string().trim().min(1).max(80).nullable().optional(),
   days: z.number().int().min(2).max(5),
   travelers: z.number().int().min(1).max(20),
+  budgetMin: z.number().int().min(0).max(100_000).nullable().optional(),
   budget: z.number().int().min(0).max(100_000).nullable(),
   mood: z.string().min(1).max(32),
   budgetTier: z.enum(['budget', 'standard', 'premium', 'luxury']).optional(),

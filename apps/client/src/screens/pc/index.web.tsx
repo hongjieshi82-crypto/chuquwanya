@@ -21,6 +21,7 @@ export default function PcLandingScreen() {
   return (
     <iframe
       ref={iframeRef}
+      allow="geolocation"
       aria-label="粗去玩鸭周末灵感首页"
       src="/gravity-home/index.html"
       style={{

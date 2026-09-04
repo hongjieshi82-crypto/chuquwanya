@@ -1,7 +1,5 @@
 import {
-  CalendarOutlined,
   EnvironmentOutlined,
-  EyeOutlined,
   GiftOutlined,
   SearchOutlined,
   StarFilled,
@@ -14,7 +12,6 @@ import {
   Input,
   Modal,
   Result,
-  Segmented,
   Skeleton,
   Space,
   Tag,
@@ -30,16 +27,8 @@ import { palette } from '@/theme';
 import type { Destination, DestinationDetail } from '@/types/travel';
 import type { Preferences } from '@/types';
 
-const { CheckableTag } = Tag;
 const { Paragraph, Text, Title } = Typography;
 
-const quickCategories = [
-  { label: '全部', value: 'all' },
-  { label: '热门', value: 'hot' },
-  { label: '秘境', value: 'hidden' },
-  { label: '季节限定', value: 'seasonal' },
-] as const;
-const filterTags = ['治愈', '松弛', '人文', '美食', '轻户外', '亲子', '古镇', '海边', '5A景区'];
 const initialVisibleCount = 12;
 
 type DestinationItem = DestinationDetail & {
@@ -113,11 +102,9 @@ export default function PcDestinationsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [category, setCategory] = useState<(typeof quickCategories)[number]['value']>('all');
-  const [selectedCity, setSelectedCity] = useState('all');
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [visibleCount, setVisibleCount] = useState(initialVisibleCount);
   const [selected, setSelected] = useState<DestinationItem | null>(null);
+  const [isExplorePreview, setIsExplorePreview] = useState(false);
   const appliedDestinationParamRef = useRef<number | null>(null);
 
   const cityNameById = useMemo(
@@ -179,8 +166,6 @@ export default function PcDestinationsScreen() {
     return () => window.clearTimeout(openTimer);
   }, [destinationId, items]);
 
-  const cityOptions = useMemo(() => ['all', ...Array.from(new Set(items.map((item) => item.cityName))).filter(Boolean)], [items]);
-
   const filteredItems = useMemo(() => {
     const keyword = normalizeText(search);
     const result = items.filter((item) => {
@@ -196,21 +181,10 @@ export default function PcDestinationsScreen() {
         .filter(Boolean)
         .join(' ')
         .toLocaleLowerCase();
-      const categoryMatch =
-        category === 'all' ||
-        (category === 'hot' && isHot(item)) ||
-        (category === 'hidden' && item.normalizedTags.some((tag) => tag.includes('秘境'))) ||
-        (category === 'seasonal' &&
-          ((!item.bestSeason?.includes('四季') && /季|春|夏|秋|冬/.test(item.bestSeason ?? '')) ||
-            item.normalizedTags.some((tag) => /限定|春日|秋日/.test(tag))));
-      const tagsMatch =
-        selectedTags.length === 0 ||
-        selectedTags.some((tag) => item.normalizedTags.includes(tag));
-      const cityMatch = selectedCity === 'all' || item.cityName === selectedCity;
-      return (!keyword || searchSource.includes(keyword)) && categoryMatch && tagsMatch && cityMatch;
+      return !keyword || searchSource.includes(keyword);
     });
 
-    if (!keyword && category === 'all' && selectedTags.length === 0) {
+    if (!keyword) {
       const hot = result.filter(isHot).sort((left, right) => {
         const score = (value: number) => ((value * 9301 + 49297) % 233280) / 233280;
         return score(left.id) - score(right.id);
@@ -218,76 +192,14 @@ export default function PcDestinationsScreen() {
       const regular = result.filter((item) => !isHot(item));
       return [...hot, ...regular];
     }
-    if (selectedTags.length) {
-      return [...result].sort((left, right) => {
-        const matchCount = (item: DestinationItem) =>
-          selectedTags.filter((tag) => item.normalizedTags.includes(tag)).length;
-        return matchCount(right) - matchCount(left) || right.popularity - left.popularity;
-      });
-    }
     return result;
-  }, [category, items, search, selectedCity, selectedTags]);
+  }, [items, search]);
 
-  const tagCounts = useMemo(
-    () => new Map(filterTags.map((tag) => [tag, items.filter((item) => item.normalizedTags.includes(tag)).length])),
-    [items],
-  );
-
-  const categoryOptions = useMemo(
-    () => quickCategories.map((option) => {
-      const count = items.filter((item) => {
-        if (option.value === 'all') return true;
-        if (option.value === 'hot') return isHot(item);
-        if (option.value === 'hidden') return item.normalizedTags.some((tag) => tag.includes('秘境'));
-        return (!item.bestSeason?.includes('四季') && /季|春|夏|秋|冬/.test(item.bestSeason ?? '')) ||
-          item.normalizedTags.some((tag) => /限定|春日|秋日/.test(tag));
-      }).length;
-      return {
-        value: option.value,
-        label: <span className="pc-destinations-filter-label">{option.label}<small>{loading ? '–' : count}</small></span>,
-      };
-    }),
-    [items, loading],
-  );
-
-  const relaxedItems = useMemo(() => {
-    if (
-      filteredItems.length ||
-      normalizeText(search) ||
-      (category === 'all' && selectedTags.length === 0)
-    ) return [];
-
-    return items
-      .map((item) => {
-        const tagScore = selectedTags.filter((tag) => item.normalizedTags.includes(tag)).length * 3;
-        const categoryScore =
-          (category === 'hot' && isHot(item)) ||
-          (category === 'hidden' && item.normalizedTags.some((tag) => tag.includes('秘境'))) ||
-          (category === 'seasonal' && !item.bestSeason?.includes('四季'))
-            ? 2
-            : 0;
-        return { item, score: tagScore + categoryScore };
-      })
-      .filter((entry) => entry.score > 0)
-      .sort((left, right) => right.score - left.score || right.item.popularity - left.item.popularity)
-      .slice(0, 6)
-      .map((entry) => entry.item);
-  }, [category, filteredItems, items, search, selectedTags]);
-
-  const isRelaxedMatch = filteredItems.length === 0 && relaxedItems.length > 0;
-  const resultItems = isRelaxedMatch ? relaxedItems : filteredItems;
+  const resultItems = filteredItems;
   const visibleItems = resultItems.slice(0, visibleCount);
   const resetFilters = () => {
     setSearch('');
-    setCategory('all');
-    setSelectedCity('all');
-    setSelectedTags([]);
     setVisibleCount(initialVisibleCount);
-  };
-
-  const toggleTag = (tag: string, checked: boolean) => {
-    setVisibleCount(initialVisibleCount);
-    setSelectedTags((current) => (checked ? [...current, tag] : current.filter((item) => item !== tag)));
   };
 
   const generateBlindBox = () => {
@@ -302,14 +214,15 @@ export default function PcDestinationsScreen() {
       randomLevel: 35,
       category: '不限',
       environment: 'either',
-      radiusKm: null,
+      radiusKm: 10,
       originName: city.name,
       originLatitude: null,
       originLongitude: null,
       originAccuracyMeters: null,
       originSource: null,
-      destinationScope: 'nationwide',
+      destinationScope: 'nearby',
       travelDuration: 'same-day',
+      destinationScopeLabel: `${city.name}本地`,
     };
     savePendingPcBoxDraw({
       cityId: city.id,
@@ -325,16 +238,9 @@ export default function PcDestinationsScreen() {
   return (
     <main className="pc-destinations-page">
       <style>{pcDestinationsCss}</style>
-      <header className="pc-destinations-hero">
-        <div>
-          <Title level={1}>翻一张旅行卡<br />找到今天想去的地方</Title>
-        </div>
-        <Text>真实地点 · 随时出发 · 不合适就换</Text>
-      </header>
       <section className="pc-destinations-search" aria-label="目的地搜索">
-        <Input.Search
+        <Input
           allowClear
-          enterButton={<SearchOutlined />}
           placeholder="搜索目的地、城市或主题"
           size="large"
           value={search}
@@ -343,50 +249,11 @@ export default function PcDestinationsScreen() {
             setSearch(event.target.value);
           }}
         />
+        <Button className="pc-destinations-search-button" icon={<SearchOutlined />} aria-label="搜索目的地">搜索</Button>
       </section>
 
       <section className="pc-destinations-layout">
         <section className="pc-destinations-content">
-          <Card className="pc-destinations-filters">
-            <Segmented
-              options={categoryOptions}
-              value={category}
-              onChange={(value) => {
-                setVisibleCount(initialVisibleCount);
-                setCategory(value as typeof category);
-              }}
-            />
-            <div className="pc-destinations-city-row">
-              <Text>城市</Text>
-              <div>
-                {cityOptions.map((city) => (
-                  <CheckableTag key={city} checked={selectedCity === city} onChange={() => { setVisibleCount(initialVisibleCount); setSelectedCity(city); }}>
-                    {city === 'all' ? '全部城市' : city}
-                  </CheckableTag>
-                ))}
-              </div>
-            </div>
-            <div className="pc-destinations-tag-row">
-              {filterTags.map((tag) => (
-                <CheckableTag key={tag} checked={selectedTags.includes(tag)} onChange={(checked) => toggleTag(tag, checked)}>
-                  <span className="pc-destinations-filter-label">{tag}<small>{loading ? '–' : (tagCounts.get(tag) ?? 0)}</small></span>
-                </CheckableTag>
-              ))}
-            </div>
-          </Card>
-
-          {isRelaxedMatch ? (
-            <div className="pc-destinations-relaxed-note">
-              <strong>这组条件暂时没有完全重合</strong>
-              <span>已经自动放宽一层，下面是最接近你灵感组合的城市。</span>
-            </div>
-          ) : null}
-
-          <div className="pc-destinations-results-heading">
-            <Title level={2}>发现目的地</Title>
-            <Text>{isRelaxedMatch ? `相近推荐 ${resultItems.length} 个` : `共 ${resultItems.length} 个目的地`}</Text>
-          </div>
-
           {loading ? (
             <div className="pc-destinations-grid">
               {Array.from({ length: 6 }).map((_, index) => (
@@ -399,7 +266,7 @@ export default function PcDestinationsScreen() {
             <>
               <div className="pc-destinations-grid">
                 {visibleItems.map((item) => (
-                  <Card key={item.id} hoverable className="pc-destinations-card" onClick={() => setSelected(item)}>
+                  <Card key={item.id} hoverable className="pc-destinations-card" onClick={() => { setIsExplorePreview(false); setSelected(item); }}>
                     <div className="pc-destinations-card-cover">
                       <DestinationCover item={item} className="pc-destinations-cover-image" />
                       <Tag className="pc-destinations-category">{item.categoryName}</Tag>
@@ -407,15 +274,13 @@ export default function PcDestinationsScreen() {
                         {item.normalizedTags.slice(0, 2).map((tag) => <Tag key={tag}>{tag}</Tag>)}
                       </div>
                       <span className="pc-destinations-rating"><StarFilled /> {Number(item.rating || 0).toFixed(1)}</span>
-                      <span className="pc-destinations-card-overlay"><EyeOutlined /> 查看详情</span>
                     </div>
                     <div className="pc-destinations-card-body">
-                      <Title level={4}>{item.name}</Title>
-                      <Paragraph ellipsis={{ rows: 2 }}>{item.description || item.summary || '暂无目的地介绍。'}</Paragraph>
-                      <div className="pc-destinations-meta">
-                        <span><EnvironmentOutlined /> {item.cityName}</span>
-                        <span><CalendarOutlined /> {getDuration(item)}</span>
+                      <div className="pc-destinations-card-title-row">
+                        <Title level={4}>{item.name}</Title>
+                        <Button type="text" className="pc-destinations-explore" onClick={(event) => { event.stopPropagation(); setIsExplorePreview(true); setSelected(item); }}>立刻探索 ↗</Button>
                       </div>
+                      <Paragraph ellipsis={{ rows: 2 }}>{item.description || item.summary || '暂无目的地介绍。'}</Paragraph>
                     </div>
                   </Card>
                 ))}
@@ -423,8 +288,8 @@ export default function PcDestinationsScreen() {
               {visibleCount < resultItems.length ? <div className="pc-destinations-more"><Button type="primary" shape="round" onClick={() => setVisibleCount((count) => count + initialVisibleCount)}>查看更多目的地</Button></div> : null}
             </>
           ) : (
-            <Empty description={<span><strong>没有找到匹配的目的地</strong><br />试试其他搜索关键词或调整筛选条件</span>}>
-              <Button onClick={resetFilters}>重置筛选</Button>
+            <Empty image="/media/ui/empty-explorer-duck.png" imageStyle={{ height: 180 }} description={<span><strong>没有找到匹配的目的地</strong><br />试试其他搜索关键词或调整筛选条件</span>}>
+              <Button size="large" onClick={resetFilters}>重置筛选</Button>
             </Empty>
           )}
         </section>
@@ -434,13 +299,23 @@ export default function PcDestinationsScreen() {
         className="pc-destinations-modal"
         footer={[
           <Button key="close" onClick={() => setSelected(null)}>关闭</Button>,
-          <Button key="box" type="primary" icon={<GiftOutlined />} onClick={generateBlindBox}>生成盲盒</Button>,
+          <Button key="box" type="primary" icon={<GiftOutlined />} onClick={generateBlindBox}>{isExplorePreview ? `去抽${selected?.cityName ?? ''}玩法` : '生成盲盒'}</Button>,
         ]}
         open={Boolean(selected)}
         title={null}
         width={720}
         onCancel={() => setSelected(null)}>
-        {selected ? (
+        {selected && isExplorePreview ? (
+          <div className="pc-city-explore-preview">
+            <div className="pc-city-explore-cover"><DestinationCover item={selected} className="pc-destinations-cover-image" /></div>
+            <div className="pc-city-explore-content">
+              <Tag>{selected.cityName.toUpperCase()} LOCAL DROP</Tag>
+              <Title level={2}>这次，只探索{selected.cityName}</Title>
+              <Paragraph>系统会锁定{selected.cityName}，根据你的时间、预算和心情，抽出一条当地可执行的周末玩法。</Paragraph>
+              <div className="pc-city-explore-facts"><span><small>目的地</small><strong>{selected.cityName}</strong></span><span><small>抽取范围</small><strong>当地玩法</strong></span><span><small>可调整</small><strong>时间 · 预算 · 心情</strong></span></div>
+            </div>
+          </div>
+        ) : selected ? (
           <div className="pc-destinations-detail">
             <div className="pc-destinations-detail-cover"><DestinationCover item={selected} className="pc-destinations-cover-image" /></div>
             <div className="pc-destinations-detail-content">
@@ -543,4 +418,131 @@ const pcDestinationsCss = `
 @keyframes destination-card-in { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
 @media (max-width: 767px) { .pc-destinations-page { padding: 30px 16px 48px; }.pc-destinations-hero { align-items: flex-start; flex-direction: column; }.pc-destinations-hero h1.ant-typography { font-size: 36px; }.pc-destinations-search { margin-bottom: 24px; }.pc-destinations-grid { grid-template-columns: 1fr; gap: 16px; }.pc-destinations-detail-stats { grid-template-columns: repeat(2, 1fr); }.pc-destinations-results-heading h2 { font-size: 21px; } }
 @media (prefers-reduced-motion: reduce) { .pc-destinations-card.ant-card, .pc-destinations-cover-image, .pc-destinations-cover-placeholder, .pc-destinations-card-overlay { transition: none; }.pc-destinations-card.ant-card:hover { transform: none; }.pc-destinations-card:hover .pc-destinations-cover-image, .pc-destinations-card:hover .pc-destinations-cover-placeholder { transform: none; } }
+
+/* Dark visual explorer shared with the landing page and trip archive. */
+.pc-destinations-page { padding-top: 66px; }
+.pc-destinations-hero { margin-bottom: 32px; }
+.pc-destinations-hero h1.ant-typography { font-size: clamp(54px,5.2vw,86px); font-weight: 850; line-height: 1.02; letter-spacing: -.055em; }
+.pc-destinations-hero h1.ant-typography::after { content: ''; display: block; width: 54px; height: 4px; margin-top: 22px; border-radius: 4px; background: #c9ff62; box-shadow: 0 0 18px rgba(201,255,98,.22); }
+.pc-destinations-search { max-width: 820px; margin: 0 auto 44px  max(0px,calc((100% - 1440px)/2)); }
+.pc-destinations-results-heading { align-items: flex-end; margin-bottom: 22px; }
+.pc-destinations-results-heading h2 { font-size: 34px; font-weight: 850; letter-spacing: -.035em; }
+.pc-destinations-grid { gap: 18px; }
+.pc-destinations-card.ant-card { border: 1px solid rgba(255,255,255,.15); border-radius: 24px; color: #f7f7f2; background: #090a0c; box-shadow: 0 18px 46px rgba(0,0,0,.22); }
+.pc-destinations-card.ant-card:hover { transform: translateY(-7px); border-color: #c9ff62; box-shadow: 0 0 0 1px rgba(201,255,98,.16),0 28px 62px rgba(0,0,0,.4),0 0 30px rgba(201,255,98,.1); }
+.pc-destinations-card-cover { aspect-ratio: 16 / 11; background: #15171a; }
+.pc-destinations-cover-image, .pc-destinations-cover-placeholder { color: rgba(255,255,255,.4); background: #15171a; }
+.pc-destinations-category { padding: 5px 11px; border: 1px solid rgba(201,255,98,.45); border-radius: 999px; color: #c9ff62; background: rgba(8,10,10,.72); backdrop-filter: blur(10px); }
+.pc-destinations-cover-tags .ant-tag { padding: 4px 9px; border: 1px solid rgba(255,255,255,.15); border-radius: 999px; background: rgba(8,10,12,.64); backdrop-filter: blur(10px); }
+.pc-destinations-card-overlay { color: #11150d; background: rgba(201,255,98,.86); font-size: 15px; font-weight: 850; }
+.pc-destinations-card-body { padding: 24px 24px 25px; }
+.pc-destinations-card-body h4 { color: #f7f7f2; font-size: 25px; letter-spacing: -.025em; }
+.pc-destinations-card-body p { color: rgba(255,255,255,.5); }
+.pc-destinations-meta { color: rgba(255,255,255,.62); }
+.pc-destinations-meta svg { color: #c9ff62; }
+.pc-destinations-more .ant-btn { height: 50px; padding-inline: 24px; border: 0; color: #11150d; background: #c9ff62; font-weight: 850; }
+.pc-destinations-modal .ant-modal-content { color: #f7f7f2; border: 1px solid rgba(255,255,255,.15); border-radius: 24px; background: #0b0c0e; }
+.pc-destinations-modal .ant-modal-footer { border-color: rgba(255,255,255,.1); }
+.pc-destinations-detail-content h2 { color: #fff; }
+.pc-destinations-detail-content > p { color: rgba(255,255,255,.56); }
+.pc-destinations-detail-stats div { border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.04); }
+.pc-destinations-detail-stats small { color: rgba(255,255,255,.38); }
+.pc-destinations-detail-stats strong { color: #fff; }
+.pc-destinations-card-overlay { gap: 11px; font-size: 21px; font-weight: 900; }
+.pc-destinations-card-overlay svg { width: 23px; height: 23px; }
+.pc-destinations-card-title-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.pc-destinations-card-title-row h4 { min-width: 0; margin-bottom: 9px; }
+.pc-destinations-explore.ant-btn { flex: 0 0 auto; height: 36px; padding-inline: 13px; border: 1px solid rgba(201,255,98,.36); border-radius: 999px; color: #c9ff62; background: rgba(201,255,98,.055); font-size: 13px; font-weight: 900; }
+.pc-destinations-explore.ant-btn:hover { color: #11150d !important; border-color: #c9ff62 !important; background: #c9ff62 !important; }
+.pc-city-explore-preview { overflow: hidden; color: #f7f7f2; background: #0b0c0e; }
+.pc-city-explore-cover { height: 280px; overflow: hidden; }
+.pc-city-explore-content { padding: 30px 32px 12px; }
+.pc-city-explore-content > .ant-tag { margin: 0 0 18px; padding: 6px 11px; border-color: rgba(201,255,98,.35); border-radius: 999px; color: #c9ff62; background: rgba(201,255,98,.06); font: 800 10px/1 ui-monospace,monospace; letter-spacing: .1em; }
+.pc-city-explore-content h2.ant-typography { margin: 0; color: #fff; font-size: 38px; letter-spacing: -.045em; }
+.pc-city-explore-content p.ant-typography { margin: 16px 0 24px; color: rgba(255,255,255,.54); font-size: 15px; line-height: 1.7; }
+.pc-city-explore-facts { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
+.pc-city-explore-facts span { min-width: 0; padding: 15px 16px; border: 1px solid rgba(255,255,255,.1); border-radius: 14px; background: rgba(255,255,255,.035); }
+.pc-city-explore-facts small { display: block; margin-bottom: 7px; color: rgba(255,255,255,.35); font-size: 11px; }
+.pc-city-explore-facts strong { display: block; overflow: hidden; color: #fff; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.pc-destinations-modal .ant-modal-footer .ant-btn-primary { border: 0; color: #11150d; background: #c9ff62; font-weight: 850; }
+.pc-destinations-modal .ant-modal-footer .ant-btn-primary:hover { color: #11150d !important; background: #dcff9b !important; }
+
+@media (max-width: 767px) {
+  .pc-destinations-page { padding-top: 38px; }
+  .pc-destinations-hero h1.ant-typography { font-size: 44px; }
+  .pc-destinations-search { max-width: none; margin-bottom: 30px; }
+  .pc-city-explore-facts { grid-template-columns: 1fr; }
+}
+
+/* Shared first-level page frame: aligned to the landing page's 7.4vw content edge. */
+.pc-destinations-page { padding: 64px 7.4vw 96px; }
+.pc-destinations-hero, .pc-destinations-layout { width: 100%; max-width: none; }
+.pc-destinations-search { width: min(820px,100%); max-width: none; margin: 0 0 44px; }
+
+/* Full-width search and editorial destination cards. */
+.pc-destinations-search { width: 100%; display: flex; align-items: center; gap: 14px; }
+.pc-destinations-search > .ant-input-affix-wrapper { flex: 1 1 auto; width: auto; min-height: 62px; padding: 0 22px; border: 1px solid rgba(255,255,255,.14); border-radius: 18px; color: #fff; background: rgba(255,255,255,.045); box-shadow: inset 0 1px rgba(255,255,255,.035); }
+.pc-destinations-search > .ant-input-affix-wrapper:hover,.pc-destinations-search > .ant-input-affix-wrapper:focus-within { border-color: rgba(201,255,98,.68); background: rgba(201,255,98,.045); box-shadow: 0 0 0 3px rgba(201,255,98,.07); }
+.pc-destinations-search .ant-input { color: #fff; background: transparent; font-size: 16px; }
+.pc-destinations-search .ant-input::placeholder { color: rgba(255,255,255,.35); }
+.pc-destinations-search .pc-destinations-search-button.ant-btn { flex: 0 0 auto; min-width: 148px; width: auto; height: 62px; padding: 0 27px; border: 0; border-radius: 18px !important; color: #11150d; background: #c9ff62; box-shadow: 0 10px 30px rgba(201,255,98,.2); font-size: 18px; font-weight: 950; }
+.pc-destinations-search .pc-destinations-search-button.ant-btn .anticon { margin-right: 3px; font-size: 21px; stroke-width: 1.5; }
+.pc-destinations-search .pc-destinations-search-button.ant-btn:hover { color: #11150d !important; background: #dcff9b !important; box-shadow: 0 12px 34px rgba(201,255,98,.28); transform: translateY(-1px); }
+.pc-destinations-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px; }
+.pc-destinations-card.ant-card { min-height: 310px; }
+.pc-destinations-card .ant-card-body { min-height: 310px; display: grid; grid-template-columns: minmax(230px,.9fr) minmax(0,1.1fr); }
+.pc-destinations-card-cover { height: 100%; min-height: 310px; aspect-ratio: auto; }
+.pc-destinations-card-cover::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg,transparent 62%,rgba(9,10,12,.32)); }
+.pc-destinations-card-body { position: relative; min-width: 0; padding: 30px 30px 82px; display: flex; flex-direction: column; justify-content: center; }
+.pc-destinations-card-title-row { display: block; }
+.pc-destinations-card-title-row h4.ant-typography { margin: 0 0 14px; color: #fff; font-size: clamp(27px,2vw,38px); line-height: 1.05; letter-spacing: -.045em; }
+.pc-destinations-card-body p.ant-typography { min-height: 0; margin: 0; color: rgba(255,255,255,.55); font-size: 14px; line-height: 1.72; }
+.pc-destinations-explore.ant-btn { position: absolute; left: 30px; bottom: 26px; min-width: 126px; height: 42px; padding-inline: 17px; font-size: 14px; }
+.pc-destinations-rating { z-index: 2; }
+.pc-destinations-category,.pc-destinations-cover-tags { z-index: 2; }
+
+@media (max-width: 1180px) {
+  .pc-destinations-grid { grid-template-columns: 1fr; }
+  .pc-destinations-card .ant-card-body { grid-template-columns: minmax(280px,.82fr) minmax(0,1.18fr); }
+}
+
+@media (max-width: 700px) {
+  .pc-destinations-search { gap: 9px; }
+  .pc-destinations-search > .ant-input-affix-wrapper { min-height: 54px; padding-inline: 16px; border-radius: 15px; }
+  .pc-destinations-search .pc-destinations-search-button.ant-btn { min-width: 58px; width: 58px; height: 52px; padding: 0; border-radius: 15px !important; font-size: 0; }
+  .pc-destinations-search .pc-destinations-search-button.ant-btn .anticon { margin: 0; font-size: 20px; }
+  .pc-destinations-card.ant-card { min-height: 0; }
+  .pc-destinations-card .ant-card-body { min-height: 0; display: block; }
+  .pc-destinations-card-cover { min-height: 0; aspect-ratio: 16 / 10; }
+  .pc-destinations-card-cover::after { background: linear-gradient(180deg,transparent 65%,rgba(9,10,12,.3)); }
+  .pc-destinations-card-body { padding: 23px 22px 76px; }
+  .pc-destinations-card-title-row h4.ant-typography { font-size: 28px; }
+  .pc-destinations-explore.ant-btn { left: 22px; bottom: 22px; }
+}
+
+/* Keep destination cards visual-first: image above, concise information below. */
+.pc-destinations-grid { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 20px; }
+.pc-destinations-card.ant-card { min-height: 0; }
+.pc-destinations-card .ant-card-body { min-height: 0; display: block; }
+.pc-destinations-card-cover { height: auto; min-height: 0; aspect-ratio: 16 / 10; }
+.pc-destinations-card-cover::after { background: linear-gradient(180deg,transparent 64%,rgba(9,10,12,.34)); }
+.pc-destinations-card-body { min-height: 154px; padding: 23px 24px 24px; display: block; }
+.pc-destinations-card-title-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.pc-destinations-card-title-row h4.ant-typography { margin: 0; color: #fff; font-size: clamp(24px,1.8vw,32px); line-height: 1.08; }
+.pc-destinations-card-body p.ant-typography { min-height: 48px; margin: 14px 0 0; color: rgba(255,255,255,.58) !important; font-size: 14px; line-height: 1.65; }
+.pc-destinations-explore.ant-btn { position: static; min-width: 126px; height: 40px; padding-inline: 16px; }
+
+@media (max-width: 1280px) {
+  .pc-destinations-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+
+@media (max-width: 700px) {
+  .pc-destinations-grid { grid-template-columns: 1fr; }
+  .pc-destinations-card-cover { aspect-ratio: 16 / 10; }
+  .pc-destinations-card-body { min-height: 0; padding: 21px 20px 22px; }
+  .pc-destinations-card-title-row h4.ant-typography { font-size: 27px; }
+}
+
+@media (max-width: 1023px) { .pc-destinations-page { padding: 52px 6vw 80px; } }
+@media (max-width: 767px) { .pc-destinations-page { padding: 34px 16px 56px; } }
 `;

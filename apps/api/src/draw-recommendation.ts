@@ -8,6 +8,7 @@ import type { CityWeather } from "./weather.service.js";
 type DrawPreferences = {
   partySize: number;
   durationMinutes: number | null;
+  budgetMin?: number | null;
   budgetMax: number | null;
   mood: string;
   randomLevel: number;
@@ -20,7 +21,7 @@ type DrawPreferences = {
   originAccuracyMeters?: number | null;
   originSource?: "device" | "manual" | null;
   destinationScope?: "nearby" | "province" | "nationwide";
-  travelDuration?: "same-day" | "1-2days" | "1-3days" | "3-5days" | "5-7days";
+  travelDuration?: "same-day" | "1-2days" | "1-3days" | "2-3days" | "3-5days" | "4-5days" | "5-7days";
   clientSource?: "mobile" | "pc";
   destinationScopeLabel?: string | null;
   travelDurationLabel?: string | null;
@@ -91,7 +92,9 @@ const travelDurationLabels: Record<NonNullable<DrawPreferences["travelDuration"]
   "same-day": "当天",
   "1-2days": "1-2天",
   "1-3days": "1-3天",
+  "2-3days": "2-3天",
   "3-5days": "3-5天",
+  "4-5days": "4-5天",
   "5-7days": "5-7天",
 };
 
@@ -386,7 +389,9 @@ function getHardFailure(
   candidate: CandidateCard,
   runtime: ReturnType<typeof buildRuntimeData>,
 ) {
-  const totalCost = candidate.card_price * preferences.partySize;
+  const totalCost = preferences.clientSource === "pc"
+    ? candidate.card_price
+    : candidate.card_price * preferences.partySize;
 
   if (candidate.min_party_size > preferences.partySize || candidate.max_party_size < preferences.partySize) {
     return "人数不匹配";
@@ -413,6 +418,9 @@ function getHardFailure(
   if (preferences.radiusKm !== null && candidate.distance_km > preferences.radiusKm) {
     return "距离超出";
   }
+  if (preferences.budgetMin !== null && preferences.budgetMin !== undefined && totalCost < preferences.budgetMin) {
+    return "预算档位不匹配";
+  }
   if (preferences.budgetMax !== null && totalCost > preferences.budgetMax) {
     return "预算超出";
   }
@@ -438,7 +446,9 @@ function scoreCandidate(preferences: DrawPreferences, candidate: CandidateCard) 
     score += Math.max(0, (preferences.radiusKm - candidate.distance_km) / preferences.radiusKm) * 0.12;
   }
   if (preferences.budgetMax !== null) {
-    const totalCost = candidate.card_price * preferences.partySize;
+    const totalCost = preferences.clientSource === "pc"
+      ? candidate.card_price
+      : candidate.card_price * preferences.partySize;
     score += Math.max(0, (preferences.budgetMax - totalCost) / preferences.budgetMax) * 0.12;
   }
 
@@ -512,7 +522,7 @@ async function buildFallbackRecommendation(
   const budgetLabel = getBudgetLabel(preferences);
   const surpriseLevelLabel = getSurpriseLevelLabel(preferences);
   const timeSummary = pcMode
-    ? `PC 端旅游时间偏好「${travelDurationLabel}」是旅行天数偏好，不做分钟级硬过滤；候选玩法预计总耗时 ${totalMinutes} 分钟。`
+    ? `PC 端出游时长偏好「${travelDurationLabel}」是旅行天数偏好，不做分钟级硬过滤；候选玩法预计总耗时 ${totalMinutes} 分钟。`
     : preferences.durationMinutes === null
       ? `预计总耗时 ${totalMinutes} 分钟，无时间上限约束。`
       : `预计总耗时 ${totalMinutes} 分钟，时间窗口 ${preferences.durationMinutes} 分钟。`;
@@ -746,10 +756,10 @@ function buildPrompt(input: {
 
 # PC Input Mapping
 
-- 当 user_context.client_source=pc 时，输入来自 PC 端「人数 / 目的地范围 / 旅游时间 / 预算 / 心情 / 盲盒惊喜程度」。
+- 当 user_context.client_source=pc 时，输入来自 PC 端「人数 / 目的地范围 / 出游时长 / 预算 / 心情 / 盲盒惊喜程度」。
 - destination_scope 的含义：nearby=周边，province=本省，nationwide=全国；优先使用 destination_scope_label 生成中文说明。
 - travel_duration 的含义：1-3days / 3-5days / 5-7days 是旅行天数偏好，不等同于分钟级硬约束；PC 当前 duration_minutes 通常为 null，不要因为候选玩法分钟数超过某个天数推导值而剔除。
-- budget_label 的含义：穷游 / 平价 / 舒适 / 轻奢；budget_max=null 表示不限或轻奢档位，不要默认成 100。
+- PC 端 budget_label 的含义：划算出行 / 舒服躺玩 / 品质享受；budget_min 与 budget_max 是整段行程的人均总价区间，budget_max=null 表示该档位不设上限。
 - surprise_level_label 的含义：轻度 / 中度 / 重度，对应 random_level 的探索程度；random_level 只能在 hard filters 通过后影响排序/抽样。
 
 # Decision Logic

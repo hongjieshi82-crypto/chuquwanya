@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0d0d13" />
     <title>粗去玩鸭！· 重力首页样式预览</title>
-    <link rel="stylesheet" href="./style.css?v=natural-detail-scroll-45" />
+    <link rel="stylesheet" href="./style.css?v=clean-third-heading-52" />
   </head>
   <body>
     <header class="topbar">
@@ -57,29 +57,15 @@
           <div class="section-heading">
             <div class="heading-title-row">
               <h2>今天想怎么玩</h2>
-              <form class="city-switcher city-switcher-secondary">
-                <label for="city-input-secondary">当前城市</label>
-                <select id="city-input-secondary" data-city-input name="city" aria-label="选择城市"><option value="北京">北京</option><option value="上海">上海</option><option value="杭州">杭州</option><option value="深圳">深圳</option><option value="天津">天津</option><option value="烟台">烟台</option><option value="青岛">青岛</option><option value="南京">南京</option><option value="武汉">武汉</option><option value="成都">成都</option><option value="西安">西安</option><option value="长沙">长沙</option><option value="广州">广州</option><option value="合肥">合肥</option><option value="重庆">重庆</option><option value="厦门">厦门</option><option value="济南">济南</option><option value="昆明">昆明</option></select>
-                <button type="submit">切换</button>
-              </form>
             </div>
           </div>
-          <div class="motion-gallery" aria-label="旅行风格图片流">
-            <div class="motion-lane" data-motion-lane data-direction="1">
-              <a href="/theme?preset=scene" target="_top"><img src="/media/travel/chengdu.jpg" alt="成都城市与雪山" /><span>山海远行</span></a>
-              <a href="/theme?preset=theme" target="_top"><img src="/media/travel/shanghai.jpg" alt="上海夜景" /><span>城市夜游</span></a>
-              <a href="/theme?preset=scene" target="_top"><img src="/media/travel/beijing-798-art-district.jpg" alt="北京 798 艺术区" /><span>艺术人文</span></a>
-            </div>
-            <div class="motion-lane motion-lane-offset" data-motion-lane data-direction="-1">
-              <a href="/theme?preset=food" target="_top"><img src="/media/travel/guangzhou-yongqingfang.jpg" alt="广州永庆坊" /><span>寻味老街</span></a>
-              <a href="/theme?preset=audience" target="_top"><img src="/media/travel/xiamen.jpg" alt="厦门城市夜景" /><span>结伴同行</span></a>
-              <a href="/theme?preset=scene" target="_top"><img src="/media/travel/beijing.jpg" alt="北京故宫" /><span>历史建筑</span></a>
-            </div>
-            <div class="motion-lane" data-motion-lane data-direction="1">
-              <a href="/theme?preset=theme" target="_top"><img src="/media/travel/tianjin-five-avenues.jpg" alt="天津五大道" /><span>建筑漫游</span></a>
-              <a href="/theme?preset=food" target="_top"><img src="/media/travel/jinan-qushuiting-daming-lake.jpg" alt="济南曲水亭" /><span>城市日常</span></a>
-              <a href="/theme?preset=theme" target="_top"><img src="/media/travel/chongqing.jpg" alt="重庆夜景" /><span>山城漫游</span></a>
-            </div>
+          <div class="play-category-grid" aria-label="选择玩法分类">
+            <button class="play-category-card is-active" type="button" data-play-category="浪漫约会"><img src="/media/travel/shanghai.jpg" alt="" /><small>01 / TOGETHER</small><strong>浪漫约会</strong><span>把普通见面，安排得更有记忆点。</span><i>→</i></button>
+            <button class="play-category-card" type="button" data-play-category="休闲躺平"><img src="/media/travel/beijing-olympic-forest.jpg" alt="" /><small>02 / CHILL</small><strong>休闲躺平</strong><span>不赶路，也不急着完成什么。</span><i>→</i></button>
+            <button class="play-category-card" type="button" data-play-category="娱乐玩乐"><img src="/media/travel/beijing-798-art-district.jpg" alt="" /><small>03 / PLAY</small><strong>娱乐玩乐</strong><span>用一场游戏或体验释放周末。</span><i>→</i></button>
+            <button class="play-category-card" type="button" data-play-category="探险猎奇"><img src="/media/travel/chongqing.jpg" alt="" /><small>04 / WILD</small><strong>探险猎奇</strong><span>去看看地图上不太熟悉的角落。</span><i>→</i></button>
+            <button class="play-category-card" type="button" data-play-category="美食吃喝"><img src="/media/travel/guangzhou-yongqingfang.jpg" alt="" /><small>05 / TASTE</small><strong>美食吃喝</strong><span>用味道认识一座城市的日常。</span><i>→</i></button>
+            <button class="play-category-card" type="button" data-play-category="城市散步"><img src="/media/travel/beijing-wudaoying-hutong.jpg" alt="" /><small>06 / WALK</small><strong>城市散步</strong><span>随意转弯，让街道决定下一站。</span><i>→</i></button>
           </div>
         </div>
       </section>
@@ -89,13 +75,8 @@
         <div class="places-heading">
           <div class="heading-title-row">
           <h2>原来周末还能这样玩</h2>
-          <form class="city-switcher" id="city-switcher">
-            <label for="city-input">当前城市</label>
-            <select id="city-input" data-city-input name="city" aria-label="选择城市"><option value="北京">北京</option><option value="上海">上海</option><option value="杭州">杭州</option><option value="深圳">深圳</option><option value="天津">天津</option><option value="烟台">烟台</option><option value="青岛">青岛</option><option value="南京">南京</option><option value="武汉">武汉</option><option value="成都">成都</option><option value="西安">西安</option><option value="长沙">长沙</option><option value="广州">广州</option><option value="合肥">合肥</option><option value="重庆">重庆</option><option value="厦门">厦门</option><option value="济南">济南</option><option value="昆明">昆明</option></select>
-            <button type="submit">切换</button>
-          </form>
+          <button class="places-refresh" id="places-refresh" type="button"><span>↻</span> 换一批</button>
           </div>
-          <p><span data-current-city>北京</span>周末不必走远，看看这一天或两天能怎么玩。</p>
         </div>
           <div class="place-grid">
           <a class="place-card" data-order="01" href="/destinations?destinationId=1" target="_top">
@@ -180,6 +161,6 @@
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js"></script>
-    <script src="./app.js?v=native-bidirectional-scroll-49"></script>
+    <script src="./app.js?v=automatic-city-location-50"></script>
   </body>
 </html>

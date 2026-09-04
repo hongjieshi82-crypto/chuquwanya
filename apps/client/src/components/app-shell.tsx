@@ -7,13 +7,14 @@ import { palette, safeArea } from '@/theme';
 
 type AppShellProps = PropsWithChildren<{
   phonePreview?: boolean;
+  desktopFullWidth?: boolean;
   screenTone?: 'default' | 'invite';
 }>;
 
-export function AppShell({ children, phonePreview = false, screenTone = 'default' }: AppShellProps) {
+export function AppShell({ children, phonePreview = false, desktopFullWidth = false, screenTone = 'default' }: AppShellProps) {
   const insets = useLayoutInsets();
   const { width } = useWindowDimensions();
-  const showPhonePreview = Platform.OS === 'web' && (phonePreview || width > 430);
+  const showPhonePreview = Platform.OS === 'web' && !desktopFullWidth && (phonePreview || width > 430);
   const isInviteTone = screenTone === 'invite';
 
   if (showPhonePreview) {
@@ -34,7 +35,7 @@ export function AppShell({ children, phonePreview = false, screenTone = 'default
         { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right },
       ]}>
       <DynamicIslandOverlay />
-      <View style={styles.content}>{children}</View>
+      <View style={[styles.content, desktopFullWidth && styles.contentWide]}>{children}</View>
     </View>
   );
 }
@@ -96,5 +97,9 @@ const styles = StyleSheet.create({
     maxWidth: 1040,
     alignSelf: 'center',
     position: 'relative',
+  },
+  contentWide: {
+    width: '100%',
+    maxWidth: '100%',
   },
 });

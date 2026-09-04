@@ -9,14 +9,13 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SVGProps } from 'react';
 import { useApp } from '@/contexts/app-context';
-import { requestDeviceCurrentPosition } from '@/lib/device-location';
 import { savePendingPcBoxDraw } from '@/lib/pc-box-open-state';
-import { resolveCoordinatesCity } from '@/lib/reverse-geocode';
+import { getPcTravelBudgetRange } from '@/constants/pc-travel-budget-tiers';
 import { palette, radii } from '@/theme';
 import type { City, Preferences } from '@/types';
 
 const { Content } = Layout;
-const { Paragraph, Text, Title } = Typography;
+const { Text } = Typography;
 const PC_LOCATED_CITY_KEY = '@weekend-oracle/pc-located-city';
 const PC_LOCATED_CITY_TTL_MS = 24 * 60 * 60 * 1_000;
 
@@ -62,8 +61,8 @@ const boxToken = {
 
 const matchPreferenceGroups: MatchPreferenceGroup[] = [
   { key: 'partySize', label: '人数', options: ['1 人', '2 人', '多人'] },
-  { key: 'travelDuration', label: '旅游时间', options: ['当天', '2天', '3天', '4天', '5天'] },
-  { key: 'budget', label: '预算', options: ['穷游', '平价', '舒适', '轻奢'] },
+  { key: 'travelDuration', label: '出游时长', options: ['当天', '周末游', '小长假'] },
+  { key: 'budget', label: '预算', options: ['划算出行', '舒服躺玩', '品质享受'] },
   { key: 'mood', label: '心情', options: ['放松', '探索', '热闹'] },
   {
     key: 'surpriseLevel',
@@ -81,7 +80,7 @@ const initialMatchSelections: Record<string, string> = {
   partySize: '1 人',
   destinationScope: '周边',
   travelDuration: '当天',
-  budget: '平价',
+  budget: '划算出行',
   mood: '放松',
   surpriseLevel: '中度',
 };
@@ -90,7 +89,7 @@ const homepagePresetSelections: Record<string, Partial<Record<string, string>>> 
   scene: { destinationScope: '全国', mood: '放松', surpriseLevel: '轻度' },
   theme: { destinationScope: '周边', mood: '探索', surpriseLevel: '中度' },
   audience: { partySize: '2 人', mood: '放松', surpriseLevel: '中度' },
-  food: { destinationScope: '周边', budget: '平价', mood: '热闹', surpriseLevel: '中度' },
+  food: { destinationScope: '周边', budget: '划算出行', mood: '热闹', surpriseLevel: '中度' },
 };
 
 const defaultPcLocatedCity: PcLocatedCity = {
@@ -99,6 +98,15 @@ const defaultPcLocatedCity: PcLocatedCity = {
   longitude: null,
   accuracyMeters: null,
   source: 'default',
+};
+
+const cityPreviewImages: Record<string, string> = {
+  '北京': '/media/travel/beijing.jpg', '上海': '/media/travel/shanghai.jpg', '杭州': '/media/travel/hangzhou.jpg',
+  '深圳': '/media/travel/shenzhen.jpg', '天津': '/media/travel/tianjin.jpg', '烟台': '/media/travel/yantai.jpg',
+  '青岛': '/media/travel/qingdao.jpg', '南京': '/media/travel/nanjing.jpg', '武汉': '/media/travel/wuhan.jpg',
+  '成都': '/media/travel/chengdu.jpg', '西安': '/media/travel/xian.jpg', '长沙': '/media/travel/changsha.jpg',
+  '广州': '/media/travel/guangzhou.jpg', '合肥': '/media/travel/hefei.jpg', '重庆': '/media/travel/chongqing.jpg',
+  '厦门': '/media/travel/xiamen.jpg', '济南': '/media/travel/jinan.jpg', '昆明': '/media/travel/kunming.jpg',
 };
 
 function findMatchingCity(cities: City[], locationName: string) {
@@ -120,19 +128,6 @@ const partySizeValues: Record<string, number> = {
   '2 人': 2,
   多人: 4,
 };
-
-const budgetValues: Record<string, number | null> = {
-  穷游: 200,
-  平价: 500,
-  舒适: 1000,
-  轻奢: 2000,
-};
-
-function resolveBudgetMax(option: string) {
-  return Object.prototype.hasOwnProperty.call(budgetValues, option)
-    ? budgetValues[option] ?? null
-    : 100;
-}
 
 const surpriseLevelValues: Record<string, number> = {
   轻度: 25,
@@ -195,8 +190,6 @@ export default function PcBoxConfigScreen() {
   const [matchSelections, setMatchSelections] =
     useState<Record<string, string>>(initialMatchSelections);
   const [locatedCity, setLocatedCity] = useState<PcLocatedCity>(defaultPcLocatedCity);
-  const [isLocatingCity, setIsLocatingCity] = useState(false);
-  const [locationError, setLocationError] = useState<string | null>(null);
   const [locationNotice, setLocationNotice] = useState<string | null>(null);
   const [isStartingDraw, setIsStartingDraw] = useState(false);
   const [drawError, setDrawError] = useState<string | null>(null);
@@ -247,7 +240,7 @@ export default function PcBoxConfigScreen() {
     if (isBooting || isStartingDraw) return;
 
     const partySize = partySizeValues[matchSelections.partySize] ?? 1;
-    const budgetMax = resolveBudgetMax(matchSelections.budget);
+    const budgetRange = getPcTravelBudgetRange(matchSelections.travelDuration, matchSelections.budget);
     const randomLevel = surpriseLevelValues[matchSelections.surpriseLevel] ?? 60;
     const originCity = findMatchingCity(cities, locatedCity.name);
     const destinationCity = cities.find((city) => city.id === selectedCityId) ?? originCity ?? cities[0] ?? null;
@@ -261,7 +254,8 @@ export default function PcBoxConfigScreen() {
     const preferences: Preferences = {
       partySize,
       durationMinutes: null,
-      budgetMax,
+      budgetMin: budgetRange.min,
+      budgetMax: budgetRange.max,
       mood: matchSelections.mood ?? '放松',
       randomLevel,
       category: '不限',
@@ -281,13 +275,9 @@ export default function PcBoxConfigScreen() {
       travelDuration:
         matchSelections.travelDuration === '当天'
           ? 'same-day'
-          : matchSelections.travelDuration === '2天'
-            ? '1-2days'
-            : matchSelections.travelDuration === '3天'
-              ? '1-3days'
-              : matchSelections.travelDuration === '4天'
-              ? '3-5days'
-              : '3-5days',
+          : matchSelections.travelDuration === '周末游'
+            ? '2-3days'
+            : '4-5days',
       clientSource: 'pc',
       destinationScopeLabel: originCity?.id === drawCityId
         ? `${destinationCity?.name ?? locatedCity.name}本地`
@@ -333,66 +323,6 @@ export default function PcBoxConfigScreen() {
     return () => window.removeEventListener('pc-box-start-draw', handleShellStart);
   }, [goStart]);
 
-  const handleLocateCity = async () => {
-    if (isLocatingCity) return;
-
-    setIsLocatingCity(true);
-    setLocationError(null);
-    setLocationNotice(null);
-    try {
-      const coordinates = await requestDeviceCurrentPosition({ accuracy: 'balanced' });
-      let cityName = '当前位置';
-      try {
-        cityName = await resolveCoordinatesCity(coordinates);
-      } catch {
-        setLocatedCity({
-          name: cityName,
-          latitude: coordinates.latitude,
-          longitude: coordinates.longitude,
-          accuracyMeters: coordinates.accuracy,
-          source: 'device',
-        });
-        await storePcLocatedCity({
-          name: cityName,
-          latitude: coordinates.latitude,
-          longitude: coordinates.longitude,
-          accuracyMeters: coordinates.accuracy,
-          source: 'device',
-        });
-        setMatchSelections((previous) => ({ ...previous, destinationScope: '全国' }));
-        setLocationNotice('已获取定位坐标；配置高德地图 Web Key 后可显示具体城市，当前按全国探索。');
-        return;
-      }
-
-      setLocatedCity({
-        name: cityName,
-        latitude: coordinates.latitude,
-        longitude: coordinates.longitude,
-        accuracyMeters: coordinates.accuracy,
-        source: 'device',
-      });
-      await storePcLocatedCity({
-        name: cityName,
-        latitude: coordinates.latitude,
-        longitude: coordinates.longitude,
-        accuracyMeters: coordinates.accuracy,
-        source: 'device',
-      });
-      const matchedCity = findMatchingCity(cities, cityName);
-      if (matchedCity) {
-        setSelectedCityId(matchedCity.id);
-        setLocationNotice(`已定位到${cityName}，可以直接生成当地玩法。`);
-      } else {
-        setMatchSelections((previous) => ({ ...previous, destinationScope: '全国' }));
-        setLocationNotice(`已定位到${cityName}。当前玩法库未收录该城市，已切换为全国探索。`);
-      }
-    } catch (reason) {
-      setLocationError(reason instanceof Error ? reason.message : '定位城市失败，请重试。');
-    } finally {
-      setIsLocatingCity(false);
-    }
-  };
-
   const handleMatchSelect = (key: MatchPreferenceGroup['key'], option: string) => {
     setMatchSelections((previous) => ({
       ...previous,
@@ -412,21 +342,9 @@ export default function PcBoxConfigScreen() {
     };
     setLocatedCity(nextLocatedCity);
     setSelectedCityId(city.id);
-    setLocationError(null);
+    setDrawError(null);
     setLocationNotice(`已切换到${city.name}，将优先生成当地玩法。`);
     void storePcLocatedCity(nextLocatedCity);
-  };
-
-  const handleDestinationCitySelect = (cityId: number) => {
-    const city = cities.find((item) => item.id === cityId);
-    if (!city) return;
-    setSelectedCityId(city.id);
-    setDrawError(null);
-    setLocationNotice(
-      city.name === locatedCity.name
-        ? `将生成${city.name}本地玩法。`
-        : `已指定从${locatedCity.name}前往${city.name}，系统不会随机更换目的地城市。`,
-    );
   };
 
   const locatedCityOption = findMatchingCity(cities, locatedCity.name);
@@ -459,6 +377,15 @@ export default function PcBoxConfigScreen() {
           Card: {
             borderRadiusLG: radii.xl,
           },
+          Select: {
+            selectorBg: '#111416',
+            optionSelectedBg: 'rgba(201, 255, 98, 0.12)',
+            optionActiveBg: 'rgba(255, 255, 255, 0.06)',
+            optionSelectedColor: '#dcff9a',
+            colorBgElevated: '#15181a',
+            colorText: '#f5f7f1',
+            colorTextPlaceholder: 'rgba(255,255,255,.42)',
+          },
           Tag: {
             borderRadiusSM: radii.pill,
             defaultBg: boxToken.primarySoft,
@@ -470,67 +397,34 @@ export default function PcBoxConfigScreen() {
         <style>{pcBoxCss}</style>
         <Layout className="pc-box-layout">
           <Content className="pc-box-content">
-            <header className="pc-box-title">
-              <Title>配置你的周末任务</Title>
-              <Paragraph>
-                选好出发地、预算和心情，AI 会把它们组合成一条现在就能执行的城市冒险。
-              </Paragraph>
-            </header>
-
+            <div className="pc-box-workbench">
             <div className="pc-box-sections">
               <Card className="pc-box-section" variant="borderless">
                 <div className="pc-box-section-heading">
                   <span className="pc-box-section-icon">
                     <EnvironmentOutlined size={22} />
                   </span>
-                  <Text className="pc-box-section-title">出发与目的地</Text>
+                  <Text className="pc-box-section-title">选择探索城市</Text>
                 </div>
-                <div className="pc-box-two-column">
+                <div className="pc-box-city-picker">
                   <div className="pc-box-location">
-                    <Text className="pc-box-label">出发地</Text>
+                    <Text className="pc-box-label">探索城市</Text>
                     <div className="pc-box-location-controls">
                       <Select
-                        aria-label="选择出发城市"
-                        className="pc-box-city-select"
+                        aria-label="选择探索城市"
+                        className={`pc-box-city-select${locatedCityOption ? ' is-selected' : ''}`}
                         options={cities.map((city) => ({ label: `${city.name} · ${city.province}`, value: city.id }))}
                         placeholder={locatedCity.name}
                         showSearch
                         optionFilterProp="label"
+                        popupClassName="pc-box-city-dropdown"
                         value={locatedCityOption?.id}
                         onChange={handleManualCitySelect}
                       />
-                      <Button
-                        className="pc-box-locate-button"
-                        aria-label={`定位当前位置，当前为${locatedCity.name}`}
-                        icon={<EnvironmentOutlined size={18} />}
-                        loading={isLocatingCity}
-                        size="large"
-                        onClick={() => void handleLocateCity()}>
-                        {locatedCity.source === 'device' ? '重新定位' : '定位当前位置'}
-                      </Button>
                     </div>
-                    {locationError ? (
-                      <Text className="pc-box-error">{locationError}</Text>
-                    ) : null}
                     {locationNotice ? (
                       <Text className="pc-box-location-notice">{locationNotice}</Text>
                     ) : null}
-                  </div>
-                  <div className="pc-box-location">
-                    <Text className="pc-box-label">目的地城市</Text>
-                    <Select
-                      aria-label="选择目的地城市"
-                      className="pc-box-city-select"
-                      options={cities.map((city) => ({ label: `${city.name} · ${city.province}`, value: city.id }))}
-                      placeholder="请选择明确的目的地"
-                      showSearch
-                      optionFilterProp="label"
-                      value={destinationCityOption?.id}
-                      onChange={handleDestinationCitySelect}
-                    />
-                    <Text className="pc-box-destination-hint">
-                      AI 只会在这个城市里抽具体玩法，不会擅自切换城市。
-                    </Text>
                   </div>
                 </div>
               </Card>
@@ -573,9 +467,35 @@ export default function PcBoxConfigScreen() {
               </Card>
             </div>
 
+            <aside className="pc-box-visual" aria-label="当前抽取范围预览">
+              <div className="pc-box-visual-map" aria-hidden="true"><i /><i /><i /><span /></div>
+              <div className="pc-box-visual-image">
+                <img src={cityPreviewImages[destinationCityOption?.name ?? '北京'] ?? cityPreviewImages['北京']} alt={`${destinationCityOption?.name ?? '北京'}城市预览`} />
+                <div className="pc-box-visual-image-shade" />
+                <span>已锁定目的地</span>
+                <div className="pc-box-visual-city">
+                  <small>DESTINATION</small>
+                  <strong>{destinationCityOption?.name ?? '北京'}</strong>
+                </div>
+              </div>
+              <div className="pc-box-visual-copy">
+                <h2>下一段旅程，交给一点随机。</h2>
+                <p>我们会在这座城市里，按你的偏好抽出一套刚刚好的玩法。</p>
+              </div>
+              <div className="pc-box-visual-signals">
+                <span><small>出游时长</small><b>{matchSelections.travelDuration ?? '当天'}</b></span>
+                <span><small>预算方式</small><b>{matchSelections.budget ?? '划算出行'}</b></span>
+                <span><small>期待氛围</small><b>{matchSelections.mood ?? '放松'}</b></span>
+              </div>
+              <div className="pc-box-visual-range">
+                <div><small>随机探索程度</small><b>{matchSelections.surpriseLevel ?? '中度'}</b></div>
+                <i><span style={{ width: `${surpriseLevelValues[matchSelections.surpriseLevel] ?? 60}%` }} /></i>
+              </div>
+            </aside>
+            </div>
+
             <div className="pc-box-action">
               <div className="pc-box-summary">
-                <Text className="pc-box-summary-label">本次偏好</Text>
                 <Text className="pc-box-summary-value">
                   {`${locatedCity.name} → ${destinationCityOption?.name ?? '请选择目的地'} · `}
                   {matchPreferenceGroups
@@ -625,7 +545,7 @@ function MatchOptionGroup({
           label:
             variant === 'surprise' ? (
               <span className="pc-box-surprise-option">
-                <strong>{option}</strong>
+                <span className="pc-box-surprise-title"><i aria-hidden="true" /><strong>{option}</strong></span>
                 <small>{group.descriptions?.[option]}</small>
               </span>
             ) : (
@@ -1376,4 +1296,139 @@ const pcBoxCss = `
   .pc-box-location-controls { grid-template-columns: 1fr; }
   .pc-box-locate-button.ant-btn { width: 100%; }
 }
+
+/* Dark mission configurator shared with the landing page and trip archive. */
+.pc-box-content { width: min(100% - 72px, 1280px); padding-top: 68px; }
+.pc-box-title { margin-bottom: 50px; text-align: left; }
+.pc-box-title h1.ant-typography { max-width: 920px; color: #f7f7f2; font-size: clamp(58px, 5.4vw, 88px); font-weight: 860; line-height: .98; letter-spacing: -.06em; }
+.pc-box-title h1.ant-typography::after { content: ''; display: block; width: 54px; height: 4px; margin-top: 22px; border-radius: 4px; background: #c9ff62; box-shadow: 0 0 18px rgba(201,255,98,.24); }
+.pc-box-title p.ant-typography { margin: 20px 0 0; color: rgba(255,255,255,.52); font-size: 17px; }
+.pc-box-sections { gap: 18px; }
+.pc-box-section.ant-card { border: 1px solid rgba(255,255,255,.15); border-radius: 26px; color: #f7f7f2; background: rgba(8,9,11,.9); box-shadow: 0 22px 58px rgba(0,0,0,.22); }
+.pc-box-section.ant-card:hover { border-color: rgba(201,255,98,.34); }
+.pc-box-section .ant-card-body { padding: 34px 38px 38px; }
+.pc-box-section-heading { margin-bottom: 30px; }
+.pc-box-section-icon { width: 46px; height: 46px; color: #11150d; background: #c9ff62; box-shadow: 0 0 22px rgba(201,255,98,.12); }
+.pc-box-section-title { color: #f7f7f2; font-size: 23px; }
+.pc-box-label { color: rgba(255,255,255,.72); font-size: 14px; letter-spacing: .03em; }
+.pc-box-location-notice, .pc-box-destination-hint { color: rgba(255,255,255,.4); }
+.pc-box-city-select.ant-select { height: 54px; }
+.pc-box-city-select .ant-select-selector { min-height: 54px; padding-inline: 19px !important; border-color: rgba(255,255,255,.13) !important; color: #fff !important; background: #141619 !important; box-shadow: none !important; }
+.pc-box-city-select .ant-select-selection-item, .pc-box-city-select .ant-select-selection-placeholder, .pc-box-city-select .ant-select-arrow { color: rgba(255,255,255,.78) !important; font-size: 15px; }
+.pc-box-page .pc-box-city-select.ant-select .ant-select-selector { border: 1px solid rgba(255,255,255,.16) !important; color: #fff !important; background: #141619 !important; box-shadow: inset 0 1px rgba(255,255,255,.035) !important; }
+.pc-box-page .pc-box-city-select.ant-select:hover .ant-select-selector, .pc-box-page .pc-box-city-select.ant-select-focused .ant-select-selector { border-color: rgba(201,255,98,.64) !important; box-shadow: 0 0 0 3px rgba(201,255,98,.07) !important; }
+.pc-box-page .pc-box-city-select .ant-select-selection-item { color: #f7f7f2 !important; font-weight: 820; }
+.pc-box-locate-button.ant-btn { height: 54px; border-color: rgba(201,255,98,.34); color: #c9ff62; background: rgba(201,255,98,.065); }
+.pc-box-locate-button.ant-btn:hover { border-color: #c9ff62 !important; color: #c9ff62 !important; background: rgba(201,255,98,.11) !important; }
+.pc-box-options.ant-tag-checkable-group { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; }
+.pc-box-options.pc-box-options-3 { grid-template-columns: repeat(3,minmax(0,1fr)); }
+.pc-box-options.pc-box-options-5 { grid-template-columns: repeat(5,minmax(0,1fr)); }
+.pc-box-options .ant-tag-checkable-group-item.ant-tag { width: 100%; min-width: 0; min-height: 52px; padding: 0 14px; border: 1px solid rgba(255,255,255,.12) !important; color: rgba(255,255,255,.68); background: #141619 !important; box-shadow: none !important; font-size: 15px; }
+.pc-box-options .ant-tag-checkable-group-item.ant-tag:hover { border-color: rgba(201,255,98,.6) !important; color: #fff; background: #191d18 !important; transform: translateY(-2px); }
+.pc-box-options .ant-tag-checkable-group-item.ant-tag-checkable-checked { border-color: #c9ff62 !important; color: #11150d; background: #c9ff62 !important; box-shadow: 0 0 24px rgba(201,255,98,.12) !important; }
+.pc-box-options .ant-tag-checkable-group-item.ant-tag-checkable-checked, .pc-box-options .ant-tag-checkable-group-item.ant-tag-checkable-checked * { font-weight: 950 !important; }
+.pc-box-group-surprise .pc-box-options.ant-tag-checkable-group { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 14px; }
+.pc-box-group-surprise .ant-tag-checkable-group-item.ant-tag { min-height: 154px; border-radius: 20px; color: rgba(255,255,255,.66); background: #121416 !important; }
+.pc-box-group-surprise .ant-tag-checkable-group-item.ant-tag:hover { background: #171a17 !important; }
+.pc-box-group-surprise .ant-tag-checkable-group-item.ant-tag-checkable-checked { color: #11150d; border-color: #c9ff62 !important; background: #c9ff62 !important; }
+.pc-box-group-surprise .pc-box-surprise-option strong { color: inherit; font-size: 23px; }
+.pc-box-group-surprise .pc-box-surprise-option small { max-width: 260px; color: inherit; font-size: 14px; line-height: 1.55; opacity: .7; }
+.pc-box-action { position: sticky; z-index: 12; bottom: 18px; margin-top: 24px; padding: 19px 20px 19px 26px; border: 1px solid rgba(255,255,255,.16); border-radius: 22px; color: #fff; background: rgba(9,10,12,.88); box-shadow: 0 24px 68px rgba(0,0,0,.38); backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px); }
+.pc-box-summary-label { color: rgba(255,255,255,.38); }
+.pc-box-summary-value { color: #fff; }
+.pc-box-start-button.ant-btn { min-width: 230px; height: 58px; border-radius: 999px; color: #11150d; background: #c9ff62; font-size: 17px; }
+
+@media (max-width: 900px) {
+  .pc-box-content { width: min(100% - 36px, 1280px); }
+  .pc-box-title h1.ant-typography { font-size: 54px; }
+  .pc-box-options.ant-tag-checkable-group { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+
+@media (max-width: 720px) {
+  .pc-box-content { width: min(100% - 28px, 1280px); padding-top: 38px; }
+  .pc-box-title h1.ant-typography { font-size: 42px; }
+  .pc-box-section .ant-card-body { padding: 25px 20px; }
+  .pc-box-group-surprise .pc-box-options.ant-tag-checkable-group { grid-template-columns: 1fr; }
+  .pc-box-group-surprise .ant-tag-checkable-group-item.ant-tag { min-height: 118px; }
+  .pc-box-action { bottom: 10px; }
+}
+
+/* Shared first-level page frame: aligned to the landing page's 7.4vw content edge. */
+.pc-box-content { width: 85.2vw; max-width: none; padding: 64px 0 96px; }
+
+@media (max-width: 1023px) { .pc-box-content { width: 88vw; padding: 52px 0 80px; } }
+@media (max-width: 720px) { .pc-box-content { width: calc(100% - 32px); padding: 34px 0 56px; } }
+
+/* Night Explorer workbench: one continuous setup flow plus a live travel visual. */
+.pc-box-workbench { display: grid; grid-template-columns: minmax(0,1.45fr) minmax(330px,.72fr); align-items: stretch; gap: 22px; }
+.pc-box-sections { gap: 0; overflow: hidden; border: 1px solid rgba(255,255,255,.14); border-radius: 28px; background: rgba(8,9,11,.84); box-shadow: 0 24px 64px rgba(0,0,0,.24); }
+.pc-box-city-picker { width: 100%; }
+.pc-box-location-controls { display: block; }
+.pc-box-page .pc-box-city-select.ant-select { width: 100%; height: 66px; }
+.pc-box-page .pc-box-city-picker .pc-box-city-select.ant-select:not(.ant-select-customize-input) .ant-select-selector { min-height: 66px; padding-inline: 30px 22px !important; border: 1px solid rgba(255,255,255,.14) !important; border-radius: 18px !important; color: rgba(255,255,255,.68) !important; background: #121416 !important; background-color: #121416 !important; box-shadow: none !important; transition: border-color .2s ease,background-color .2s ease,box-shadow .2s ease; }
+.pc-box-page .pc-box-city-picker .pc-box-city-select.ant-select.is-selected .ant-select-selector { border-color: #c9ff62 !important; background: #182014 !important; background-color: #182014 !important; box-shadow: inset 0 0 0 1px rgba(201,255,98,.08),0 0 18px rgba(201,255,98,.07) !important; }
+.pc-box-page .pc-box-city-picker .pc-box-city-select.ant-select.is-selected .ant-select-selection-item { color: #dfffaa !important; }
+.pc-box-page .pc-box-city-select .ant-select-selection-item, .pc-box-page .pc-box-city-select .ant-select-selection-placeholder { color: #f5f7f1 !important; font-size: 17px; font-weight: 800; }
+.pc-box-page .pc-box-city-select .ant-select-arrow { color: rgba(201,255,98,.72) !important; font-size: 13px; }
+.pc-box-page .pc-box-city-select.ant-select:hover .ant-select-selector, .pc-box-page .pc-box-city-select.ant-select-focused .ant-select-selector { border-color: #c9ff62 !important; background: rgba(201,255,98,.11) !important; box-shadow: 0 0 0 3px rgba(201,255,98,.07),0 0 22px rgba(201,255,98,.08) !important; }
+.pc-box-city-dropdown { padding: 8px !important; border: 1px solid rgba(255,255,255,.13); border-radius: 16px !important; background: #15181a !important; box-shadow: 0 20px 50px rgba(0,0,0,.42) !important; }
+.pc-box-city-dropdown .ant-select-item { min-height: 42px; padding: 10px 12px; border-radius: 10px; color: rgba(255,255,255,.7); }
+.pc-box-city-dropdown .ant-select-item-option-active:not(.ant-select-item-option-disabled) { background: rgba(255,255,255,.06) !important; }
+.pc-box-city-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled) { color: #dcff9a !important; font-weight: 800; background: rgba(201,255,98,.1) !important; }
+.pc-box-section.ant-card, .pc-box-section.ant-card:hover { border: 0; border-bottom: 1px solid rgba(255,255,255,.11); border-radius: 0; background: transparent; box-shadow: none; }
+.pc-box-section.ant-card:last-child { border-bottom: 0; }
+.pc-box-section .ant-card-body { padding: 32px 34px 36px; }
+.pc-box-section-icon { color: #c9ff62; border: 1px solid rgba(201,255,98,.34); background: rgba(201,255,98,.055); box-shadow: none; }
+.pc-box-options .ant-tag-checkable-group-item.ant-tag-checkable-checked { position: relative; color: #dfffaa; border-color: #c9ff62 !important; background: #182014 !important; box-shadow: inset 0 0 0 1px rgba(201,255,98,.08),0 0 18px rgba(201,255,98,.07) !important; }
+.pc-box-options .ant-tag-checkable-group-item.ant-tag-checkable-checked::before { content: ''; width: 7px; height: 7px; margin-right: 8px; border-radius: 50%; background: #c9ff62; box-shadow: 0 0 10px rgba(201,255,98,.7); }
+.pc-box-group-surprise .ant-tag-checkable-group-item.ant-tag-checkable-checked::before { display: none; }
+.pc-box-surprise-title { display: inline-flex; align-items: center; justify-content: center; gap: 10px; }
+.pc-box-surprise-title i { display: none; width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: #c9ff62; box-shadow: 0 0 11px rgba(201,255,98,.76); }
+.pc-box-group-surprise .ant-tag-checkable-group-item.ant-tag-checkable-checked .pc-box-surprise-title i { display: block; }
+.pc-box-group-surprise .ant-tag-checkable-group-item.ant-tag { position: relative; overflow: hidden; }
+.pc-box-group-surprise .ant-tag-checkable-group-item.ant-tag::after { content: ''; position: absolute; inset: 0 0 auto; height: 3px; opacity: 0; background: #c9ff62; box-shadow: 0 0 16px rgba(201,255,98,.4); }
+.pc-box-group-surprise .ant-tag-checkable-group-item.ant-tag-checkable-checked { color: #efffda; background: linear-gradient(145deg,#182014,#111719) !important; }
+.pc-box-group-surprise .ant-tag-checkable-group-item.ant-tag-checkable-checked::after { opacity: 1; }
+.pc-box-visual { position: sticky; top: 96px; align-self: stretch; min-height: 100%; overflow: hidden; border: 1px solid rgba(255,255,255,.15); border-radius: 28px; background: #090b0d; box-shadow: 0 24px 64px rgba(0,0,0,.28); display: flex; flex-direction: column; }
+.pc-box-visual-map { position: absolute; inset: 0; overflow: hidden; opacity: .32; background-image: linear-gradient(rgba(120,232,255,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(120,232,255,.08) 1px,transparent 1px); background-size: 34px 34px; mask-image: linear-gradient(to bottom,black,transparent 65%); }
+.pc-box-visual-map i { position: absolute; width: 8px; height: 8px; border: 2px solid #c9ff62; border-radius: 50%; box-shadow: 0 0 15px rgba(201,255,98,.55); }
+.pc-box-visual-map i:nth-child(1) { top: 8%; left: 14%; }.pc-box-visual-map i:nth-child(2) { top: 19%; right: 13%; }.pc-box-visual-map i:nth-child(3) { top: 43%; left: 22%; }
+.pc-box-visual-map span { position: absolute; top: 11%; left: 16%; width: 68%; height: 30%; border: 1px dashed rgba(201,255,98,.45); border-width: 1px 1px 0 0; border-radius: 50%; transform: rotate(8deg); }
+.pc-box-visual-image { position: relative; flex: 1 1 440px; min-height: 400px; overflow: hidden; }
+.pc-box-visual-image img { width: 100%; height: 100%; display: block; object-fit: cover; filter: saturate(.82) brightness(.72); }
+.pc-box-visual-image-shade { position: absolute; inset: 0; background: linear-gradient(180deg,rgba(5,7,8,.08) 32%,rgba(9,11,13,.18) 58%,#090b0d 100%); }
+.pc-box-visual-image > span { position: absolute; top: 22px; right: 22px; padding: 8px 12px; border: 1px solid rgba(201,255,98,.48); border-radius: 999px; color: #dcff9a; background: rgba(7,9,9,.72); font-size: 10px; font-weight: 750; letter-spacing: .08em; backdrop-filter: blur(12px); }
+.pc-box-visual-city { position: absolute; left: 28px; right: 28px; bottom: 28px; }
+.pc-box-visual-city small { display: block; margin-bottom: 10px; color: #c9ff62; font: 800 9px/1 ui-monospace,monospace; letter-spacing: .16em; }
+.pc-box-visual-city strong { display: block; color: #fff; font-size: clamp(50px,4.3vw,68px); line-height: .92; letter-spacing: -.065em; text-shadow: 0 7px 28px rgba(0,0,0,.45); }
+.pc-box-visual-copy { position: relative; padding: 24px 30px 22px; }
+.pc-box-visual-copy h2 { margin: 0; color: #fff; font-size: clamp(23px,1.7vw,29px); line-height: 1.2; letter-spacing: -.035em; }
+.pc-box-visual-copy p { max-width: 430px; margin: 11px 0 0; color: rgba(255,255,255,.5); font-size: 13px; line-height: 1.65; }
+.pc-box-visual-signals { position: relative; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); margin: 0 30px; padding: 20px 0; border-top: 1px solid rgba(255,255,255,.1); border-bottom: 1px solid rgba(255,255,255,.1); }
+.pc-box-visual-signals span { min-width: 0; padding: 0 14px; border-right: 1px solid rgba(255,255,255,.09); }
+.pc-box-visual-signals span:first-child { padding-left: 0; }
+.pc-box-visual-signals span:last-child { padding-right: 0; border-right: 0; }
+.pc-box-visual-signals small { display: block; margin-bottom: 7px; color: rgba(255,255,255,.34); font-size: 9px; letter-spacing: .04em; }
+.pc-box-visual-signals b { display: block; overflow: hidden; color: #f7f8f4; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.pc-box-visual-range { position: relative; margin: 24px 30px 32px; }
+.pc-box-visual-range div { display: flex; align-items: center; justify-content: space-between; margin-bottom: 11px; }
+.pc-box-visual-range small { color: rgba(255,255,255,.38); font-size: 10px; font-weight: 700; letter-spacing: .05em; }
+.pc-box-visual-range b { color: #c9ff62; font-size: 11px; }
+.pc-box-visual-range > i { display: block; height: 4px; overflow: hidden; border-radius: 4px; background: rgba(255,255,255,.1); }
+.pc-box-visual-range > i > span { display: block; height: 100%; border-radius: inherit; background: #c9ff62; box-shadow: 0 0 14px rgba(201,255,98,.45); transition: width .35s cubic-bezier(.2,.8,.2,1); }
+.pc-box-action { width: 100%; }
+.pc-box-summary-value { color: #f7f7f2 !important; font-size: clamp(16px,1.15vw,20px); font-weight: 850; line-height: 1.45; }
+
+@media (max-width: 1050px) {
+  .pc-box-workbench { grid-template-columns: 1fr; }
+  .pc-box-visual { position: relative; top: auto; min-height: 0; display: block; }
+  .pc-box-visual-image { height: 370px; min-height: 0; }
+  .pc-box-action { width: 100%; }
+}
+
+@media (max-width: 720px) {
+  .pc-box-visual-image { height: 240px; }
+  .pc-box-visual { border-radius: 24px; }
+}
+
 `;

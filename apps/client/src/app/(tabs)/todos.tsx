@@ -24,7 +24,7 @@ const STATUS_COLORS: Record<TodoStatus, string> = {
   cancelled: palette.graySoft,
 };
 
-const EMPTY_MASCOT_IMAGE = require('../../../assets/images/weekly-empty-park-cat.png');
+const EMPTY_MASCOT_IMAGE = require('../../../assets/images/empty-explorer-duck.png');
 const BRAND_LOGO = require('../../../assets/images/chuquwanya-logo.png');
 
 export default function TodosScreen() {
@@ -102,7 +102,7 @@ export default function TodosScreen() {
         {isEmptyView ? (
           <View style={styles.emptyState}>
             <View style={styles.emptyMascotFrame}>
-              <Image source={EMPTY_MASCOT_IMAGE} style={styles.emptyMascotImage} resizeMode="cover" />
+              <Image source={EMPTY_MASCOT_IMAGE} style={styles.emptyMascotImage} resizeMode="contain" />
             </View>
             <Text style={styles.emptyTitle}>本周还没有出门计划</Text>
             <Text style={styles.emptyBody}>让 AI 给一个能执行的方案，再选好哪天出发。</Text>
@@ -278,15 +278,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyMascotFrame: {
-    width: 210,
-    height: 210,
-    borderRadius: 52,
-    overflow: 'hidden',
+    width: 250,
+    height: 225,
     marginBottom: 24,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.28)',
-    ...shadows.card,
   },
   emptyMascotImage: {
     width: '100%',
@@ -310,7 +304,7 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     marginTop: 34,
-    minHeight: 52,
+    minHeight: 60,
     alignSelf: 'stretch',
     borderRadius: 26,
     alignItems: 'center',
@@ -318,7 +312,7 @@ const styles = StyleSheet.create({
     backgroundColor: palette.primary,
     ...shadows.primaryButton,
   },
-  primaryButtonText: { color: palette.white, fontSize: typography.body, fontWeight: '900' },
+  primaryButtonText: { color: palette.white, fontSize: 17, fontWeight: '900' },
   list: { gap: spacing.md },
   appointment: {
     flexDirection: 'row',

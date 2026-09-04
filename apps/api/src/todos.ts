@@ -24,8 +24,8 @@ const allowedAttachmentMimeTypes = new Set([
 const maxAttachmentBytes = 20 * 1024 * 1024;
 const attachmentUploadMimeTypes = new Set(["image/jpeg", "image/png", "image/webp", "video/mp4"]);
 const attachmentUploadMaxBytes = 20 * 1024 * 1024;
-const freeWeeklyTodoLimit = 1;
-const vipWeeklyTodoLimit = 3;
+const freeWeeklyTodoLimit = 21;
+const vipWeeklyTodoLimit = 21;
 const chinaTimeOffsetMs = 8 * 60 * 60 * 1_000;
 const completionUploadDir = resolve(process.cwd(), "uploads", "completion");
 

@@ -11,6 +11,8 @@ import { useLayoutInsets } from '@/hooks/use-layout-insets';
 import { backOrReplace } from '@/lib/safe-return-to';
 import { palette, radii, shadows, spacing, typography } from '@/theme';
 
+const EMPTY_MASCOT_IMAGE = require('../../assets/images/empty-explorer-duck.png');
+
 export default function DrawScreen() {
   const router = useRouter();
   const { currentDraw, reroll, error, clearError } = useApp();
@@ -21,6 +23,7 @@ export default function DrawScreen() {
     return (
       <AppShell>
           <View style={styles.empty}>
+            <Image source={EMPTY_MASCOT_IMAGE} resizeMode="contain" style={styles.emptyMascot} />
             <Text style={styles.emptyTitle}>还没有推荐结果</Text>
             <Text style={styles.emptyBody}>先设置偏好，系统会生成一张可确认的方案小卡。</Text>
             <Pressable
@@ -118,7 +121,7 @@ export default function DrawScreen() {
                 pressed && styles.pressed,
               ]}>
               <Text style={styles.lightButtonText}>
-                {currentDraw.attemptsRemaining > 0 ? '重抽 · 再来 1 次' : '本轮机会已用完'}
+                {currentDraw.attemptsRemaining > 0 ? `重抽 · 今日剩 ${currentDraw.attemptsRemaining} 次` : '今日机会已用完'}
               </Text>
             </Pressable>
             <Pressable
@@ -161,6 +164,7 @@ const styles = StyleSheet.create({
     backgroundColor: palette.canvas,
     gap: spacing.md,
   },
+  emptyMascot: { width: 240, height: 216, alignSelf: 'center', marginBottom: spacing.sm },
   weatherText: { color: palette.muted, fontSize: typography.caption, lineHeight: 19, marginTop: spacing.sm },
   emptyTitle: { color: palette.ink, fontSize: typography.h2, fontWeight: '900', textAlign: 'center' },
   emptyBody: { color: palette.muted, fontSize: typography.body, lineHeight: 22, textAlign: 'center' },

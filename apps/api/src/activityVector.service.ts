@@ -9,6 +9,7 @@ import { embeddingService } from "./travel/ai/embedding.service.js";
 export type ActivityVectorPreferences = {
   partySize: number;
   durationMinutes: number | null;
+  budgetMin?: number | null;
   budgetMax: number | null;
   mood: string;
   randomLevel: number;
@@ -19,7 +20,7 @@ export type ActivityVectorPreferences = {
   clientSource?: "mobile" | "pc";
   destinationScope?: "nearby" | "province" | "nationwide";
   destinationScopeLabel?: string | null;
-  travelDuration?: "same-day" | "1-2days" | "1-3days" | "3-5days" | "5-7days";
+  travelDuration?: "same-day" | "1-2days" | "1-3days" | "2-3days" | "3-5days" | "4-5days" | "5-7days";
   travelDurationLabel?: string | null;
   budgetLabel?: string | null;
   surpriseLevelLabel?: string | null;
@@ -88,7 +89,9 @@ const travelDurationLabels: Record<NonNullable<ActivityVectorPreferences["travel
   "same-day": "当天",
   "1-2days": "1-2天",
   "1-3days": "1-3天",
+  "2-3days": "2-3天",
   "3-5days": "3-5天",
+  "4-5days": "4-5天",
   "5-7days": "5-7天",
 };
 
@@ -194,9 +197,9 @@ export function buildDrawPreferenceVectorText(input: ActivityVectorSearchInput) 
     isPcDraw && destinationScopeLabel ? `目的地范围：${destinationScopeLabel}` : "",
     preferences.durationMinutes === null ? "" : `最长时长：${preferences.durationMinutes}分钟`,
     isPcDraw && travelDurationLabel
-      ? `旅游时间：${travelDurationLabel}（旅行天数偏好，不是分钟级硬约束）`
+      ? `出游时长：${travelDurationLabel}（旅行天数偏好，不是分钟级硬约束）`
       : preferences.travelDuration
-        ? `旅游时间：${preferences.travelDuration}`
+        ? `出游时长：${preferences.travelDuration}`
         : "",
     budgetText,
     preferences.mood === "随便" ? "" : `想要的心情：${preferences.mood}`,

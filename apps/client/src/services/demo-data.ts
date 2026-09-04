@@ -770,6 +770,27 @@ export const demoAttractions: Attraction[] = demoActivities.map((item, index) =>
 
 const demoRecentActivityIds: number[] = [];
 const DEMO_RECENT_DRAW_LIMIT = 8;
+const DEMO_DAILY_DRAW_LIMIT = 3;
+let demoDailyDrawDate = '';
+let demoDailyDrawCount = 0;
+
+function consumeDemoDailyDraw() {
+  const dateKey = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+  if (demoDailyDrawDate !== dateKey) {
+    demoDailyDrawDate = dateKey;
+    demoDailyDrawCount = 0;
+  }
+  if (demoDailyDrawCount >= DEMO_DAILY_DRAW_LIMIT) {
+    throw new Error('今天的 3 次抽卡机会已经用完，明天 0 点后再来吧');
+  }
+  demoDailyDrawCount += 1;
+  return demoDailyDrawCount;
+}
 
 function demoActivityPlaceKey(activity: Activity) {
   return `${activity.cityId}:${activity.address || activity.district || activity.title}`;
@@ -839,10 +860,9 @@ export function createDemoDraw(
     throw new Error('当前条件下暂时只有这一条玩法，没有新的结果可供重抽。');
   }
 
+  const attemptsUsed = consumeDemoDailyDraw();
   const activity = pickDemoActivity(candidates, previous);
   rememberDemoActivity(activity.id);
-  const attemptsUsed = previous ? previous.attemptsUsed + 1 : 1;
-
   return {
     drawSessionId: previous?.drawSessionId ?? createUuid(),
     attemptsUsed,

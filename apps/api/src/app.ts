@@ -34,6 +34,7 @@ import { registerContentAdminRoutes } from "./content-admin.js";
 
 const environmentValues = ["indoor", "outdoor", "either"] as const;
 const DRAW_SEMANTIC_TOP_K = 3;
+const DAILY_DRAW_LIMIT = 3;
 
 const guestSessionSchema = z.object({
   deviceId: z.string().min(8).max(128),
@@ -75,6 +76,7 @@ const profileUpdateSchema = z
 const preferencesSchema = z.object({
   partySize: z.number().int().min(1).max(20),
   durationMinutes: z.number().int().min(30).max(1_440).nullable().default(null),
+  budgetMin: z.number().int().min(0).max(10_000).nullable().optional(),
   budgetMax: z.number().int().min(0).max(10_000).nullable(),
   mood: z.string().min(1).max(32),
   randomLevel: z.number().int().min(0).max(100).default(68),
@@ -87,7 +89,7 @@ const preferencesSchema = z.object({
   originAccuracyMeters: z.number().min(0).max(100_000).nullable().optional(),
   originSource: z.enum(["device", "manual"]).nullable().optional(),
   destinationScope: z.enum(["nearby", "province", "nationwide"]).optional(),
-  travelDuration: z.enum(["same-day", "1-2days", "1-3days", "3-5days", "5-7days"]).optional(),
+  travelDuration: z.enum(["same-day", "1-2days", "1-3days", "2-3days", "3-5days", "4-5days", "5-7days"]).optional(),
   clientSource: z.enum(["mobile", "pc"]).optional(),
   destinationScopeLabel: z.string().trim().min(1).max(24).nullable().optional(),
   travelDurationLabel: z.string().trim().min(1).max(24).nullable().optional(),
@@ -171,8 +173,8 @@ const authCodeResendMs = 60 * 1_000;
 const maxAuthCodeAttempts = 5;
 const avatarUploadDir = resolve(process.cwd(), "uploads", "avatars");
 const avatarMaxBytes = 4 * 1024 * 1024;
-const freeWeeklyTodoLimit = 1;
-const vipWeeklyTodoLimit = 3;
+const freeWeeklyTodoLimit = 21;
+const vipWeeklyTodoLimit = 21;
 
 const avatarMimeExtensions = {
   "image/jpeg": "jpg",
@@ -805,9 +807,15 @@ function buildActivityQuery(
   }
 
   if (applyOptionalFilters) {
+    if (preferences.budgetMin !== null && preferences.budgetMin !== undefined) {
+      conditions.push(input.preferences.clientSource === "pc" ? "a.budget_yuan >= ?" : "(a.budget_yuan * ?) >= ?");
+      if (input.preferences.clientSource === "pc") values.push(preferences.budgetMin);
+      else values.push(input.preferences.partySize, preferences.budgetMin);
+    }
     if (preferences.budgetMax !== null) {
-      conditions.push("(a.budget_yuan * ?) <= ?");
-      values.push(input.preferences.partySize, preferences.budgetMax);
+      conditions.push(input.preferences.clientSource === "pc" ? "a.budget_yuan <= ?" : "(a.budget_yuan * ?) <= ?");
+      if (input.preferences.clientSource === "pc") values.push(preferences.budgetMax);
+      else values.push(input.preferences.partySize, preferences.budgetMax);
     }
 
     if (preferences.mood !== "随便") {
@@ -1095,6 +1103,8 @@ async function getCurrentDrawForUser(userId: number) {
      FROM draw_sessions
      WHERE user_id = ?
        AND status = 'active'
+       AND DATE(CONVERT_TZ(created_at, @@session.time_zone, '+08:00')) =
+           DATE(CONVERT_TZ(NOW(), @@session.time_zone, '+08:00'))
      ORDER BY updated_at DESC
      LIMIT 1`,
     [userId],
@@ -1125,12 +1135,12 @@ async function getCurrentDrawForUser(userId: number) {
     return null;
   }
 
-  const sessionAttemptsUsed = Math.max(0, Math.min(3, Number(session.attempts_used)));
+  const dailyAttemptsUsed = await getDailyDrawCount(pool, userId);
   return {
     draw: {
       drawSessionId: session.id,
-      attemptsUsed: sessionAttemptsUsed,
-      attemptsRemaining: Math.max(0, 3 - sessionAttemptsUsed),
+      attemptsUsed: dailyAttemptsUsed,
+      attemptsRemaining: Math.max(0, DAILY_DRAW_LIMIT - dailyAttemptsUsed),
       activity: toActivityDto(result),
     },
     input: {
@@ -1138,6 +1148,22 @@ async function getCurrentDrawForUser(userId: number) {
       preferences,
     },
   };
+}
+
+async function getDailyDrawCount(
+  connection: Pick<PoolConnection, "execute">,
+  userId: number,
+) {
+  const [rows] = await connection.execute(
+    `SELECT COUNT(*) AS drawCount
+     FROM draw_results dr
+     INNER JOIN draw_sessions ds ON ds.id = dr.draw_session_id
+     WHERE ds.user_id = ?
+       AND DATE(CONVERT_TZ(dr.created_at, @@session.time_zone, '+08:00')) =
+           DATE(CONVERT_TZ(NOW(), @@session.time_zone, '+08:00'))`,
+    [userId],
+  );
+  return Number((rows as Array<{ drawCount: number }>)[0]?.drawCount ?? 0);
 }
 
 /** 开发环境下允许任意 localhost 端口，避免 Expo Web 端口变化导致 CORS 失败 */
@@ -1616,6 +1642,16 @@ export function createApp() {
         const drawInput: DrawInput =
           cityResolution.cityId === input.cityId ? input : { ...input, cityId: cityResolution.cityId };
         const drawSessionId = input.drawSessionId ?? randomUUID();
+        const dailyAttemptsUsed = await getDailyDrawCount(connection, drawInput.userId);
+
+        if (dailyAttemptsUsed >= DAILY_DRAW_LIMIT) {
+          throw new AppError(
+            429,
+            "DAILY_DRAW_LIMIT_REACHED",
+            "今天的 3 次抽卡机会已经用完，明天 0 点后再来吧",
+            { limit: DAILY_DRAW_LIMIT, used: dailyAttemptsUsed, remaining: 0 },
+          );
+        }
 
         if (!input.drawSessionId) {
           await connection.execute(
@@ -1688,8 +1724,8 @@ export function createApp() {
 
         return {
           drawSessionId,
-          attemptsUsed: attemptNo,
-          attemptsRemaining: 3 - attemptNo,
+          attemptsUsed: dailyAttemptsUsed + 1,
+          attemptsRemaining: Math.max(0, DAILY_DRAW_LIMIT - dailyAttemptsUsed - 1),
           activity: toActivityDto(activity),
           recommendation,
         };

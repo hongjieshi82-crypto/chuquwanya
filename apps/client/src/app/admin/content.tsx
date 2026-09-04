@@ -85,7 +85,7 @@ function ContentAdmin() {
               <Flex className="admin-actions" gap={8} wrap><Button onClick={() => openEdit(item)}>编辑</Button>{item.sourceUrl ? <Button href={item.sourceUrl} target="_blank">查看来源</Button> : null}{item.contentStatus !== 'published' ? <Button type="primary" onClick={() => void changeStatus(item,'published')}>通过</Button> : <Button onClick={() => void changeStatus(item,'review')}>退回</Button>}<Button danger onClick={() => void changeStatus(item,'archived')}>下架</Button></Flex>
             </Card>
           </Col>
-        ))}</Row> : <Empty description="当前筛选下没有内容" />}
+        ))}</Row> : <Empty image="/media/ui/empty-explorer-duck.png" imageStyle={{ height: 180 }} description="当前筛选下没有内容" />}
       </Spin>
       <Pagination current={page} pageSize={PAGE_SIZE} total={total} showSizeChanger={false} onChange={setPage} />
 

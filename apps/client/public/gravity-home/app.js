@@ -308,7 +308,7 @@ function setupScrollStory() {
   const placesSticky = document.querySelector('.places-sticky');
   const placesHeading = document.querySelector('.places-heading');
   const placeGrid = document.querySelector('.place-grid');
-  if (!stage || !stylesSection || !lanes.length) return;
+  if (!stage || !stylesSection) return;
 
   const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
   const sectionProgress = (section) => {
@@ -430,7 +430,11 @@ function setupCityRecommendations() {
   const inputs = [...document.querySelectorAll('[data-city-input]')];
   const cityLabel = document.querySelector('[data-current-city]');
   const cards = [...document.querySelectorAll('.place-card')];
-  if (!forms.length || !inputs.length || !cityLabel || cards.length !== 4) return;
+  const categoryButtons = [...document.querySelectorAll('[data-play-category]')];
+  const refreshButton = document.querySelector('#places-refresh');
+  const stage = document.querySelector('.snap-stage');
+  const placesSection = document.querySelector('.places-screen');
+  if (cards.length !== 4) return;
 
   const image = (name) => `/media/travel/${name}.jpg`;
   const catalog = {
@@ -500,6 +504,17 @@ function setupCityRecommendations() {
     (place) => `在${place}收集三种当地颜色`,
     (place) => `把${place}留到日落以后`,
   ];
+  const categoryTemplates = {
+    '浪漫约会': (place) => `和喜欢的人去${place}交换一张照片`,
+    '休闲躺平': (place) => `在${place}把一个下午慢慢过完`,
+    '娱乐玩乐': (place) => `去${place}解锁一场即兴挑战`,
+    '探险猎奇': (place) => `到${place}寻找一条冷门路线`,
+    '美食吃喝': (place) => `沿着${place}尝三种当地味道`,
+    '城市散步': (place) => `从${place}开始随意转三个弯`,
+  };
+  let activeCategory = '浪漫约会';
+  let currentCity = '北京';
+  let recommendationOffset = 0;
   const buildCityActivities = (city) => {
     const [places, images] = cityProfiles[city];
     if (places.length >= 9) {
@@ -523,6 +538,39 @@ function setupCityRecommendations() {
       [activity.image, cityProfiles[city][1][(index + 1) % 3], cityProfiles[city][1][(index + 2) % 3]],
     ]);
   });
+
+  const categoryPool = (city, category) => {
+    const [places, images] = cityProfiles[city];
+    const template = categoryTemplates[category] || categoryTemplates['城市散步'];
+    return Array.from({ length: Math.max(8, places.length) }, (_, index) => {
+      const place = places[index % places.length];
+      return [
+        category,
+        template(place),
+        index % 3 === 0 ? '半天 · 1–2 人' : index % 3 === 1 ? '2–3 小时 · 2 人' : '当天 · 1–4 人',
+        [images[index % images.length], images[(index + 1) % images.length], images[(index + 2) % images.length]],
+      ];
+    });
+  };
+
+  const renderRecommendations = (city) => {
+    const pool = categoryPool(city, activeCategory);
+    cards.forEach((card, index) => {
+      const [category, title, meta, images] = pool[(recommendationOffset + index) % pool.length];
+      card.classList.toggle('is-contrast-card', index === 3);
+      card.querySelector('.place-card-top b').textContent = `${city} · ${meta}`;
+      card.querySelector('.place-card-copy small').textContent = category;
+      card.querySelector('.place-card-copy h3').textContent = title;
+      const media = card.querySelector('.place-media');
+      media.dataset.leftLabel = '玩法场景';
+      media.dataset.rightLabel = '城市灵感';
+      media.querySelectorAll('img').forEach((node, imageIndex) => {
+        node.src = image(images[imageIndex]);
+        node.alt = `${city}${category}玩法场景`;
+      });
+      card.href = `/destinations?cityName=${encodeURIComponent(city)}`;
+    });
+  };
   const cityCoordinates = {
     '北京': [39.9042, 116.4074], '上海': [31.2304, 121.4737], '杭州': [30.2741, 120.1551], '深圳': [22.5431, 114.0579],
     '天津': [39.0842, 117.2009], '烟台': [37.4638, 121.4479], '青岛': [36.0671, 120.3826], '南京': [32.0603, 118.7969],
@@ -532,11 +580,13 @@ function setupCityRecommendations() {
   };
   const normalizeCity = (value) => value.trim().replace(/[市区]$/, '');
 
-  const applyCity = (requestedCity, persist = true) => {
+  const applyCity = (requestedCity, persist = true, source = 'manual') => {
     const normalized = normalizeCity(requestedCity);
     const city = Object.keys(catalog).find((name) => normalizeCity(name) === normalized) || '北京';
+    currentCity = city;
+    recommendationOffset = 0;
     inputs.forEach((input) => { input.value = city; });
-    cityLabel.textContent = city;
+    if (cityLabel) cityLabel.textContent = city;
     const galleryActivities = buildCityActivities(city);
     document.querySelectorAll('.motion-lane a').forEach((item, index) => {
       const activity = galleryActivities[index];
@@ -545,25 +595,11 @@ function setupCityRecommendations() {
       item.querySelector('span').textContent = activity.title;
       item.href = `/theme?preset=theme&cityName=${encodeURIComponent(city)}`;
     });
-    cards.forEach((card, index) => {
-      const [category, title, meta, images] = catalog[city][index];
-      card.classList.toggle('is-contrast-card', index === 3);
-      card.querySelector('.place-card-top b').textContent = `${city} · ${meta}`;
-      card.querySelector('.place-card-copy small').textContent = category;
-      card.querySelector('.place-card-copy h3').textContent = title;
-      const media = card.querySelector('.place-media');
-      media.dataset.leftLabel = city === '北京' ? '旧北京 · 胡同' : '第一天';
-      media.dataset.rightLabel = city === '北京' ? '新北京 · CBD' : '第二天';
-      media.querySelectorAll('img').forEach((node, imageIndex) => {
-        node.src = image(images[imageIndex]);
-        node.alt = `${city}${category}玩法场景`;
-      });
-      card.href = `/destinations?cityName=${encodeURIComponent(city)}`;
-    });
+    renderRecommendations(city);
     if (persist) {
       localStorage.setItem('@weekend-oracle/home-city', city);
       localStorage.setItem('@weekend-oracle/pc-located-city', JSON.stringify({
-        name: city, latitude: null, longitude: null, accuracyMeters: null, source: 'manual', savedAt: Date.now(),
+        name: city, latitude: null, longitude: null, accuracyMeters: null, source, savedAt: Date.now(),
       }));
     }
   };
@@ -573,18 +609,24 @@ function setupCityRecommendations() {
     applyCity(form.elements.city.value);
   }));
   inputs.forEach((input) => input.addEventListener('change', () => applyCity(input.value)));
+  categoryButtons.forEach((button) => button.addEventListener('click', () => {
+    activeCategory = button.dataset.playCategory;
+    recommendationOffset = 0;
+    categoryButtons.forEach((item) => item.classList.toggle('is-active', item === button));
+    renderRecommendations(currentCity);
+    if (stage && placesSection) stage.scrollTo({ top: placesSection.offsetTop, behavior: 'smooth' });
+  }));
+  refreshButton?.addEventListener('click', () => {
+    recommendationOffset += 4;
+    renderRecommendations(currentCity);
+    refreshButton.classList.remove('is-spinning');
+    void refreshButton.offsetWidth;
+    refreshButton.classList.add('is-spinning');
+  });
 
-  let restoredCity = localStorage.getItem('@weekend-oracle/home-city');
-  if (!restoredCity) {
-    try {
-      restoredCity = JSON.parse(localStorage.getItem('@weekend-oracle/pc-located-city') || 'null')?.name || null;
-    } catch {
-      restoredCity = null;
-    }
-  }
-  applyCity(restoredCity || '北京', false);
+  applyCity('北京', false, 'default');
 
-  if (!restoredCity && navigator.geolocation) {
+  if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(({ coords }) => {
       let nearestCity = '北京';
       let nearestDistance = Infinity;
@@ -595,8 +637,10 @@ function setupCityRecommendations() {
           nearestDistance = distance;
         }
       });
-      if (nearestDistance < 2.5) applyCity(nearestCity, false);
-    }, () => applyCity('北京', false), { maximumAge: 86_400_000, timeout: 5_000 });
+      applyCity(nearestDistance < 2.5 ? nearestCity : '北京', true, nearestDistance < 2.5 ? 'device' : 'default');
+    }, () => applyCity('北京', true, 'default'), { maximumAge: 86_400_000, timeout: 8_000 });
+  } else {
+    applyCity('北京', true, 'default');
   }
 }
 

@@ -80,7 +80,7 @@ export default function PcMultiDayTripResult() {
             </main>
           ) : (
             <main className="multi-trip-empty">
-              <Empty description="还没有生成多日行程" />
+              <Empty image="/media/ui/empty-explorer-duck.png" imageStyle={{ height: 180 }} description="还没有生成多日行程" />
               <Button type="primary" onClick={() => router.replace('/box/config')}>返回配置</Button>
             </main>
           )}

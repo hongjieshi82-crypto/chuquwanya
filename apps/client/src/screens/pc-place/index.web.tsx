@@ -111,7 +111,7 @@ export default function PcPlaceScreen() {
           <div className="pc-place-loading"><Skeleton active paragraph={{ rows: 12 }} /></div>
         ) : error || !activity ? (
           <div className="pc-place-empty">
-            {error ? <Alert type="error" showIcon title="玩法加载失败" description={error} /> : <Empty />}
+            {error ? <Alert type="error" showIcon title="玩法加载失败" description={error} /> : <Empty image="/media/ui/empty-explorer-duck.png" imageStyle={{ height: 180 }} />}
           </div>
         ) : (
           <div className="pc-place-shell">

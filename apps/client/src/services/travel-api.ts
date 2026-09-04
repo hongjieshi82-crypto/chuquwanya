@@ -299,6 +299,7 @@ export async function composeMultiDayTrip(params: {
   originName?: string | null;
   days: number;
   travelers: number;
+  budgetMin?: number | null;
   budget: number | null;
   mood: string;
   budgetTier?: 'budget' | 'standard' | 'premium' | 'luxury';
