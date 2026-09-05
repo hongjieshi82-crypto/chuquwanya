@@ -21,6 +21,7 @@ function setupAppNavigationBridge() {
   if (window.parent === window) return;
 
   document.addEventListener('click', (event) => {
+    if (event.defaultPrevented) return;
     const anchor = event.target.closest('a[target="_top"]');
     if (!anchor || anchor.origin !== window.location.origin) return;
     event.preventDefault();
@@ -28,6 +29,22 @@ function setupAppNavigationBridge() {
       type: 'gravity-home:navigate',
       href: `${anchor.pathname}${anchor.search}${anchor.hash}`,
     }, window.location.origin);
+  });
+}
+
+function setupPrimaryAuthAction() {
+  const button = document.querySelector('#nav-primary-action');
+  if (!button) return;
+  const isRegistered = new URLSearchParams(window.location.search).get('auth') === 'registered';
+  const href = isRegistered ? '/box/config' : '/pc-login';
+  button.textContent = isRegistered ? '立即抽取' : '立即登录';
+  button.setAttribute('aria-label', button.textContent);
+  button.addEventListener('click', () => {
+    if (window.parent !== window) {
+      window.parent.postMessage({ type: 'gravity-home:navigate', href }, window.location.origin);
+    } else {
+      window.location.href = href;
+    }
   });
 }
 
@@ -92,7 +109,8 @@ function setupGravityField() {
     return Math.round((base + ((index * 23) % Math.round(base * 0.34))) * displayScale);
   };
 
-  allIcons.forEach((icon, index) => {
+  const visibleIcons = window.innerWidth <= 760 ? allIcons.filter((_, index) => index % 4 !== 3) : allIcons;
+  visibleIcons.forEach((icon, index) => {
     const size = sizeFor(index);
     const button = document.createElement('button');
     button.type = 'button';
@@ -144,6 +162,8 @@ function setupGravityField() {
     button.addEventListener('blur', deactivate);
 
     button.addEventListener('pointerdown', (event) => {
+      // Touch keeps native page scrolling. The whole pool receives swipe inertia below.
+      if (event.pointerType === 'touch') return;
       event.preventDefault();
       activate();
       dragging = entry;
@@ -258,6 +278,59 @@ function setupGravityField() {
   window.addEventListener('pointerup', release);
   window.addEventListener('pointercancel', release);
 
+  const scrollStage = document.querySelector('.snap-stage');
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let swipe = null;
+  let lastStageScroll = scrollStage?.scrollTop ?? 0;
+  let lastStageTime = performance.now();
+  const clampImpulse = (value) => Math.max(-10, Math.min(10, value));
+  const movePool = (vx, vy) => {
+    if (window.innerWidth > 760 || reducedMotion.matches || !scrollStage || scrollStage.scrollTop >= field.closest('.hero-screen').offsetHeight) return;
+    entries.forEach(({ body }, index) => {
+      if (body.isStatic) return;
+      Sleeping.set(body, false);
+      const weight = .65 + (index % 5) * .08;
+      Body.setVelocity(body, {
+        x: clampImpulse(body.velocity.x + vx * weight),
+        y: clampImpulse(body.velocity.y + vy * weight),
+      });
+      Body.setAngularVelocity(body, clampImpulse(vx) * .012);
+    });
+  };
+  const onTouchStart = (event) => {
+    const touch = event.touches.length === 1 ? event.touches[0] : null;
+    swipe = touch ? { x: touch.clientX, y: touch.clientY, time: performance.now() } : null;
+  };
+  const onTouchMove = (event) => {
+    if (!swipe || event.touches.length !== 1) return;
+    const touch = event.touches[0];
+    const now = performance.now();
+    const dt = Math.max(now - swipe.time, 16);
+    movePool(clampImpulse((touch.clientX - swipe.x) / dt * 16) * .35,
+      clampImpulse((touch.clientY - swipe.y) / dt * 16) * .55);
+    swipe = { x: touch.clientX, y: touch.clientY, time: now };
+  };
+  const onTouchEnd = () => { swipe = null; };
+  const onPoolScroll = () => {
+    const now = performance.now();
+    const next = scrollStage.scrollTop;
+    if (!swipe) movePool(0, clampImpulse((lastStageScroll - next) / Math.max(now - lastStageTime, 16) * 16) * .4);
+    lastStageScroll = next;
+    lastStageTime = now;
+  };
+  scrollStage?.addEventListener('touchstart', onTouchStart, { passive: true });
+  scrollStage?.addEventListener('touchmove', onTouchMove, { passive: true });
+  scrollStage?.addEventListener('touchend', onTouchEnd, { passive: true });
+  scrollStage?.addEventListener('touchcancel', onTouchEnd, { passive: true });
+  scrollStage?.addEventListener('scroll', onPoolScroll, { passive: true });
+  window.addEventListener('pagehide', () => {
+    scrollStage?.removeEventListener('touchstart', onTouchStart);
+    scrollStage?.removeEventListener('touchmove', onTouchMove);
+    scrollStage?.removeEventListener('touchend', onTouchEnd);
+    scrollStage?.removeEventListener('touchcancel', onTouchEnd);
+    scrollStage?.removeEventListener('scroll', onPoolScroll);
+  }, { once: true });
+
   Events.on(engine, 'beforeUpdate', () => {
     if (!supportsCursorFlick || !pointer.active || dragging || activeEntry || Math.hypot(pointer.vx, pointer.vy) < 1.1) return;
     const influenceRadius = Math.min(250, Math.max(165, field.clientWidth * 0.075));
@@ -294,9 +367,26 @@ function setupGravityField() {
 
   document.querySelector('#shuffle-button').addEventListener('click', reshuffle);
   window.addEventListener('resize', rebuildWalls);
+  const fieldObserver = new ResizeObserver(rebuildWalls);
+  fieldObserver.observe(field);
   rebuildWalls();
   render();
-  window.addEventListener('pagehide', () => cancelAnimationFrame(frameId), { once: true });
+  window.addEventListener('pagehide', () => { cancelAnimationFrame(frameId); fieldObserver.disconnect(); }, { once: true });
+}
+
+function setupMobileHeroLayout() {
+  const copy = document.querySelector('.hero-copy');
+  const hero = document.querySelector('.hero-screen');
+  if (!copy || !hero) return;
+  const update = () => {
+    if (window.innerWidth > 760) return;
+    hero.style.setProperty('--mobile-ball-top', `${copy.offsetTop + copy.offsetHeight + 18}px`);
+  };
+  const observer = new ResizeObserver(update);
+  observer.observe(copy);
+  window.addEventListener('resize', update);
+  window.addEventListener('pagehide', () => observer.disconnect(), { once: true });
+  update();
 }
 
 function setupScrollStory() {
@@ -317,10 +407,17 @@ function setupScrollStory() {
   };
   let frame = 0;
   let previewIndex = null;
-  let stackPreviewUnlocked = false;
+  let previousScrollTop = stage.scrollTop;
 
   const update = () => {
     frame = 0;
+    if (stage.clientWidth <= 760) {
+      placesSection?.style.removeProperty('height');
+      placesSection?.style.removeProperty('min-height');
+      placesSection?.style.removeProperty('margin-bottom');
+      cards.forEach((card) => card.classList.add('is-active'));
+      return;
+    }
     const galleryProgress = clamp(sectionProgress(stylesSection) / .78);
     const galleryTravel = Math.min(stage.clientWidth * .09, 150);
     lanes.forEach((lane, index) => {
@@ -344,22 +441,23 @@ function setupScrollStory() {
         'is-natural-card-detail',
         rawStackProgress >= .72 && stage.scrollTop < placesEnd - 2,
       );
-      stackPreviewUnlocked = stackProgress >= .999;
-      if (!stackPreviewUnlocked) previewIndex = null;
       const total = stackProgress * (cards.length - 1);
       const gridHeight = placeGrid.getBoundingClientRect().height;
       const measuredHeaderHeight = Math.max(...cards.map((card) => {
         const cardRect = card.getBoundingClientRect();
+        const stackStopRect = card.querySelector('.place-card-stack-stop')?.getBoundingClientRect();
+        if (stackStopRect) return stackStopRect.bottom - cardRect.top;
         const numberRect = card.querySelector('.place-card-top').getBoundingClientRect();
         const copyRect = card.querySelector('.place-card-copy').getBoundingClientRect();
         return Math.max(numberRect.bottom, copyRect.bottom) - cardRect.top;
       }));
-      const peek = Math.ceil(measuredHeaderHeight + (stage.clientWidth <= 640 ? 10 : 18));
+      const peek = Math.ceil(measuredHeaderHeight);
       const bottomGap = stage.clientWidth <= 640 ? 18 : 36;
       const stickyPaddingTop = placesSticky ? parseFloat(getComputedStyle(placesSticky).paddingTop) || 0 : 0;
+      const gridWidth = placeGrid.getBoundingClientRect().width;
       const adaptiveCardHeight = stage.clientWidth <= 640
         ? clamp(stage.clientHeight * .72, 480, 620)
-        : clamp(stage.clientHeight * .78, 620, 820);
+        : clamp(gridWidth * .41, 560, 820);
       const cardHeight = Math.min(
         adaptiveCardHeight,
         (placesSticky?.clientHeight ?? stage.clientHeight) - stickyPaddingTop - bottomGap,
@@ -384,6 +482,18 @@ function setupScrollStory() {
       const revealedIndex = previewIndex ?? cards.length - 1;
       const headingLift = Math.max(0, placeGrid.offsetTop - stickyPaddingTop);
       const requiredGridOffset = headingLift + revealedIndex * peek;
+      const finalGridOffset = headingLift + (cards.length - 1) * peek;
+      const trailingSpace = 60;
+      const requiredScrollDistance = (finalGridOffset + trailingSpace) / .11;
+      const requiredSectionHeight = Math.ceil(stage.clientHeight + requiredScrollDistance);
+      if (Math.abs(placesSection.offsetHeight - requiredSectionHeight) > 1) {
+        placesSection.style.height = `${requiredSectionHeight}px`;
+        placesSection.style.minHeight = `${requiredSectionHeight}px`;
+      }
+      const finalCardBottom = stickyPaddingTop + displayCardHeight;
+      const emptySpaceBelowFinalCard = Math.max(0, (placesSticky?.clientHeight ?? stage.clientHeight) - finalCardBottom);
+      const nextSectionOverlap = Math.max(0, emptySpaceBelowFinalCard - trailingSpace);
+      placesSection.style.marginBottom = `${-nextSectionOverlap}px`;
       const gridOffset = previewIndex === null
         ? Math.min(requiredGridOffset, detailScrollPixels)
         : requiredGridOffset;
@@ -403,30 +513,77 @@ function setupScrollStory() {
   const requestUpdate = () => {
     if (!frame) frame = requestAnimationFrame(update);
   };
-  stage.addEventListener('scroll', requestUpdate, { passive: true });
+  stage.addEventListener('scroll', () => {
+    if (Math.abs(stage.scrollTop - previousScrollTop) > 2) previewIndex = null;
+    previousScrollTop = stage.scrollTop;
+    requestUpdate();
+  }, { passive: true });
   window.addEventListener('resize', requestUpdate);
   cards.forEach((card, index) => {
-    card.addEventListener('pointerenter', () => {
-      if (!stackPreviewUnlocked) return;
+    card.addEventListener('click', (event) => {
+      if (event.target.closest('.place-add-trip,.place-open-detail')) return;
       previewIndex = index;
       requestUpdate();
     });
-    card.addEventListener('focus', () => {
-      if (!stackPreviewUnlocked) return;
-      previewIndex = index;
-      requestUpdate();
-    });
-  });
-  placeGrid?.addEventListener('pointerleave', () => {
-    previewIndex = null;
-    requestUpdate();
-  });
-  placeGrid?.addEventListener('focusout', (event) => {
-    if (placeGrid.contains(event.relatedTarget)) return;
-    previewIndex = null;
-    requestUpdate();
   });
   update();
+}
+
+function upgradeWeekendGuideCards() {
+  const cards = [...document.querySelectorAll('.place-card')];
+  const metricPresets = [
+    ['3.8', 'KM', '3.5', 'H', '¥80', '/ 人'],
+    ['4.2', 'KM', '3', 'H', '¥120', '/ 人'],
+    ['6.6', 'KM', '4', 'H', '¥150', '/ 人'],
+    ['2.9', 'KM', '3', 'H', '¥90', '/ 人'],
+  ];
+  const tags = [
+    ['少走路', '不早起', '适合独处', '拍照好看'],
+    ['城市漫游', '轻松拍照', '适合两人', '不赶时间'],
+    ['湖畔骑行', '日落计划', '轻户外', '视野开阔'],
+    ['茶馆闲坐', '慢节奏', '城市观察', '雨天可去'],
+  ];
+  const subtitles = [
+    '一条不用赶路的半日散步线',
+    '用相机收集街区里的颜色和细节',
+    '把终点交给当天最好看的那束光',
+    '喝盖碗茶、看人下棋，把时间慢下来',
+  ];
+
+  cards.forEach((card, index) => {
+    const order = card.dataset.order || String(index + 1).padStart(2, '0');
+    const category = card.querySelector('.place-card-copy small')?.textContent?.trim() || '城市漫游';
+    const facts = card.querySelector('.place-card-facts')?.textContent?.trim() || '';
+    const title = card.querySelector('.place-card-copy h3')?.textContent?.trim() || '';
+    const steps = [...card.querySelectorAll('.guide-checklist li span')].map((node) => node.textContent?.trim() || '');
+    const images = [...card.querySelectorAll('.place-media img')].map((image) => ({ src: image.getAttribute('src') || '', alt: image.getAttribute('alt') || '' }));
+    const city = facts.split('·')[0]?.trim() || '北京';
+    const metric = metricPresets[index] || metricPresets[0];
+    const cardTags = tags[index] || tags[0];
+    card.innerHTML = `
+      <div class="card-visual">
+        <img src="${images[0]?.src || ''}" alt="${images[0]?.alt || title}" />
+        <div class="image-shade"></div>
+        <div class="visual-top"><span>ROUTE <b>${order}</b></span><span>${city.toUpperCase()} · CITY ROUTE</span></div>
+        <div class="visual-index">${order}</div>
+        <div class="visual-copy">
+          <div class="cover-kicker"><span>${category}</span><em>CITY ESCAPE</em></div>
+          <h2>${title}</h2>
+          <div class="cover-caption"><span class="status"><i></i> 本周六正合适</span><p>${subtitles[index] || subtitles[0]}</p></div>
+        </div>
+        <span class="photo-note">氛围示意图</span>
+      </div>
+      <div class="card-content">
+        <div class="plan-meta place-card-stack-stop"><span><b>${metric[0]}</b> ${metric[1]}</span><span><b>${metric[2]}</b> ${metric[3]}</span><span><b>${metric[4]}</b> ${metric[5]}</span></div>
+        <div class="tags">${cardTags.map((tag) => `<span>${tag}</span>`).join('')}</div>
+        <div class="mini-route"><div class="route-line"></div>${steps.map((step, stepIndex) => `<div class="mini-stop${stepIndex === 1 ? ' hot' : ''}"><time>${['14:30', '15:20', '16:40'][stepIndex]}</time><i></i><div><b>${step}</b><small>${['先慢下来，给城市留在身后', '今日高光 · 按喜欢的节奏往前走', '留下一张照片，什么也不用赶'][stepIndex]}</small></div></div>`).join('')}</div>
+        <div class="why"><span>为什么推荐</span><p>路线节奏松弛，树荫多、坡度低，第一次去也不用担心绕远。</p></div>
+        <div class="card-actions"><span class="secondary place-open-detail" role="button" tabindex="0">看看完整路线</span><span class="primary place-add-trip" role="button" tabindex="0">加入我的行程</span></div>
+        <div class="place-card-copy"><div class="place-card-label-row"><small>${category}</small><span class="place-card-facts">${facts}</span></div><h3>${title}</h3><p>${subtitles[index] || subtitles[0]}</p></div>
+        <div class="guide-body"><ol class="guide-checklist">${steps.map((step) => `<li><span>${step}</span></li>`).join('')}</ol></div>
+        <div class="place-media">${images.map((image) => `<img src="${image.src}" alt="${image.alt}" />`).join('')}</div>
+      </div>`;
+  });
 }
 
 function setupCityRecommendations() {
@@ -639,6 +796,12 @@ function setupCityRecommendations() {
       card.querySelector('.place-card-facts').textContent = `${city} · ${meta}`;
       card.querySelector('.place-card-copy small').textContent = category;
       card.querySelector('.place-card-copy h3').textContent = title;
+      const routeMastCity = card.querySelector('.visual-top span:last-child');
+      if (routeMastCity) routeMastCity.textContent = `${city.toUpperCase()} · CITY ROUTE`;
+      const routeTitle = card.querySelector('.visual-copy h2');
+      if (routeTitle) routeTitle.textContent = title;
+      const routeCategory = card.querySelector('.cover-kicker span');
+      if (routeCategory) routeCategory.textContent = category;
       const steps = guideStepTemplates[category] || ['确认路线与开放时间', '完成攻略的核心体验', '记录今天最喜欢的一个瞬间'];
       card.querySelectorAll('.guide-checklist li span').forEach((node, stepIndex) => {
         node.textContent = steps[stepIndex] || steps[steps.length - 1];
@@ -793,6 +956,7 @@ function setupCityRecommendations() {
 
   cards.forEach((card, index) => {
     const addButton = card.querySelector('.place-add-trip');
+    const detailButton = card.querySelector('.place-open-detail');
     const guidePayload = (type) => {
       const category = card.querySelector('.place-card-copy small')?.textContent?.trim() || '城市散步';
       return {
@@ -815,11 +979,18 @@ function setupCityRecommendations() {
     addButton?.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' || event.key === ' ') addTrip(event);
     });
-    card.addEventListener('click', (event) => {
-      if (event.target.closest('.place-add-trip')) return;
+    const openGuide = (event) => {
       event.preventDefault();
       event.stopPropagation();
       window.parent.postMessage(guidePayload('gravity-home:open-guide'), window.location.origin);
+    };
+    detailButton?.addEventListener('click', openGuide);
+    detailButton?.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') openGuide(event);
+    });
+    card.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
     });
   });
 
@@ -836,6 +1007,16 @@ function setupCityRecommendations() {
         card.querySelector('.place-card-copy small').textContent = category;
         card.querySelector('.place-card-copy h3').textContent = item.title;
         card.querySelector('.place-card-facts').textContent = `${item.cityName} · ${guideDuration(item)} · ${party}`;
+        const routeMastCity = card.querySelector('.visual-top span:last-child');
+        if (routeMastCity) routeMastCity.textContent = `${item.cityName.toUpperCase()} · CITY ROUTE`;
+        const routeTitle = card.querySelector('.visual-copy h2');
+        if (routeTitle) routeTitle.textContent = item.title;
+        const routeCategory = card.querySelector('.cover-kicker span');
+        if (routeCategory) routeCategory.textContent = category;
+        const metrics = card.querySelectorAll('.plan-meta span');
+        if (metrics[0] && Number.isFinite(item.distanceKm)) metrics[0].innerHTML = `<b>${item.distanceKm.toFixed(1)}</b> KM`;
+        if (metrics[1] && Number.isFinite(item.durationMinutes)) metrics[1].innerHTML = `<b>${Math.max(1, item.durationMinutes / 60).toFixed(1)}</b> H`;
+        if (metrics[2] && Number.isFinite(item.budgetYuan)) metrics[2].innerHTML = `<b>¥${Math.round(item.budgetYuan)}</b> / 人`;
         const steps = realGuideSteps(item);
         card.querySelectorAll('.guide-checklist li span').forEach((node, stepIndex) => {
           node.textContent = steps[stepIndex] || steps[steps.length - 1];
@@ -849,7 +1030,7 @@ function setupCityRecommendations() {
     }
     if (event.data?.type !== 'gravity-home:add-trip-status') return;
     if (event.data.status === 'loading') return;
-    if (pendingAddButton) pendingAddButton.textContent = '＋ 加入我的行程';
+    if (pendingAddButton) pendingAddButton.textContent = '加入我的行程';
     if (event.data.status === 'success') {
       showHomeToast(event.data.alreadyExists ? '这条攻略已经在你的行程里了' : `已加入：${event.data.title}`);
     } else if (event.data.status === 'error') {
@@ -879,8 +1060,11 @@ function setupCityRecommendations() {
 }
 
 setupSectionObserver();
+setupMobileHeroLayout();
 setupGravityField();
 setupAppNavigationBridge();
+setupPrimaryAuthAction();
 document.querySelector('.styles-screen')?.classList.add('is-static-grid');
+upgradeWeekendGuideCards();
 setupScrollStory();
 setupCityRecommendations();

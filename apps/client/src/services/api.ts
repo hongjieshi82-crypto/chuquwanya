@@ -150,7 +150,7 @@ function normalizeDiaryComment(item: DiaryCommentItem): DiaryCommentItem {
 function normalizeActivity(item: Activity): Activity {
   return {
     ...item,
-    coverImageUri: resolveCuratedActivityCover(item) ?? resolveApiMediaUrl(item.coverImageUri),
+    coverImageUri: resolveApiMediaUrl(item.coverImageUri) ?? resolveCuratedActivityCover(item),
   };
 }
 
@@ -184,6 +184,8 @@ async function withDemoFallback<T>(
   request: () => Promise<T>,
   fallback: () => T | Promise<T>,
 ) {
+  // Signed-in accounts must use the shared server, never a device-local substitute.
+  if (await getAuthToken()) return await request();
   if (localDemoModeEnabled) return await fallback();
 
   try {

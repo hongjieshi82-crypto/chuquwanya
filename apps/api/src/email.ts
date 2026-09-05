@@ -59,7 +59,7 @@ function minutesFromSeconds(seconds: number) {
 
 function buildAuthCodeEmail(code: string, options: AuthCodeEmailOptions) {
   const ttlMinutes = minutesFromSeconds(options.expiresInSeconds);
-  const subject = "你的懒得出门验证码";
+  const subject = "你的粗去玩鸭验证码";
   const text = [
     `验证码：${code}`,
     `有效期 ${ttlMinutes} 分钟。`,

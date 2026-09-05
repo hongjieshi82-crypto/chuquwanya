@@ -1,17 +1,11 @@
-import GiftOutlinedSvg from '@ant-design/icons-svg/es/asn/GiftOutlined';
-import type { AbstractNode, IconDefinition } from '@ant-design/icons-svg/es/types';
 import { ConfigProvider } from 'antd';
 import 'antd/dist/reset.css';
 import { usePathname } from 'expo-router';
-import { useEffect, useState, type PropsWithChildren, type SVGProps } from 'react';
+import { useEffect, useState, type PropsWithChildren } from 'react';
 
 import { PC_TOP_NAV_KEYS, PcTopNav, getPcTopNavItems } from '@/components/pc-top-nav';
 import { useApp } from '@/contexts/app-context';
 import { palette, radii } from '@/theme';
-
-type PcIconProps = SVGProps<SVGSVGElement> & {
-  size?: number;
-};
 
 const shellToken = {
   ink: palette.ink,
@@ -187,7 +181,8 @@ const pcExperienceShellCss = `
 }
 
 .pc-experience-shell-cta {
-  min-width: 132px;
+  width: 148px;
+  min-width: 148px;
   height: clamp(48px, 3vw, 54px);
   border: 0;
   border-radius: ${radii.pill}px;
@@ -242,48 +237,9 @@ const pcExperienceShellCss = `
 }
 `;
 
-function getIconNode(definition: IconDefinition): AbstractNode {
-  return typeof definition.icon === 'function'
-    ? definition.icon(palette.primary, palette.sky)
-    : definition.icon;
-}
-
-function collectPaths(node: AbstractNode): string[] {
-  const currentPath = node.tag === 'path' ? node.attrs.d : undefined;
-  const childPaths = node.children?.flatMap(collectPaths) ?? [];
-  return currentPath ? [currentPath, ...childPaths] : childPaths;
-}
-
-function createPcIcon(definition: IconDefinition) {
-  const iconNode = getIconNode(definition);
-  const paths = collectPaths(iconNode);
-
-  function PcIcon({ size = 16, className, style, ...props }: PcIconProps) {
-    return (
-      <svg
-        aria-hidden="true"
-        className={className}
-        focusable="false"
-        height={size}
-        viewBox={iconNode.attrs.viewBox}
-        width={size}
-        style={style}
-        {...props}>
-        {paths.map((d, index) => (
-          <path key={index} d={d} fill="currentColor" />
-        ))}
-      </svg>
-    );
-  }
-
-  return PcIcon;
-}
-
-const GiftOutlined = createPcIcon(GiftOutlinedSvg);
-
 export function PcExperienceShell({ children }: PropsWithChildren) {
   const pathname = usePathname();
-  const { isBooting } = useApp();
+  const { isBooting, isRegistered } = useApp();
   const [hasScrolled, setHasScrolled] = useState(false);
   const isBlindBoxRoute =
     pathname === '/box/config' || pathname === '/box/open' || pathname === '/box/result';
@@ -366,12 +322,15 @@ export function PcExperienceShell({ children }: PropsWithChildren) {
           dataAnime="nav"
           showLogin={false}
           primaryAction={
-            pathname === '/box/open' || pathname === '/box/result'
-              ? undefined
+            !isRegistered
+              ? {
+                  label: '立即登录',
+                  href: '/pc-login',
+                  className: 'pc-experience-shell-cta pc-header-cta',
+                }
               : {
                   label: '立即抽取',
                   href: pathname === '/box/config' ? undefined : '/box/config',
-                  icon: <GiftOutlined />,
                   className: 'pc-experience-shell-cta pc-header-cta',
                   disabled: pathname === '/box/config' ? isBooting : false,
                   onClick: pathname === '/box/config' ? startPcBoxDraw : undefined,

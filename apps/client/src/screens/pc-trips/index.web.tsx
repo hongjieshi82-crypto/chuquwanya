@@ -246,6 +246,10 @@ const tripsCss = `
 }
 
 /* Shared first-level page frame: aligned to the landing page's 7.4vw content edge. */
+.pc-trip-cover { isolation: isolate; line-height: 0; }
+.pc-trip-cover img { position: absolute; z-index: 0; inset: 0; width: 100%; height: 100%; min-height: 100%; object-fit: cover; }
+.pc-trip-cover-shade { display: none; }
+.pc-trip-date,.pc-trip-cover-actions { z-index: 2; }
 .pc-trips-page { padding: 64px 7.4vw 96px; }
 .pc-trips-container { width: 100%; max-width: none; }
 .pc-trips-heading { justify-content: flex-end; margin-bottom: 22px; }
@@ -392,7 +396,7 @@ function TripCard({
             </Popconfirm>
           ) : null}
           {!isEditing && item.status === 'pending' ? <Button className="pc-trip-start" icon={<PlayCircleOutlined />} loading={isStarting} type="primary" onClick={() => onStart(item)}>开始行程</Button> : null}
-          {!isEditing && item.status === 'in_progress' ? <Button className="pc-trip-start" loading={isCompleting} type="primary" onClick={() => onComplete(item)}>完成行程</Button> : null}
+          {/* An in-progress trip may only be completed from the final step below. */}
           {!isEditing && item.status === 'completed' ? <Badge color="#78a927" text={<span style={{ color: 'rgba(255,255,255,.58)', fontSize: 14, fontWeight: 700 }}>已留下回忆</span>} /> : null}
         </div>
       </div>

@@ -38,6 +38,7 @@ async function withTravelDemoFallback<T>(
   request: () => Promise<T>,
   fallback: () => T | Promise<T>,
 ) {
+  if (await getAuthToken()) return await request();
   if (isLocalDemoMode()) return await fallback();
 
   try {

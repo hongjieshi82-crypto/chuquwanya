@@ -16,8 +16,10 @@ import {
   createOrContinueDraw,
   getCities,
   getPreferenceOptions,
+  logoutAccount,
   rerollDraw,
   resolveApiMediaUrl,
+  tryRestoreSession,
 } from '@/services/api';
 import { resolveCuratedActivityCover } from '@/services/demo-data';
 import type { City, DrawResult, GuestUser, PreferenceOptions, Preferences } from '@/types';
@@ -82,8 +84,8 @@ function normalizeCurrentDrawCover(result: DrawResult): DrawResult {
     activity: {
       ...result.activity,
       coverImageUri:
-        resolveCuratedActivityCover(result.activity) ??
-        resolveApiMediaUrl(result.activity.coverImageUri),
+        resolveApiMediaUrl(result.activity.coverImageUri) ??
+        resolveCuratedActivityCover(result.activity),
     },
   };
 }
@@ -143,18 +145,19 @@ export function AppProvider({ children }: PropsWithChildren) {
 
     try {
       const deviceId = await getOrCreateDeviceId();
-      const [cityData, optionData, guestUser] = await Promise.all([
+      const [cityData, optionData, restoredUser] = await Promise.all([
         getCities(),
         getPreferenceOptions(),
-        createGuestSession(deviceId),
+        tryRestoreSession(),
       ]);
+      const activeUser = restoredUser ?? await createGuestSession(deviceId);
 
       setCities(cityData);
       setOptions(optionData);
-      setUser(guestUser);
+      setUser(activeUser);
       setSelectedCityId((current) => current ?? cityData[0]?.id ?? null);
 
-      const snapshot = await readStoredCurrentDraw(guestUser.id);
+      const snapshot = await readStoredCurrentDraw(activeUser.id);
       if (snapshot) {
         setCurrentDraw(normalizeCurrentDrawCover(snapshot.result));
         setLastDrawInput(snapshot.input);
@@ -238,7 +241,7 @@ export function AppProvider({ children }: PropsWithChildren) {
   const value = useMemo<AppContextValue>(
     () => ({
       user,
-      isRegistered: false,
+      isRegistered: user?.authType === 'registered',
       cities,
       options,
       selectedCityId,
@@ -251,7 +254,11 @@ export function AppProvider({ children }: PropsWithChildren) {
       addCurrentDrawToTodos,
       clearError: () => setError(null),
       retry: bootstrap,
-      logout: async () => undefined,
+      logout: async () => {
+        await logoutAccount();
+        setUser(null);
+        await bootstrap();
+      },
     }),
     [
       addCurrentDrawToTodos,

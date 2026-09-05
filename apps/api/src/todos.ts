@@ -9,6 +9,7 @@ import { verifyAuthToken } from "./auth.js";
 import { pool, withTransaction } from "./db.js";
 import { AppError } from "./errors.js";
 import { parseJsonArray } from "./types.js";
+import { isSupabaseAuthConfigured, requestAuthUserId } from "./supabase-auth.js";
 
 const todoStatusValues = ["pending", "in_progress", "completed", "cancelled"] as const;
 const todoVisibilityValues = ["private", "public_requested"] as const;
@@ -594,6 +595,9 @@ function toDiarySubmissionDto(row: DiarySubmissionRow, attachments: DiaryAttachm
 }
 
 function getBearerUserId(request: Request) {
+  const supabaseUserId = requestAuthUserId(request);
+  if (supabaseUserId !== null) return supabaseUserId;
+  if (isSupabaseAuthConfigured()) return null;
   const authorization = request.headers.authorization;
   if (!authorization?.startsWith("Bearer ")) {
     return null;
@@ -608,21 +612,12 @@ function getBearerUserId(request: Request) {
 
 function resolveUserId(request: Request, fallbackUserId?: number) {
   const tokenUserId = getBearerUserId(request);
-  if (tokenUserId !== null) {
-    if (fallbackUserId !== undefined && fallbackUserId !== tokenUserId) {
-      throw new AppError(403, "USER_MISMATCH", "不能操作其他用户的约定");
-    }
-    return tokenUserId;
+  if (tokenUserId === null) throw new AppError(401, "UNAUTHORIZED", "请先登录");
+  if (fallbackUserId !== undefined && fallbackUserId !== tokenUserId) {
+    throw new AppError(403, "USER_MISMATCH", "不能操作其他用户的行程");
   }
-
-  if (fallbackUserId !== undefined) {
-    return fallbackUserId;
-  }
-
-  throw new AppError(401, "UNAUTHORIZED", "请先登录");
+  return tokenUserId;
 }
-
-// 游客会话没有 token，只能凭 userId 兜底；注册用户的数据必须持 token 访问。
 async function ensureGuestFallbackAccess(
   connection: Pick<PoolConnection, "execute">,
   userId: number,

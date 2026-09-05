@@ -18,6 +18,8 @@ const configSchema = z.object({
   DB_NAME: z.string().min(1),
   LOG_LEVEL: z.string().default("info"),
   JWT_SECRET: z.string().min(16).default("lazyde-dev-jwt-secret-change-me"),
+  SUPABASE_URL: z.string().url().optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_EMBEDDING_MODEL: z.string().default("text-embedding-3-small"),
   OPENAI_LLM_MODEL: z.string().default("gpt-4o-mini"),
@@ -50,7 +52,7 @@ const configSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   SMTP_FROM: z.string().optional(),
-  SMTP_FROM_NAME: z.string().default("懒得出门"),
+  SMTP_FROM_NAME: z.string().default("粗去玩鸭"),
   SMTP_REPLY_TO: z.string().optional(),
   SMS_PROVIDER: z.enum(["mock", "tencent"]).default("mock"),
   TENCENTCLOUD_SECRET_ID: z.string().optional(),
@@ -105,6 +107,10 @@ export const config = {
   },
   logLevel: parsed.data.LOG_LEVEL,
   jwtSecret: parsed.data.JWT_SECRET,
+  supabase: {
+    url: parsed.data.SUPABASE_URL ?? "",
+    serviceRoleKey: parsed.data.SUPABASE_SERVICE_ROLE_KEY ?? "",
+  },
   ai: {
     embeddingProvider: parsed.data.AI_EMBEDDING_PROVIDER,
     llmProvider: parsed.data.AI_LLM_PROVIDER,

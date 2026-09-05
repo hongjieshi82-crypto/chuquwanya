@@ -19,11 +19,12 @@ import { AppShell } from '@/components/app-shell';
 import { AmapView } from '@/components/amap-view';
 import { DesignBackHeader } from '@/components/design-page';
 import { ErrorCard } from '@/components/error-card';
+import { PcItineraryDetail } from '@/components/pc-itinerary-detail';
 import { useApp } from '@/contexts/app-context';
 import { formatBudget, formatDuration } from '@/formatters';
 import { useLayoutInsets } from '@/hooks/use-layout-insets';
 import { backOrReplace } from '@/lib/safe-return-to';
-import { getActivity, getCurrentDraw } from '@/services/api';
+import { addTodo, getActivity, getCurrentDraw, getTodos } from '@/services/api';
 import { palette, shadows, spacing, typography } from '@/theme';
 import type { Activity, DrawRecommendation } from '@/types';
 
@@ -71,9 +72,10 @@ function buildShareMessage(activity: Activity, shareUrl: string) {
 export default function ActivityDetailScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
+  const isWeb = Platform.OS === 'web';
   const isDesktopWeb = Platform.OS === 'web' && width >= 900;
   const params = useLocalSearchParams<{ id: string; source?: string; drawSessionId?: string }>();
-  const { currentDraw } = useApp();
+  const { currentDraw, user } = useApp();
   const { bottom } = useLayoutInsets();
   const activityId = Number(params.id);
   const source = normalizeSource(params.source);
@@ -92,6 +94,7 @@ export default function ActivityDetailScreen() {
   );
   const [isLoading, setIsLoading] = useState(!sourceMatchesCurrentDraw && isValidActivityId);
   const [error, setError] = useState<string | null>(null);
+  const [isInActiveTrip, setIsInActiveTrip] = useState(false);
 
   useEffect(() => {
     if (!isValidActivityId) {
@@ -159,6 +162,20 @@ export default function ActivityDetailScreen() {
     };
   }, [activityId, drawSessionId, isDrawEntry, isValidActivityId, sourceMatchesCurrentDraw, currentDraw]);
 
+  useEffect(() => {
+    if (!isValidActivityId || !user?.id) return;
+    let cancelled = false;
+    void getTodos(user.id)
+      .then((items) => {
+        if (cancelled) return;
+        setIsInActiveTrip(items.some((item) =>
+          item.activityId === activityId && (item.status === 'pending' || item.status === 'in_progress'),
+        ));
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [activityId, isValidActivityId, user?.id]);
+
   if (!isValidActivityId) {
     return (
       <AppShell>
@@ -171,7 +188,7 @@ export default function ActivityDetailScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.centered, isDesktopWeb && styles.desktopScreen]}>
         <ActivityIndicator color={palette.primary} size="large" />
       </View>
     );
@@ -233,11 +250,14 @@ export default function ActivityDetailScreen() {
     else router.replace('/trips');
   }
 
-  function goToDeparturePicker() {
-    router.push({
-      pathname: '/join-plan',
-      params: { activityId: String(activityId) },
+  async function addTripDirectly() {
+    const result = await addTodo({
+      userId: user?.id,
+      activityId,
+      drawSessionId: isDrawEntry ? drawSessionId ?? currentDraw?.drawSessionId : undefined,
     });
+    setIsInActiveTrip(true);
+    return result;
   }
 
   async function shareActivity() {
@@ -279,16 +299,32 @@ export default function ActivityDetailScreen() {
     }
   }
 
+  if (isWeb) {
+    return (
+      <PcItineraryDetail
+        activity={activity}
+        isAlreadyAdded={isInActiveTrip}
+        onAdd={addTripDirectly}
+        onBack={returnFromDetail}
+        onMap={openNavigation}
+      />
+    );
+  }
+
   return (
     <AppShell desktopFullWidth={isDesktopWeb}>
       <View style={[styles.screen, isDesktopWeb && styles.desktopScreen]}>
-        <View style={[styles.fixedHeader, isDesktopWeb && styles.desktopHeader]}>
+        <View style={[
+          styles.fixedHeader,
+          isDesktopWeb && styles.desktopHeader,
+          isDesktopWeb && { paddingHorizontal: Math.max(40, width * .074) },
+        ]}>
           {isDesktopWeb ? (
             <View style={styles.desktopNavigation}>
               <Pressable accessibilityRole="button" onPress={returnFromDetail} style={({ pressed }) => [styles.desktopBackButton, pressed && styles.pressed]}>
                 <Text style={styles.desktopBackText}>←　返回</Text>
               </Pressable>
-              <Text style={styles.desktopNavigationTitle}>攻略详情</Text>
+              <Text style={styles.desktopNavigationTitle}>03 · 结果详情 / 分享确认</Text>
               {isCalendarEntry ? <Pressable accessibilityRole="button" onPress={() => void shareActivity()} style={({ pressed }) => [styles.desktopShareButton, pressed && styles.pressed]}><Text style={styles.desktopShareText}>分享 ↗</Text></Pressable> : <View style={styles.desktopHeaderSpacer} />}
             </View>
           ) : (
@@ -465,10 +501,18 @@ export default function ActivityDetailScreen() {
             ]}>
             <Text style={[styles.lightButtonText, isDesktopWeb && styles.desktopLightButtonText]}>{navigationUrl ? '打开地图' : '暂无导航'}</Text>
           </Pressable>
-          {isDrawEntry ? (
+          {isDrawEntry && isInActiveTrip ? (
+            <View style={[styles.primaryButton, isDesktopWeb && styles.desktopPrimaryButton, styles.addedButton]}>
+              <Text style={[styles.primaryButtonText, isDesktopWeb && styles.desktopPrimaryButtonText]}>✓ 已加入我的行程</Text>
+            </View>
+          ) : isDrawEntry ? (
             <Pressable
               accessibilityRole="button"
-              onPress={goToDeparturePicker}
+              onPress={() => {
+                void addTripDirectly()
+                  .then(() => router.replace('/todos'))
+                  .catch((reason: unknown) => Alert.alert('加入失败', reason instanceof Error ? reason.message : '可以稍后再试。'));
+              }}
               style={({ pressed }) => [styles.primaryButton, isDesktopWeb && styles.desktopPrimaryButton, pressed && styles.pressed]}>
               <Text style={[styles.primaryButtonText, isDesktopWeb && styles.desktopPrimaryButtonText]}>选择出发日期</Text>
             </Pressable>
@@ -689,6 +733,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   disabled: { opacity: 0.5 },
+  addedButton: { opacity: 0.68 },
   disabledText: { color: palette.placeholder },
   pressed: { opacity: 0.78 },
   detailColumns: { gap: spacing.md },
@@ -704,12 +749,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#0d1012',
   },
   desktopNavigation: { width: '100%', minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  desktopBackButton: { minWidth: 112, minHeight: 42, paddingHorizontal: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,.16)', borderRadius: 14, backgroundColor: 'rgba(255,255,255,.045)', alignItems: 'center', justifyContent: 'center' },
-  desktopBackText: { color: '#f7f7f2', fontSize: 14, fontWeight: '850' },
+  desktopBackButton: { minWidth: 148, minHeight: 56, paddingHorizontal: 24, borderWidth: 2, borderColor: 'rgba(255,255,255,.22)', borderRadius: 18, backgroundColor: 'rgba(255,255,255,.055)', alignItems: 'center', justifyContent: 'center' },
+  desktopBackText: { color: '#f7f7f2', fontSize: 18, lineHeight: 22, fontWeight: '900' },
   desktopNavigationTitle: { color: 'rgba(255,255,255,.58)', fontSize: 13, fontWeight: '800', letterSpacing: 2 },
   desktopShareButton: { minWidth: 92, minHeight: 42, paddingHorizontal: 16, borderWidth: 1, borderColor: 'rgba(201,255,98,.36)', borderRadius: 14, backgroundColor: 'rgba(201,255,98,.06)', alignItems: 'center', justifyContent: 'center' },
   desktopShareText: { color: '#c9ff62', fontSize: 13, fontWeight: '850' },
-  desktopHeaderSpacer: { width: 112 },
+  desktopHeaderSpacer: { width: 148 },
   desktopPage: {
     width: '100%',
     maxWidth: '100%',

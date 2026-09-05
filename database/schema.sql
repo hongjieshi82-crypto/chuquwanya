@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS cities (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  supabase_user_id VARCHAR(36) NULL,
   name VARCHAR(64) NOT NULL,
   code VARCHAR(32) NOT NULL,
   province VARCHAR(64) NOT NULL,
@@ -24,6 +25,7 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uk_users_device_id (device_id),
+  UNIQUE KEY uk_users_supabase_user_id (supabase_user_id),
   UNIQUE KEY uk_users_phone (phone),
   UNIQUE KEY uk_users_email (email)
 ) ENGINE=InnoDB;

@@ -402,6 +402,27 @@ export default function PcSlotPreviewScreen() {
     <ConfigProvider theme={{ token: { colorPrimary: '#ff7426', borderRadius: 18, fontFamily: 'Inter, PingFang SC, Microsoft YaHei, sans-serif' } }}>
       <main className={`travel-slot-page stage-${stage}${isLeverPulling ? ' is-lever-pulling' : ''}`}>
         <style>{travelSlotCss}</style>
+        <style>{mobileMachineCss}</style>
+        <section className="mobile-world-machine" aria-label="周末旅行灵感机">
+          <header><button type="button" onClick={() => router.replace('/box/config')}>← 返回设置</button><span>下一站，粗去玩鸭</span></header>
+          {stage === 'revealed' && currentDraw ? (
+            <article className="mobile-world-result">
+              {currentDraw.activity.coverImageUri ? <img src={currentDraw.activity.coverImageUri} alt={currentDraw.activity.title} /> : null}
+              <div><small>本次抽中 · {currentDraw.activity.cityName}</small><h1>{currentDraw.activity.title}</h1><p>{currentDraw.activity.summary}</p>
+                <p>{formatDuration(currentDraw.activity.durationMinutes)} · {formatBudget(currentDraw.activity.budgetYuan)}</p>
+                <button type="button" onClick={() => router.push(`/activity/${currentDraw.activity.id}?source=ai&drawSessionId=${encodeURIComponent(currentDraw.drawSessionId)}`)}>查看完整路线 →</button>
+                <button className="mobile-world-secondary" type="button" disabled={currentDraw.attemptsRemaining <= 0} onClick={() => void startSlotDraw()}>{currentDraw.attemptsRemaining > 0 ? `再抽一次 · 剩 ${currentDraw.attemptsRemaining} 次` : '今日机会已用完'}</button>
+              </div>
+            </article>
+          ) : (
+            <div className="mobile-world-art">
+              <img src="/media/ui/mobile-travel-machine-v1.png" alt="奶油白旅行灵感机里，小鸭背着行囊，与火车一起探索森林和湖泊" />
+              <span className="mobile-world-display" role="status">{isActive ? '正在寻找你的下一站…' : '周末灵感机'}</span>
+              <button className="mobile-world-start" type="button" disabled={isBooting || isActive} onClick={() => void startSlotDraw()}>{isBooting ? '准备中…' : isActive ? '抽取中…' : stage === 'error' ? '重新抽取' : '抽一个好去处'}</button>
+            </div>
+          )}
+          <p className="mobile-world-caption">{isActive ? statusLabel : pendingDraw?.summary ?? '把目的地交给一点随机，把周末留给自己。'}</p>
+        </section>
         <section className="travel-slot-stage" aria-live="polite">
           <div className="travel-slot-machine">
             <picture className="travel-slot-shell-picture">
@@ -556,6 +577,23 @@ export default function PcSlotPreviewScreen() {
     </ConfigProvider>
   );
 }
+
+const mobileMachineCss = `
+.mobile-world-machine{display:none}
+@media(max-width:760px){
+.travel-slot-page:has(.mobile-world-machine){background:#101607;height:calc(100dvh - 70px - env(safe-area-inset-bottom,0px))!important;overflow-y:auto!important;padding:0!important}
+.travel-slot-page>.travel-slot-stage{display:none!important}
+.mobile-world-machine{display:flex;flex-direction:column;min-height:100%;color:#eff5e7;font-family:Inter,"PingFang SC",sans-serif}
+.mobile-world-machine>header{height:60px;flex:none;padding:0 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}.mobile-world-machine>header button{border:0;background:none;color:#d1ddc7;font-size:13px;padding:10px 0}.mobile-world-machine>header span{font-size:13px;color:#c9ff62;font-weight:800}
+.mobile-world-art{position:relative;width:min(100%,calc((100dvh - 190px) * .667));min-width:260px;max-width:100%;margin:auto;aspect-ratio:2/3;flex:none}
+.mobile-world-art>img{display:block;width:100%;height:100%;object-fit:contain}
+.mobile-world-display{position:absolute;left:30%;right:30%;top:19.8%;height:5.2%;display:grid;place-items:center;color:#fff;font-size:clamp(10px,3.3vw,15px);font-weight:900;text-align:center}
+.mobile-world-start{position:absolute;left:29%;width:43%;top:79.5%;height:7.6%;border:0;border-radius:20%;background:transparent;color:#203005;font-size:clamp(12px,3.7vw,17px);font-weight:950;cursor:pointer;touch-action:manipulation}.mobile-world-start:active{background:#efffa52b}.mobile-world-start:disabled{color:#526527}
+.mobile-world-caption{max-width:360px;margin:12px auto 24px;padding:0 22px;text-align:center;font-size:12px;line-height:1.7;color:#a8b599}
+.mobile-world-result{margin:16px 20px;background:#151d13;border:1px solid #c9ff6238;border-radius:24px;overflow:hidden}.mobile-world-result>img{width:100%;height:230px;object-fit:cover;display:block}.mobile-world-result>div{padding:24px 20px}.mobile-world-result small{color:#c9ff62}.mobile-world-result h1{font-size:28px;line-height:1.25;margin:14px 0}.mobile-world-result p{color:#aeb8a6;line-height:1.7;font-size:14px}.mobile-world-result button{display:block;min-height:48px;width:100%;border:0;border-radius:14px;background:#c9ff62;color:#152009;font-size:15px;font-weight:850;margin-top:14px}.mobile-world-result .mobile-world-secondary{background:transparent;border:1px solid #ffffff26;color:#dde7d4}.mobile-world-result button:disabled{opacity:.45}
+.travel-slot-page .travel-slot-error{position:relative!important;inset:auto!important;width:auto!important;margin:0 20px 24px!important}
+}
+`;
 
 const travelSlotCss = String.raw`
 html, body { width: 100%; min-height: 100%; margin: 0; background: #f47b22; }

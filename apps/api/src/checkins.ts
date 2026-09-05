@@ -1,6 +1,7 @@
 import type { Express, NextFunction, Request, Response } from "express";
 
 import { verifyAuthToken } from "./auth.js";
+import { isSupabaseAuthConfigured, requestAuthUserId } from "./supabase-auth.js";
 import { pool } from "./db.js";
 import { AppError } from "./errors.js";
 import { buildWeekWindow, toChinaDateKey } from "./todos.js";
@@ -129,6 +130,9 @@ function resolveProfileProgress(
 }
 
 function getAuthenticatedUserId(request: Request) {
+  const supabaseUserId = requestAuthUserId(request);
+  if (supabaseUserId !== null) return supabaseUserId;
+  if (isSupabaseAuthConfigured()) throw new AppError(401, "INVALID_TOKEN", "登录已过期，请重新登录");
   const authorization = request.headers.authorization;
   if (!authorization?.startsWith("Bearer ")) {
     throw new AppError(401, "UNAUTHORIZED", "请先登录");

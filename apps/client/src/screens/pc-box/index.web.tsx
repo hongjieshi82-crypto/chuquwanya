@@ -66,12 +66,12 @@ const matchPreferenceGroups: MatchPreferenceGroup[] = [
   { key: 'mood', label: '心情', options: ['放松', '探索', '热闹'] },
   {
     key: 'surpriseLevel',
-    label: '抽取惊喜程度',
-    options: ['轻度', '中度', '重度'],
+    label: '系统替你决定多少',
+    options: ['给我一个灵感', '刚刚好', '今天听你的'],
     descriptions: {
-      轻度: '锁定城市与风格，只随机具体玩法',
-      中度: '锁定目的地，在当地候选中扩大探索范围',
-      重度: '锁定目的地，只提高当地玩法的新鲜感',
+      给我一个灵感: '城市、预算和氛围严格不变，只随机推荐一个景点、餐厅或小玩法。',
+      刚刚好: '城市和硬性条件不变，系统替你安排区域、路线和半日项目组合，可换一次。',
+      今天听你的: '除预算、时间、忌口和体力边界外，区域、玩法类型和顺序都由系统决定。',
     },
   },
 ];
@@ -82,14 +82,14 @@ const initialMatchSelections: Record<string, string> = {
   travelDuration: '当天',
   budget: '划算出行',
   mood: '放松',
-  surpriseLevel: '中度',
+  surpriseLevel: '刚刚好',
 };
 
 const homepagePresetSelections: Record<string, Partial<Record<string, string>>> = {
-  scene: { destinationScope: '全国', mood: '放松', surpriseLevel: '轻度' },
-  theme: { destinationScope: '周边', mood: '探索', surpriseLevel: '中度' },
-  audience: { partySize: '2 人', mood: '放松', surpriseLevel: '中度' },
-  food: { destinationScope: '周边', budget: '划算出行', mood: '热闹', surpriseLevel: '中度' },
+  scene: { destinationScope: '全国', mood: '放松', surpriseLevel: '给我一个灵感' },
+  theme: { destinationScope: '周边', mood: '探索', surpriseLevel: '刚刚好' },
+  audience: { partySize: '2 人', mood: '放松', surpriseLevel: '刚刚好' },
+  food: { destinationScope: '周边', budget: '划算出行', mood: '热闹', surpriseLevel: '刚刚好' },
 };
 
 const defaultPcLocatedCity: PcLocatedCity = {
@@ -130,9 +130,9 @@ const partySizeValues: Record<string, number> = {
 };
 
 const surpriseLevelValues: Record<string, number> = {
-  轻度: 25,
-  中度: 60,
-  重度: 95,
+  给我一个灵感: 25,
+  刚刚好: 60,
+  今天听你的: 95,
 };
 
 function getIconNode(definition: IconDefinition): AbstractNode {
@@ -185,6 +185,7 @@ export default function PcBoxConfigScreen() {
     selectedCityId,
     setSelectedCityId,
     isBooting,
+    isRegistered,
     clearError,
   } = useApp();
   const [matchSelections, setMatchSelections] =
@@ -193,6 +194,7 @@ export default function PcBoxConfigScreen() {
   const [locationNotice, setLocationNotice] = useState<string | null>(null);
   const [isStartingDraw, setIsStartingDraw] = useState(false);
   const [drawError, setDrawError] = useState<string | null>(null);
+  const [isSurpriseEditorOpen, setIsSurpriseEditorOpen] = useState(false);
   const appliedPresetRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -300,12 +302,19 @@ export default function PcBoxConfigScreen() {
 
     setDrawError(null);
     clearError();
+    // Keep local development friction-free while preserving the production
+    // login gate for account-bound draws.
+    if (!isRegistered && !__DEV__) {
+      router.push(`/pc-login?reason=draw&returnTo=${encodeURIComponent(target)}`);
+      return;
+    }
     setIsStartingDraw(true);
     router.push(target);
   }, [
     cities,
     clearError,
     isBooting,
+    isRegistered,
     isStartingDraw,
     locatedCity.accuracyMeters,
     locatedCity.latitude,
@@ -448,22 +457,34 @@ export default function PcBoxConfigScreen() {
                 </div>
               </Card>
 
-              <Card className="pc-box-section" variant="borderless">
-                <div className="pc-box-section-heading">
+              <Card className={`pc-box-section pc-box-surprise-section${isSurpriseEditorOpen ? ' is-open' : ''}`} variant="borderless">
+                <div className="pc-box-section-heading pc-box-surprise-heading">
                   <span className="pc-box-section-icon">
                     <GiftOutlined size={22} />
                   </span>
-                  <Text className="pc-box-section-title">抽取惊喜程度</Text>
+                  <div className="pc-box-surprise-summary">
+                    <Text className="pc-box-section-title">🎲 惊喜程度：{matchSelections.surpriseLevel ?? '刚刚好'}</Text>
+                    <Text>控制这趟旅行里，有多少事情由系统替你决定</Text>
+                  </div>
+                  <button
+                    aria-expanded={isSurpriseEditorOpen}
+                    className="pc-box-surprise-toggle"
+                    type="button"
+                    onClick={() => setIsSurpriseEditorOpen((open) => !open)}>
+                    {isSurpriseEditorOpen ? '收起' : '修改'}
+                  </button>
                 </div>
-                <MatchOptionGroup
-                  group={matchPreferenceGroups[4]}
-                  selected={
-                    matchSelections[matchPreferenceGroups[4].key] ??
-                    matchPreferenceGroups[4].options[0]
-                  }
-                  onSelect={handleMatchSelect}
-                  variant="surprise"
-                />
+                {isSurpriseEditorOpen ? (
+                  <div className="pc-box-surprise-editor">
+                    <div className="pc-box-surprise-axis"><span>用户决定更多</span><i /><span>系统决定更多</span></div>
+                    <MatchOptionGroup
+                      group={matchPreferenceGroups[4]}
+                      selected={matchSelections[matchPreferenceGroups[4].key] ?? '刚刚好'}
+                      onSelect={handleMatchSelect}
+                      variant="surprise"
+                    />
+                  </div>
+                ) : null}
               </Card>
             </div>
 
@@ -488,7 +509,7 @@ export default function PcBoxConfigScreen() {
                 <span><small>期待氛围</small><b>{matchSelections.mood ?? '放松'}</b></span>
               </div>
               <div className="pc-box-visual-range">
-                <div><small>随机探索程度</small><b>{matchSelections.surpriseLevel ?? '中度'}</b></div>
+                <div><small>系统决策范围</small><b>{matchSelections.surpriseLevel ?? '刚刚好'}</b></div>
                 <i><span style={{ width: `${surpriseLevelValues[matchSelections.surpriseLevel] ?? 60}%` }} /></i>
               </div>
             </aside>
@@ -1434,5 +1455,24 @@ const pcBoxCss = `
 /* Unified interactive-card hover. */
 .pc-box-group-surprise .ant-tag-checkable-group-item.ant-tag { transition: transform .34s cubic-bezier(.2,.8,.2,1),border-color .28s ease,box-shadow .34s ease,background .28s ease; }
 .pc-box-group-surprise .ant-tag-checkable-group-item.ant-tag:hover,.pc-box-group-surprise .ant-tag-checkable-group-item.ant-tag:focus-visible { transform: translateY(-4px) scale(1.012); border: 2px solid #c9ff62 !important; box-shadow: 0 0 0 1px rgba(201,255,98,.16),0 18px 42px rgba(0,0,0,.34),0 0 26px rgba(201,255,98,.12) !important; }
+
+/* Surprise is optional in the main flow: show the default first, edit on demand. */
+.pc-box-surprise-section .ant-card-body { padding-block: 24px; }
+.pc-box-surprise-heading { margin: 0; align-items: center; }
+.pc-box-surprise-summary { min-width: 0; display: flex; flex: 1; flex-direction: column; gap: 7px; }
+.pc-box-surprise-summary > span:last-child { color: rgba(255,255,255,.45); font-size: 13px; line-height: 1.5; }
+.pc-box-surprise-toggle { flex: 0 0 auto; min-width: 74px; min-height: 40px; padding: 0 18px; border: 1px solid rgba(201,255,98,.48); border-radius: 999px; color: #dfffaa; background: rgba(201,255,98,.07); font-size: 13px; font-weight: 850; cursor: pointer; transition: color .2s ease,background .2s ease,border-color .2s ease; }
+.pc-box-surprise-toggle:hover,.pc-box-surprise-toggle:focus-visible { color: #11150d; border-color: #c9ff62; background: #c9ff62; outline: none; }
+.pc-box-surprise-editor { margin-top: 24px; padding-top: 22px; border-top: 1px solid rgba(255,255,255,.1); }
+.pc-box-surprise-axis { margin: 0 2px 16px; display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; color: rgba(255,255,255,.38); font-size: 11px; font-weight: 750; }
+.pc-box-surprise-axis i { height: 1px; background: linear-gradient(90deg,rgba(255,255,255,.15),#c9ff62); }
+.pc-box-surprise-section:not(.is-open) { min-height: 0; }
+
+@media (max-width: 720px) {
+  .pc-box-surprise-heading { align-items: flex-start; }
+  .pc-box-surprise-summary > span:last-child { font-size: 11px; }
+  .pc-box-surprise-toggle { min-width: 62px; min-height: 36px; padding-inline: 13px; }
+  .pc-box-surprise-axis { grid-template-columns: auto 1fr auto; gap: 8px; font-size: 9px; }
+}
 
 `;

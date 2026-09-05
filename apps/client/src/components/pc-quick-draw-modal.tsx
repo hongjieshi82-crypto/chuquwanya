@@ -95,7 +95,27 @@ export function PcQuickDrawModal({
   );
 
   return (
-    <Modal className="pc-quick-draw-modal" footer={null} open={open} width={680} onCancel={close}>
+    <Modal
+      centered
+      className="pc-quick-draw-modal"
+      rootClassName="pc-quick-draw-modal-root"
+      footer={null}
+      open={open}
+      width={680}
+      styles={{
+        mask: { backgroundColor: 'rgba(4,5,7,.78)', backdropFilter: 'blur(14px)' },
+        container: {
+          overflow: 'hidden',
+          padding: 0,
+          border: '1px solid rgba(255,255,255,.16)',
+          borderRadius: 28,
+          color: '#f6f6ef',
+          background: 'linear-gradient(145deg,#111416,#0b0d10)',
+          boxShadow: '0 34px 100px rgba(0,0,0,.58),0 0 42px rgba(201,255,98,.07)',
+        },
+        body: { color: '#f6f6ef', background: 'transparent' },
+      }}
+      onCancel={close}>
       <style>{quickDrawCss}</style>
       <div className="pc-quick-draw-content">
         <small>QUICK BLIND BOX</small>
@@ -111,11 +131,12 @@ export function PcQuickDrawModal({
 }
 
 const quickDrawCss = `
-.pc-quick-draw-modal .ant-modal-content{overflow:hidden;padding:0;border:1px solid rgba(255,255,255,.16);border-radius:28px;color:#f6f6ef;background:linear-gradient(145deg,#111416,#0b0d10);box-shadow:0 34px 100px rgba(0,0,0,.58),0 0 42px rgba(201,255,98,.07)}
-.pc-quick-draw-modal .ant-modal-content::before{content:'';position:absolute;inset:0 0 auto;height:3px;background:#c9ff62;box-shadow:0 0 22px rgba(201,255,98,.36)}
-.pc-quick-draw-modal .ant-modal-close{top:17px;right:17px;width:40px;height:40px;border:1px solid rgba(255,255,255,.14);border-radius:50%;color:rgba(255,255,255,.68);background:rgba(255,255,255,.04)}
+.pc-quick-draw-modal-root .ant-modal-container{overflow:hidden!important;padding:0!important;border:1px solid rgba(255,255,255,.16)!important;border-radius:28px!important;color:#f6f6ef!important;background:linear-gradient(145deg,#111416,#0b0d10)!important;box-shadow:0 34px 100px rgba(0,0,0,.58),0 0 42px rgba(201,255,98,.07)!important}
+.pc-quick-draw-modal-root .ant-modal-container::before{content:'';position:absolute;z-index:2;inset:0 0 auto;height:3px;background:#c9ff62;box-shadow:0 0 22px rgba(201,255,98,.36)}
+.pc-quick-draw-modal-root .ant-modal-close{top:40px;right:42px;width:40px;height:40px;border:1px solid rgba(255,255,255,.14);border-radius:50%;color:rgba(255,255,255,.68);background:rgba(255,255,255,.04)}
+.pc-quick-draw-modal-root .ant-modal-close:hover{color:#11150d;background:#c9ff62}
 .pc-quick-draw-content{padding:40px 42px 42px}.pc-quick-draw-content>small{color:#c9ff62;font:800 10px/1 ui-monospace,monospace;letter-spacing:.14em}.pc-quick-draw-content h2.ant-typography{max-width:88%;margin:15px 0 0;color:#fff;font-size:42px;line-height:1.08;letter-spacing:-.05em}.pc-quick-draw-content>p{margin:12px 0 28px;color:rgba(255,255,255,.42)}.pc-quick-draw-content>p b{color:rgba(255,255,255,.8)}
 .pc-quick-draw-field{margin-top:22px}.pc-quick-draw-field>.ant-typography{display:block;margin-bottom:11px;color:rgba(255,255,255,.52);font-size:13px;font-weight:800}.pc-quick-draw-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.pc-quick-draw-options button{min-height:52px;border:1px solid rgba(255,255,255,.13);border-radius:15px;color:rgba(255,255,255,.68);background:#151719;font-size:15px;font-weight:800;cursor:pointer}.pc-quick-draw-options button:hover{border-color:rgba(201,255,98,.55);color:#fff}.pc-quick-draw-options button.is-selected{border-color:#c9ff62;color:#dfffaa;background:#182014;box-shadow:inset 0 0 0 1px rgba(201,255,98,.07),0 0 18px rgba(201,255,98,.07)}.pc-quick-draw-options button.is-selected::before{content:'';display:inline-block;width:7px;height:7px;margin-right:8px;border-radius:50%;background:#c9ff62;box-shadow:0 0 10px rgba(201,255,98,.7)}
 .pc-quick-draw-fixed{min-height:58px;padding:0 18px;border:1px solid rgba(201,255,98,.2);border-radius:16px;display:flex;align-items:center;justify-content:space-between;color:rgba(255,255,255,.46);background:rgba(201,255,98,.045);font-size:13px}.pc-quick-draw-fixed b{color:#dfffaa;font-size:16px}.pc-quick-draw-submit.ant-btn{width:100%;height:60px;margin-top:32px;border:0;border-radius:18px;color:#11150d;background:#c9ff62;font-size:17px;font-weight:950;box-shadow:0 14px 34px rgba(201,255,98,.18)}
-@media(max-width:640px){.pc-quick-draw-content{padding:30px 18px 22px}.pc-quick-draw-content h2.ant-typography{font-size:30px}.pc-quick-draw-options{gap:7px}.pc-quick-draw-options button{min-height:47px;padding:0 7px;font-size:12px}}
+@media(max-width:640px){.pc-quick-draw-modal-root .ant-modal-close{top:30px;right:18px}.pc-quick-draw-content{padding:30px 18px 22px}.pc-quick-draw-content h2.ant-typography{font-size:30px}.pc-quick-draw-options{gap:7px}.pc-quick-draw-options button{min-height:47px;padding:0 7px;font-size:12px}}
 `;

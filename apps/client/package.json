@@ -8,6 +8,7 @@
     "@expo/ui": "~56.0.18",
     "@expo/vector-icons": "^15.0.2",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@supabase/supabase-js": "^2.115.0",
     "animejs": "^4.5.0",
     "antd": "^6.5.0",
     "expo": "~56.0.12",

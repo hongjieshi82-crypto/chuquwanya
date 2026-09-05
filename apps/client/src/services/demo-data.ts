@@ -1,5 +1,7 @@
 import { Image as NativeImage } from 'react-native';
 
+import itineraryPlansRaw from '@/data/itinerary-plans.json';
+
 import type {
   Activity,
   City,
@@ -11,6 +13,24 @@ import type {
 import type { Attraction, Destination, TravelTag } from '@/types/travel';
 
 type StaticAsset = number | string | { uri: string };
+
+type WorkbookPlan = {
+  city: string;
+  title: string;
+  summary: string;
+  partyOptions: string[];
+  travelDuration: string;
+  daysCount: number;
+  perPersonBudgetYuan: number;
+  budgetLabel: string;
+  mood: string;
+  surpriseLevel: string;
+  playTags: string[];
+  poiNames: string[];
+  itineraryText: string;
+  tips: string[];
+  coverImageUri: string | null;
+};
 
 const westLakeImage = require('../../assets/images/pc-hero-west-lake.jpg') as StaticAsset;
 function bundledTravelImage(fileName: string) {
@@ -734,6 +754,58 @@ const additionalActivities: Activity[] = [
 
 const originalDemoActivities = [...baseActivities, ...additionalActivities];
 
+function workbookPartyRange(options: string[]) {
+  const values = options.flatMap((option) => option.match(/\d+/g) ?? []).map(Number).filter(Number.isFinite);
+  if (!values.length) return { min: 1, max: 4 };
+  return { min: Math.min(...values), max: Math.max(...values) };
+}
+
+function workbookSteps(plan: WorkbookPlan) {
+  const blocks = plan.itineraryText
+    .split(/[\n；;]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .flatMap((item) => item.split(/(?=D\d+\s*(?:上午|午间|下午|傍晚|夜间))/i))
+    .map((item) => item.replace(/^D\d+\s*/i, '').trim())
+    .filter(Boolean);
+  return blocks.length ? blocks : [plan.summary];
+}
+
+const workbookActivities: Activity[] = (itineraryPlansRaw as WorkbookPlan[]).map((plan, index) => {
+  const city = demoCities.find((item) => item.name === plan.city);
+  const party = workbookPartyRange(plan.partyOptions);
+  const primaryPoi = plan.poiNames[0] || plan.city;
+  return {
+    id: 600_001 + index,
+    cityId: city?.id ?? 1,
+    cityName: plan.city,
+    title: plan.title,
+    summary: plan.summary,
+    description: plan.itineraryText || plan.summary,
+    category: plan.playTags[0] || '城市漫游',
+    mood: plan.mood || '放松',
+    moodTags: [...new Set([plan.mood, ...plan.playTags, plan.travelDuration, plan.budgetLabel, `${plan.surpriseLevel}度惊喜`].filter(Boolean))],
+    environment: 'either',
+    rainFriendly: 'unknown',
+    heatSensitive: 'unknown',
+    windSensitive: 'unknown',
+    minPartySize: party.min,
+    maxPartySize: Math.max(party.max, party.min),
+    durationMinutes: Math.max(60, plan.daysCount * 480),
+    budgetYuan: Math.max(0, plan.perPersonBudgetYuan),
+    distanceKm: 0,
+    district: primaryPoi,
+    address: primaryPoi,
+    latitude: null,
+    longitude: null,
+    navigationUrl: `https://uri.amap.com/search?keyword=${encodeURIComponent(`${plan.city}${primaryPoi}`)}`,
+    coverImageUri: plan.coverImageUri,
+    steps: workbookSteps(plan),
+    tips: plan.tips,
+    accentColor: '#C9FF62',
+  };
+});
+
 function createActivityVariants(activity: Activity): Activity[] {
   const place = activity.address || activity.district || activity.title;
   const common = {
@@ -752,7 +824,10 @@ function createActivityVariants(activity: Activity): Activity[] {
   ];
 }
 
-export const demoActivities = originalDemoActivities.flatMap((activity) => [activity, ...createActivityVariants(activity)]);
+export const demoActivities = [
+  ...workbookActivities,
+  ...originalDemoActivities.flatMap((activity) => [activity, ...createActivityVariants(activity)]),
+];
 
 export const demoAttractions: Attraction[] = demoActivities.map((item, index) => ({
   id: item.id,

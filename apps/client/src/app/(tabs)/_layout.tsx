@@ -1,22 +1,22 @@
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Tabs } from 'expo-router';
-import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
-import { bottomTabIcons, type BottomTabId } from '@/constants/bottom-tab-icons';
+import { AppIcon } from '@/components/app-icon';
+import type { BottomTabId } from '@/constants/bottom-tab-icons';
 import { useLayoutInsets } from '@/hooks/use-layout-insets';
-import { components, palette, shadows } from '@/theme';
+import { components } from '@/theme';
 
 const TAB_HORIZONTAL_INSET = 12;
 
-function TabIcon({ name, label, focused }: { name: BottomTabId; label: string; focused: boolean }) {
-  const source = bottomTabIcons[name][focused ? 'active' : 'inactive'];
-
+function TabIcon({ name, focused }: { name: BottomTabId; focused: boolean }) {
   return (
     <View style={styles.tabContent}>
-      <Image resizeMode="contain" source={source} style={styles.iconImage} />
-      <Text numberOfLines={1} style={[styles.iconLabel, focused && styles.iconLabelActive]}>
-        {label}
-      </Text>
+      <AppIcon
+        color={focused ? '#C9FF62' : 'rgba(255,255,255,.42)'}
+        name={name === 'home' ? 'home' : 'itinerary'}
+        size={25}
+      />
     </View>
   );
 }
@@ -28,7 +28,7 @@ function MinimalTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
     <View
       pointerEvents="box-none"
       style={[styles.tabBarOuter, { bottom: layout.bottom + components.bottomTabFloatGap }]}>
-      <View style={[styles.tabBarPill, shadows.tabBar]}>
+      <View style={styles.tabBarPill}>
         {state.routes.map((route, index) => {
           const focused = state.index === index;
           const options = descriptors[route.key]?.options;
@@ -55,7 +55,7 @@ function MinimalTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
               key={route.key}
               onPress={onPress}
               style={({ pressed }) => [styles.tabItem, pressed && styles.pressed]}>
-              <TabIcon name={icon} label={label} focused={focused} />
+              <TabIcon name={icon} focused={focused} />
             </Pressable>
           );
         })}
@@ -85,27 +85,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tabBarPill: {
-    width: '100%',
-    maxWidth: 430,
-    height: components.bottomTabHeight,
-    borderRadius: 26,
-    backgroundColor: 'rgba(255,255,255,0.94)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.98)',
+    width: 176,
+    height: 58,
     flexDirection: 'row',
-    overflow: 'hidden',
-    ...(Platform.OS === 'web' ? { boxShadow: '0 14px 30px rgba(54, 42, 130, 0.14)' } : {}),
+    backgroundColor: 'transparent',
   },
   tabItem: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  tabContent: { height: 42, alignItems: 'center', justifyContent: 'center', gap: 4 },
-  iconImage: { width: 24, height: 24 },
-  iconLabel: {
-    color: palette.muted,
-    fontSize: 9,
-    fontWeight: '900',
-    lineHeight: 12,
-    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
-  },
-  iconLabelActive: { color: palette.primary },
+  tabContent: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.72 },
 });

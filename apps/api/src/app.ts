@@ -31,6 +31,7 @@ import { buildWeekWindow, registerTodoRoutes } from "./todos.js";
 import { registerTravelRoutes } from "./travel/routes.js";
 import { getCityWeather } from "./weather.service.js";
 import { registerContentAdminRoutes } from "./content-admin.js";
+import { attachSupabaseUser, isSupabaseAuthConfigured, requestAuthUserId } from "./supabase-auth.js";
 
 const environmentValues = ["indoor", "outdoor", "either"] as const;
 const DRAW_SEMANTIC_TOP_K = 3;
@@ -326,6 +327,9 @@ function asyncRoute(
 }
 
 function readAuthenticatedUserId(request: Request) {
+  const supabaseUserId = requestAuthUserId(request);
+  if (supabaseUserId !== null) return supabaseUserId;
+  if (isSupabaseAuthConfigured()) throw new AppError(401, "INVALID_TOKEN", "登录已过期，请重新登录");
   const authorization = request.headers.authorization;
   if (!authorization?.startsWith("Bearer ")) {
     throw new AppError(401, "UNAUTHORIZED", "请先登录");
@@ -770,6 +774,7 @@ function buildActivityQuery(
   const distance = createDistanceSql(preferences);
   const isCategoryBlindBox = input.preferences.clientSource === "pc" &&
     input.preferences.surpriseLevelLabel?.endsWith("分类盲盒") === true;
+  const canUseWorkbookPlans = input.preferences.clientSource === "pc";
 
   const currentWeek = buildWeekWindow().weekStartDate;
   const conditions = [
@@ -777,7 +782,9 @@ function buildActivityQuery(
     "a.is_active = TRUE",
     ...(isCategoryBlindBox
       ? ["a.source_type = 'itinerary_workbook'"]
-      : ["a.content_status = 'published'", "a.content_score >= 70"]),
+      : canUseWorkbookPlans
+        ? ["(a.source_type = 'itinerary_workbook' OR (a.content_status = 'published' AND a.content_score >= 70))"]
+        : ["a.content_status = 'published'", "a.content_score >= 70"]),
     `NOT EXISTS (
       SELECT 1
       FROM draw_results dr
@@ -914,6 +921,7 @@ function buildCandidatePoolQuery(
   const distance = createDistanceSql(input.preferences);
   const isCategoryBlindBox = input.preferences.clientSource === "pc" &&
     input.preferences.surpriseLevelLabel?.endsWith("分类盲盒") === true;
+  const canUseWorkbookPlans = input.preferences.clientSource === "pc";
   const safeLimit = Math.min(100, Math.max(1, Math.trunc(limit)));
   const activityIds = Array.from(new Set(options?.activityIds ?? []))
     .map((id) => Number(id))
@@ -925,7 +933,9 @@ function buildCandidatePoolQuery(
     "a.is_active = TRUE",
     ...(isCategoryBlindBox
       ? ["a.source_type = 'itinerary_workbook'"]
-      : ["a.content_status = 'published'", "a.content_score >= 70"]),
+      : canUseWorkbookPlans
+        ? ["(a.source_type = 'itinerary_workbook' OR (a.content_status = 'published' AND a.content_score >= 70))"]
+        : ["a.content_status = 'published'", "a.content_score >= 70"]),
     `NOT EXISTS (
           SELECT 1
           FROM draw_results dr
@@ -1103,6 +1113,9 @@ const activitySelect = `
 `;
 
 function getBearerUserId(request: Request) {
+  const supabaseUserId = requestAuthUserId(request);
+  if (supabaseUserId !== null) return supabaseUserId;
+  if (isSupabaseAuthConfigured()) return null;
   const authorization = request.headers.authorization;
   if (!authorization?.startsWith("Bearer ")) {
     throw new AppError(401, "UNAUTHORIZED", "请先登录");
@@ -1242,6 +1255,7 @@ export function createApp() {
   app.use("/uploads", express.static(resolve(process.cwd(), "uploads")));
   app.use("/assets", express.static(resolve(process.cwd(), "assets")));
   app.use(express.json({ limit: "30mb" }));
+  app.use(attachSupabaseUser);
 
   app.get(
     "/api/v1/health",
@@ -1450,9 +1464,21 @@ export function createApp() {
     }),
   );
 
+  app.get("/api/v1/auth/config", (_request, response) => {
+    response.json({
+      data: {
+        authEnabled: true,
+        authMode: isSupabaseAuthConfigured() ? "supabase" : "legacy-development",
+        emailAuth: true,
+        qrAuth: false,
+      },
+    });
+  });
+
   app.post(
     "/api/v1/auth/code",
     asyncRoute(async (request, response) => {
+      if (isSupabaseAuthConfigured()) throw new AppError(410, "LEGACY_AUTH_DISABLED", "请使用 Supabase 邮箱认证");
       const input = sendAuthCodeSchema.parse(request.body);
       const authCode = issueAuthCode(input.email);
       try {
@@ -1480,6 +1506,7 @@ export function createApp() {
   app.post(
     "/api/v1/auth/register",
     asyncRoute(async (request, response) => {
+      if (isSupabaseAuthConfigured()) throw new AppError(410, "LEGACY_AUTH_DISABLED", "请使用 Supabase 邮箱认证");
       const input = registerSchema.parse(request.body);
       assertValidAuthCode(input.email, input.code);
 
@@ -1502,6 +1529,7 @@ export function createApp() {
   app.post(
     "/api/v1/auth/login",
     asyncRoute(async (request, response) => {
+      if (isSupabaseAuthConfigured()) throw new AppError(410, "LEGACY_AUTH_DISABLED", "请使用 Supabase 邮箱认证");
       const input = loginSchema.parse(request.body);
       assertValidAuthCode(input.email, input.code);
 
@@ -1674,7 +1702,12 @@ export function createApp() {
   app.post(
     "/api/v1/draws",
     asyncRoute(async (request, response) => {
-      const input = normalizeRadiusWithoutPreciseOrigin(drawSchema.parse(request.body));
+      const parsedInput = normalizeRadiusWithoutPreciseOrigin(drawSchema.parse(request.body));
+      const authenticatedUserId = readAuthenticatedUserId(request);
+      if (parsedInput.userId !== authenticatedUserId) {
+        throw new AppError(403, "USER_MISMATCH", "不能为其他用户抽取行程");
+      }
+      const input = { ...parsedInput, userId: authenticatedUserId };
 
       const result = await withTransaction(async (connection) => {
         const cityResolution = await resolveDrawCityId(connection, input);
@@ -1786,6 +1819,7 @@ export function createApp() {
     "/api/v1/draws/current",
     asyncRoute(async (request, response) => {
       const userId = getBearerUserId(request);
+      if (userId === null) throw new AppError(401, "UNAUTHORIZED", "请先登录");
       const current = await getCurrentDrawForUser(userId);
       if (!current) {
         response.json({ data: null });

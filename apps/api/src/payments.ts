@@ -11,6 +11,7 @@ import { verifyAuthToken } from "./auth.js";
 import { config } from "./config.js";
 import { pool, withTransaction } from "./db.js";
 import { AppError } from "./errors.js";
+import { isSupabaseAuthConfigured, requestAuthUserId } from "./supabase-auth.js";
 
 type OrderStatus = "pending" | "paid" | "closed" | "failed";
 
@@ -61,6 +62,9 @@ function asyncRoute(
 }
 
 function readAuthenticatedUserId(request: Request) {
+  const supabaseUserId = requestAuthUserId(request);
+  if (supabaseUserId !== null) return supabaseUserId;
+  if (isSupabaseAuthConfigured()) throw new AppError(401, "INVALID_TOKEN", "登录已过期，请重新登录");
   const authorization = request.headers.authorization;
   if (!authorization?.startsWith("Bearer ")) {
     throw new AppError(401, "UNAUTHORIZED", "请先登录");
@@ -477,7 +481,7 @@ export function registerPaymentRoutes(app: Express) {
         bizContent: {
           outTradeNo: orderNo,
           productCode: "FAST_INSTANT_TRADE_PAY",
-          subject: "懒得动奇遇会员月卡",
+          subject: "粗去玩鸭奇遇会员月卡",
           body: "奇遇会员 1 个月",
           totalAmount: formatAmountYuan(amountCents),
         },

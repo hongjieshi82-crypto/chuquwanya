@@ -100,15 +100,15 @@ test("PC 抽卡偏好向量文本使用 PC 条件标签", () => {
       travelDuration: "3-5days",
       travelDurationLabel: "3-5天",
       budgetLabel: "轻奢",
-      surpriseLevelLabel: "中度",
+      surpriseLevelLabel: "刚刚好",
     },
   });
 
   assert.equal(text.includes("客户端：PC旅行盲盒"), true);
   assert.equal(text.includes("目的地范围：全国"), true);
-  assert.equal(text.includes("旅游时间：3-5天（旅行天数偏好，不是分钟级硬约束）"), true);
+  assert.equal(text.includes("出游时长：3-5天（旅行天数偏好，不是分钟级硬约束）"), true);
   assert.equal(text.includes("预算档位：轻奢（不设硬上限）"), true);
-  assert.equal(text.includes("惊喜程度：中度（randomLevel=60）"), true);
+  assert.equal(text.includes("惊喜程度：刚刚好（randomLevel=60）"), true);
 });
 
 test("Chroma 候选 id 回表查询仍排除当前抽卡会话已出结果", () => {

@@ -12,6 +12,7 @@ import { SemanticSearchService } from "./modules/semanticSearch.service.js";
 import { TripGenerationService } from "./modules/tripGeneration.service.js";
 import { MultiDayComposerService } from "./modules/multiDayComposer.service.js";
 import { config, getEmbeddingModelName, isAiConfigured } from "../config.js";
+import { isSupabaseAuthConfigured, requestAuthUserId } from "../supabase-auth.js";
 
 type AuthRequest = Request & { userId?: number };
 
@@ -24,6 +25,16 @@ function asyncRoute(
 }
 
 function authOptional(request: AuthRequest, _response: Response, next: NextFunction) {
+  const supabaseUserId = requestAuthUserId(request);
+  if (supabaseUserId !== null) {
+    request.userId = supabaseUserId;
+    next();
+    return;
+  }
+  if (isSupabaseAuthConfigured()) {
+    next();
+    return;
+  }
   const header = request.headers.authorization;
   if (header?.startsWith("Bearer ")) {
     try {

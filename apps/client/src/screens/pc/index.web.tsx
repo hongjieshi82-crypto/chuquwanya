@@ -8,7 +8,7 @@ import { addTodo, getRecommendedActivities } from '@/services/api';
 
 export default function PcLandingScreen() {
   const router = useRouter();
-  const { user } = useApp();
+  const { isRegistered, user } = useApp();
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [quickDrawLock, setQuickDrawLock] = useState<{ cityId: number; cityName: string; categoryLabel?: string } | null>(null);
 
@@ -65,7 +65,7 @@ export default function PcLandingScreen() {
         const resolvedTitle = activity?.title ?? '这套攻略';
         if (!resolvedActivityId) throw new Error('这一组攻略暂时没有可加入的玩法，请换一批再试。');
         if (actionType === 'gravity-home:open-guide') {
-          router.push(`/activity/${resolvedActivityId}?source=ai` as Href);
+          router.push(`/activity/${resolvedActivityId}` as Href);
           return;
         }
         const added = await addTodo({ userId: user?.id, activityId: resolvedActivityId });
@@ -97,10 +97,11 @@ export default function PcLandingScreen() {
 
   return <>
     <iframe
+      className="mobile-home-frame"
       ref={iframeRef}
       allow="geolocation"
       aria-label="粗去玩鸭周末灵感首页"
-      src="/gravity-home/index.html?v=shared-quick-draw-72"
+      src={`/gravity-home/index.html?v=auth-cta-76&auth=${isRegistered ? 'registered' : 'guest'}`}
       style={{
         width: '100%',
         height: '100dvh',
