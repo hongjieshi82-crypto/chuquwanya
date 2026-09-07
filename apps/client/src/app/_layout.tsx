@@ -1,5 +1,6 @@
 import { Provider as AntdProvider } from '@ant-design/react-native';
 import { Navigator, Redirect, Slot, Stack, usePathname } from 'expo-router';
+import Head from 'expo-router/head';
 import { StatusBar } from 'expo-status-bar';
 import { Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -82,6 +83,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <AntdProvider theme={antdTheme}>
         <AppProvider>
+          {Platform.OS === 'web' ? <Head><title>粗去玩鸭！· 发现你的周末出游灵感</title></Head> : null}
           <StatusBar style="dark" />
           {Platform.OS === 'web' ? <Navigator><RoutedContent /></Navigator> : <RoutedContent />}
         </AppProvider>
