@@ -4,9 +4,9 @@ import './mobile-gacha-machine.css';
 
 export type GachaStage = 'idle' | 'launching' | 'spinning' | 'settling' | 'revealed' | 'error';
 const ballNames = [
-  ['city', ['01-长城烽火台','02-西湖石桥','03-张家界峰林','04-桂林竹筏','05-故宫角楼','06-九寨沟瀑布','07-青岛海岸','08-重庆轻轨']],
-  ['play', ['01-森林温泉','02-雪山木屋','03-沙漠营地','04-茶园梯田','05-金色稻田','06-缤纷夜市','07-当代美术馆','08-海底隧道']],
-  ['nature', ['01-薰衣草风车','02-峡谷玻璃桥','03-湖面皮划艇','04-热带珊瑚岛','05-发光溶洞','06-樱花山地火车','07-向日葵农场','08-山顶天文台']],
+  ['city', ['01-长城烽火台','02-西湖石桥','03-张家界峰林','04-桂林竹筏','05-故宫角楼','06-九寨沟瀑布','07-青岛海岸','08-重庆轻轨','09-上海天际线','10-西安钟楼','11-哈尔滨冰堡','12-大理洱海']],
+  ['play', ['01-森林温泉','02-雪山木屋','03-沙漠营地','04-茶园梯田','05-金色稻田','06-缤纷夜市','07-当代美术馆','08-海底隧道','09-草原越野','10-海边冲浪','11-湖畔骑行','12-灯笼古街']],
+  ['nature', ['01-薰衣草风车','02-峡谷玻璃桥','03-湖面皮划艇','04-热带珊瑚岛','05-发光溶洞','06-樱花山地火车','07-向日葵农场','08-山顶天文台','09-原始森林','10-火山湖','11-海岸悬崖','12-高山木屋']],
 ] as const;
 const balls = ballNames.flatMap(([category, names]) => names.map((name) => ({category, src: `/gravity-home/assets/icons/${category}/${name}.avif`} )));
 const chamberBalls = balls;
@@ -73,7 +73,12 @@ export function MobileGachaMachine({ stage, ready, onStart, winnerSeed }: {
   const message = !ready ? '准备中' : stage === 'launching' ? '好运启动' : stage === 'spinning' ? '寻找下一站' : stage === 'settling' ? '惊喜出仓' : stage === 'error' ? '再试一次' : '下一站？';
   const winner = balls[Math.abs(winnerSeed) % balls.length];
   return <div className={`gacha-machine gacha-${stage}`}>
-    <img className="gacha-shell" src="/media/ui/mobile-travel-gacha-v3-dark.png" alt="奶油白旅行扭蛋机" fetchPriority="high" draggable={false} />
+    <img className="gacha-shell" src="/media/ui/mobile-travel-gacha-v4-fullscreen.png" alt="奶油白旅行扭蛋机" fetchPriority="high" draggable={false} />
+    <div className="gacha-marquee-lights" aria-hidden="true">
+      {Array.from({ length: 7 }, (_, index) => <i key={index} />)}
+    </div>
+    <div className="gacha-console-lights gacha-console-lights-left" aria-hidden="true">{Array.from({ length: 3 }, (_, index) => <i key={index} />)}</div>
+    <div className="gacha-console-lights gacha-console-lights-right" aria-hidden="true">{Array.from({ length: 3 }, (_, index) => <i key={index} />)}</div>
     <div className="gacha-display" role="status" aria-live="polite">{message}</div>
     <BallPool stage={stage} />
     <div className="gacha-glass" aria-hidden="true" />
