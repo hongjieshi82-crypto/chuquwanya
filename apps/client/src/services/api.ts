@@ -160,12 +160,17 @@ export function normalizeActivity(item: Activity): Activity {
   const suppliedCover = resolveApiMediaUrl(item.coverImageUri);
   const curatedCover = resolveCuratedActivityCover(item);
   const isLowResolutionWorkbookCover = suppliedCover?.includes('/media/itineraries/') === true;
+  const isIllustrationCover = item.coverCredit?.kind === 'illustration' || (
+    suppliedCover?.includes('/media/city-plays/') === true && suppliedCover.endsWith('.svg')
+  );
+  const replaceSuppliedCover = isLowResolutionWorkbookCover || isIllustrationCover;
   return {
     ...item,
     title: formatActivityTitle(item.title),
     // Workbook thumbnails are only 320x180 and become visibly blurred in the
     // large result hero. Prefer the high-resolution place/city cover for UI.
-    coverImageUri: isLowResolutionWorkbookCover ? curatedCover ?? suppliedCover : suppliedCover ?? curatedCover,
+    coverImageUri: replaceSuppliedCover ? curatedCover ?? suppliedCover : suppliedCover ?? curatedCover,
+    coverCredit: isIllustrationCover && curatedCover ? undefined : item.coverCredit,
   };
 }
 

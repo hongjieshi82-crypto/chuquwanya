@@ -47,6 +47,7 @@ const beijingNiujieImage = bundledTravelImage('beijing-niujie.jpg');
 const beijingJingshanImage = bundledTravelImage('beijing-jingshan.jpg');
 const beijingShichahaiImage = bundledTravelImage('beijing-shichahai.jpg');
 const beijingShougangImage = bundledTravelImage('beijing-shougang.jpg');
+const beijingChinaRailwayMuseumImage = bundledTravelImage('beijing-china-railway-museum.webp');
 const shanghaiWukangRoadImage = bundledTravelImage('shanghai-wukang-road.jpg');
 const shanghaiXuhuiRiversideImage = bundledTravelImage('shanghai-xuhui-riverside.jpg');
 const shenzhenLianhuashanImage = bundledTravelImage('shenzhen-lianhuashan.jpg');
@@ -121,6 +122,7 @@ export const demoPlaceImageUris = {
 } as const;
 
 const curatedActivityCoverRules = [
+  { keywords: ['中国铁道博物馆', '东郊铁道馆', '东郊展馆', '两代机车'], uri: beijingChinaRailwayMuseumImage },
   { keywords: ['北海公园'], uri: beijingBeihaiParkImage },
   { keywords: ['故宫博物院', '故宫'], uri: beijingForbiddenCityImage },
   { keywords: ['天坛公园', '天坛'], uri: beijingTempleOfHeavenImage },

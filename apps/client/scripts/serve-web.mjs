@@ -6,6 +6,8 @@ import { createGzip } from 'node:zlib';
 const root = resolve(process.cwd(), 'dist');
 const portArgument = process.argv.find((value) => /^\d+$/.test(value));
 const port = Number(portArgument ?? 8092);
+const hostArgument = process.argv.find((value) => value.startsWith('--host='));
+const host = hostArgument?.slice('--host='.length) || '127.0.0.1';
 
 const mimeTypes = {
   '.css': 'text/css; charset=utf-8',
@@ -72,6 +74,6 @@ const server = createServer((request, response) => {
   else stream.pipe(response);
 });
 
-server.listen(port, '127.0.0.1', () => {
-  console.log(`Fast web preview: http://localhost:${port}`);
+server.listen(port, host, () => {
+  console.log(`Fast web preview: http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`);
 });

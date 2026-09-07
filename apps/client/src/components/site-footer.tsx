@@ -6,7 +6,7 @@ export function SiteFooter() {
       .site-footer a{display:inline-block;padding:8px;color:inherit;text-decoration:none}
       .site-footer a:hover{text-decoration:underline}
       .site-footer a:focus-visible{outline:2px solid #c9ff62;outline-offset:3px;border-radius:4px}
-      @media(max-width:760px){.site-footer{padding-bottom:calc(86px + env(safe-area-inset-bottom,0px))}}
+      @media(max-width:760px){.site-footer{padding:8px 16px calc(72px + env(safe-area-inset-bottom,0px));line-height:1.35}.site-footer a{padding:4px 8px}}
       @media print{.site-footer{display:none}}
     `}</style>
   </footer>;

@@ -1,6 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { createGachaWorld } from '@/lib/gacha-physics';
+import { createGachaWorld, projectGachaBody } from '@/lib/gacha-physics';
 import './mobile-gacha-machine.css';
+
+// Includes motor slowdown, the drop, a rebound, and a short highlight hold.
+export const GACHA_REVEAL_MS = 2_450;
 
 export type GachaStage = 'idle' | 'launching' | 'spinning' | 'settling' | 'revealed' | 'error';
 const ballNames = [
@@ -21,12 +24,20 @@ function BallPool({ stage }: { stage: GachaStage }) {
     const nodes = [...pool.querySelectorAll<HTMLElement>('.gacha-ball')];
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const stirring = !reduced && (stage === 'launching' || stage === 'spinning');
+    world.bodies.forEach((b, i) => {
+      const projected = projectGachaBody(b, world);
+      nodes[i].style.width = `${projected.r * 2 / world.width * 100}%`;
+      nodes[i].style.zIndex = String(projected.layer);
+    });
     const paint = () => world.bodies.forEach((b, i) => {
       const node = nodes[i];
-      node.style.width = `${b.r * 2 / world.width * 100}%`;
-      node.style.left = `${b.x / world.width * 100}%`;
-      node.style.top = `${b.y / world.height * 100}%`;
-      node.style.transform = `translate(-50%, -50%) rotate(${b.angle}rad)`;
+      const projected = projectGachaBody(b, world);
+      node.style.left = `${projected.x / world.width * 100}%`;
+      node.style.top = `${projected.y / world.height * 100}%`;
+      node.style.transform = 'translate(-50%, -50%)';
+      // The 3D landmark stays readable inside the clear shell; it only rocks
+      // slightly as the sphere tumbles instead of spinning like a flat sticker.
+      node.style.setProperty('--ball-angle', `${Math.sin(b.angle) * .11}rad`);
     });
     paint();
     let frame = 0, last = 0, elapsed = 0;
@@ -34,12 +45,16 @@ function BallPool({ stage }: { stage: GachaStage }) {
       const dt = Math.min(last ? (now - last) / 1000 : 1 / 60, 1 / 30);
       last = now;
       if (!document.hidden) {
-        world.step(dt, stirring);
+        // Match the brisk cadence of the reference machine while keeping the
+        // solver on small fixed-like substeps for stable collisions.
+        const simulationDt = dt * (stirring ? 1.85 : 1.35);
+        const steps = Math.ceil(simulationDt * 90);
+        for (let step = 0; step < steps; step++) world.step(simulationDt / steps, stirring);
         paint(); elapsed += dt;
       }
       if (stirring || elapsed < 2.5) frame = requestAnimationFrame(tick);
     };
-    if (stirring || stage === 'settling' || stage === 'error') frame = requestAnimationFrame(tick);
+    if (!reduced && (stirring || stage === 'settling' || stage === 'error')) frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
   }, [stage]);
   return <div className="gacha-pool" ref={poolRef} aria-hidden="true">
@@ -70,10 +85,10 @@ export function MobileGachaMachine({ stage, ready, onStart, winnerSeed }: {
   }, [stage]);
 
   const busy = stage === 'launching' || stage === 'spinning' || stage === 'settling';
-  const message = !ready ? '准备中' : stage === 'launching' ? '好运启动' : stage === 'spinning' ? '寻找下一站' : stage === 'settling' ? '惊喜出仓' : stage === 'error' ? '再试一次' : '下一站？';
+  const message = !ready ? 'LOADING' : stage === 'launching' ? 'START' : stage === 'spinning' ? 'ROLLING' : stage === 'settling' ? 'LUCKY!' : stage === 'error' ? 'RETRY' : 'READY';
   const winner = balls[Math.abs(winnerSeed) % balls.length];
   return <div className={`gacha-machine gacha-${stage}`}>
-    <img className="gacha-shell" src="/media/ui/mobile-travel-gacha-v4-fullscreen.png" alt="奶油白旅行扭蛋机" fetchPriority="high" draggable={false} />
+    <img className="gacha-shell" src="/media/ui/mobile-travel-gacha-v4-fullscreen.webp" alt="奶油白旅行扭蛋机" fetchPriority="high" draggable={false} />
     <div className="gacha-marquee-lights" aria-hidden="true">
       {Array.from({ length: 7 }, (_, index) => <i key={index} />)}
     </div>

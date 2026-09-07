@@ -7,6 +7,7 @@ The following locally bundled photographs are sourced from Wikimedia Commons.
 - `beijing-temple-of-heaven.jpg` — Shujianyang, CC BY-SA 4.0. Source: https://commons.wikimedia.org/wiki/File:Temple_of_Heaven_20160323_01.jpg
 - `beijing-universal-studios.jpg` — N509FZ, CC BY-SA 4.0. Source: https://commons.wikimedia.org/wiki/File:Universal_Studios_Beijing_globe_square_(20210907121340).jpg
 - `beijing-niujie.jpg` — N509FZ, CC BY-SA 4.0. Source: https://commons.wikimedia.org/wiki/File:Center_of_Niujie_(20201125150530).jpg
+- `beijing-china-railway-museum.webp` — N509FZ, CC BY-SA 4.0. Source: https://commons.wikimedia.org/wiki/File:Entrance_of_China_Railway_Museum_(20250213152553).jpg
 
 License texts:
 

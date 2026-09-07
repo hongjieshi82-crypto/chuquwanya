@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, SVGProps } from 'react';
 import { Image as NativeImage, useWindowDimensions } from 'react-native';
 
-import { MobileGachaMachine } from '@/components/mobile-gacha-machine';
+import { GACHA_REVEAL_MS, MobileGachaMachine } from '@/components/mobile-gacha-machine';
 import { useApp } from '@/contexts/app-context';
 import { reactToActivity, saveActivity } from '@/services/api';
 import { formatBudget, formatDuration } from '@/formatters';
@@ -355,7 +355,7 @@ export default function PcSlotPreviewScreen() {
             ? startDraw(directDrawInput.cityId, directDrawInput.preferences)
             : Promise.reject(new Error('城市数据尚未准备完成，请稍后重试。'));
     // Attach the rejection handler immediately, before the launch animation.
-    const outcomePromise = Promise.allSettled([drawPromise, wait(LAUNCH_CHARGE_MS + (isRepeatDraw ? 500 : SPIN_MINIMUM_MS))]);
+    const outcomePromise = Promise.allSettled([drawPromise, wait(LAUNCH_CHARGE_MS + (isMobile ? 2_000 : isRepeatDraw ? 500 : SPIN_MINIMUM_MS))]);
     await wait(LAUNCH_CHARGE_MS);
     if (!mountedRef.current || runId !== runIdRef.current) return;
     setStage('spinning');
@@ -373,7 +373,7 @@ export default function PcSlotPreviewScreen() {
     setStage('settling');
     if (isMobile) {
       // Let the selected capsule land and glow before showing the result.
-      await wait(1_950);
+      await wait(window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 250 : GACHA_REVEAL_MS);
       if (!mountedRef.current || runId !== runIdRef.current) return;
       window.navigator.vibrate?.([25, 30, 50]);
     } else for (let reel = 1; reel <= 3; reel += 1) {
@@ -455,7 +455,12 @@ export default function PcSlotPreviewScreen() {
       <main className={`travel-slot-page stage-${stage}${isLeverPulling ? ' is-lever-pulling' : ''}`}>
         <style>{travelSlotCss}</style>
         {isMobile ? <section className="mobile-world-machine" aria-label="周末旅行扭蛋机">
-          <header><button type="button" onClick={() => router.replace('/box/config')}>← 返回</button><span>{stage === 'revealed' ? '你的旅行方案' : '旅行扭蛋机'}</span></header>
+          <header>
+            <button type="button" aria-label="返回上一步" onClick={() => router.replace('/box/config')}>
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m14.5 6.5-5.5 5.5 5.5 5.5" /></svg>
+            </button>
+            <span>{stage === 'revealed' ? '你的旅行方案' : '旅行扭蛋机'}</span>
+          </header>
           {stage === 'revealed' && currentDraw ? (
             <article className="mobile-world-result">
               {currentDraw.activity.coverImageUri ? <img src={currentDraw.activity.coverImageUri} alt={currentDraw.activity.title} /> : null}
