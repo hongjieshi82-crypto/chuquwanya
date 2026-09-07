@@ -75,8 +75,8 @@ export class RecallService {
          ${destinationFilter}
        GROUP BY a.id
        ORDER BY a.popularity DESC, a.rating DESC
-       LIMIT ?`,
-      [...params, RECALL_LIMIT] as (string | number)[],
+       LIMIT ${RECALL_LIMIT}`,
+      params as (string | number)[],
     );
 
     return (rows as Array<Record<string, unknown>>).map((row) => ({
@@ -323,8 +323,8 @@ export class RecallService {
          )
        GROUP BY a.id
        ORDER BY cfScore DESC, a.rating DESC
-       LIMIT ?`,
-      [...userIds, ctx.userId, ctx.userId, RECALL_LIMIT],
+       LIMIT ${RECALL_LIMIT}`,
+      [...userIds, ctx.userId, ctx.userId],
     );
 
     const maxCf = Math.max(
