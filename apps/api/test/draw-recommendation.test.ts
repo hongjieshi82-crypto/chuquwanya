@@ -72,7 +72,7 @@ test("半径筛选下缺少目的地坐标不能通过硬约束", () => {
   assert.equal(getHardFailure(basePreferences, baseCandidate, runtime), "距离无法确认");
 });
 
-test("PC 端旅游时间偏好不按分钟级时长做硬失败", () => {
+test("PC 多日偏好不能由未标注天数的单项活动充当完整行程", () => {
   const preferences = {
     ...basePreferences,
     durationMinutes: null,
@@ -92,7 +92,7 @@ test("PC 端旅游时间偏好不按分钟级时长做硬失败", () => {
   };
   const runtime = buildRuntimeData([candidate]);
 
-  assert.equal(getHardFailure(preferences, candidate, runtime), null);
+  assert.equal(getHardFailure(preferences, candidate, runtime), '出游天数不匹配');
 });
 
 test("雨天会排除未确认雨天友好的户外活动", () => {

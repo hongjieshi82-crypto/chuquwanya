@@ -5,8 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0d0d13" />
     <title>粗去玩鸭！· 重力首页样式预览</title>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js" as="script" />
+    <link rel="preload" href="./assets/icons/city/01-长城烽火台.avif" as="image" type="image/avif" />
+    <link rel="preload" href="./assets/icons/city/02-西湖石桥.avif" as="image" type="image/avif" />
+    <link rel="preload" href="./assets/icons/city/03-张家界峰林.avif" as="image" type="image/avif" />
+    <link rel="preload" href="./assets/icons/city/05-故宫角楼.avif" as="image" type="image/avif" />
+    <link rel="preload" href="./assets/icons/city/06-九寨沟瀑布.avif" as="image" type="image/avif" />
+    <link rel="preload" href="./assets/icons/city/07-青岛海岸.avif" as="image" type="image/avif" />
     <link rel="stylesheet" href="./style.css?v=card-actions-align-75" />
-    <link rel="stylesheet" href="./mobile.css?v=3" />
+    <link rel="stylesheet" href="./mobile.css?v=4" />
   </head>
   <body>
     <header class="topbar">
@@ -21,7 +29,11 @@
         <a href="/destinations" target="_top">可玩地点</a>
       </nav>
       <div class="topbar-actions">
-        <span class="preview-pill">STYLE PREVIEW</span>
+        <form class="city-switcher">
+          <label for="home-city-select">当前城市</label>
+          <select id="home-city-select" name="city" data-city-input aria-label="选择探索城市"></select>
+          <button type="button" id="home-locate" aria-label="使用定位切换城市">定位</button>
+        </form>
         <button class="nav-cta" id="nav-primary-action" type="button">立即登录</button>
       </div>
     </header>
@@ -43,7 +55,7 @@
         <div class="hero-grid" aria-hidden="true"></div>
         <div class="hero-copy">
           <h1>周末别浪费 <em>粗去玩鸭</em></h1>
-          <p>输入人数、预算和时间，一键生成你的周末逃跑计划。不用查攻略、不用做功课，周五下班说走就走。</p>
+          <p>选好城市、人数和预算，发现一条适合你的出游灵感。喜欢的先收藏，准备好了再出发。</p>
           <div class="hero-actions">
             <a class="primary-button" href="/box/slot-preview" target="_top">立即抽取</a>
             <button class="ghost-button" id="shuffle-button" type="button">重新撒一把</button>
@@ -205,6 +217,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js"></script>
-    <script src="./app.js?v=mobile-inertia-78"></script>
+    <script src="./app.js?v=mobile-fast-82"></script>
   </body>
 </html>

@@ -81,7 +81,10 @@ export function useChuquAuth() {
     resetPasswordWithCode: async (email: string, token: string, password: string) => {
       const client = getBrowserSupabase()!;
       const verified = await run(() => client.auth.verifyOtp({ email, token, type: 'recovery' }));
-      return verified && await run(() => client.auth.updateUser({ password }));
+      if (!verified) return false;
+      const updated = await run(() => client.auth.updateUser({ password }));
+      if (!updated) await client.auth.signOut().catch(() => undefined);
+      return updated;
     },
     signOut: async () => { await getBrowserSupabase()?.auth.signOut(); },
   };
@@ -92,5 +95,6 @@ function mapError(message: string) {
   if (normalized.includes('invalid login')) return '邮箱或密码不正确。';
   if (normalized.includes('expired') || normalized.includes('invalid token')) return '验证码不正确或已过期。';
   if (normalized.includes('not found')) return '该邮箱尚未注册。';
+  if (normalized.includes('weak password') || normalized.includes('at least 8')) return '密码至少需要 8 位。';
   return message;
 }

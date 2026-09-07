@@ -1,9 +1,15 @@
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { formatActivityTitle } from '@/formatters';
+import { matchesPlayCategory, practicalReplacement } from '../../../api/src/itinerary-policy';
+import { chinaDate, validDepartureDate, departureFailure } from '../../../api/src/departure-policy';
+import retiredItineraries from '@/data/itinerary-plans.json';
+
 import { clearAuthToken, getAuthToken, setAuthToken } from '@/lib/auth-storage';
 import {
   createDemoDraw,
+  recordDemoOutcome,
   createDemoGuest,
   demoActivities,
   demoCities,
@@ -147,10 +153,19 @@ function normalizeDiaryComment(item: DiaryCommentItem): DiaryCommentItem {
   };
 }
 
-function normalizeActivity(item: Activity): Activity {
+export function normalizeActivity(item: Activity): Activity {
+  const replacement = practicalReplacement(item);
+  if (replacement) item = { ...item, ...replacement, id: item.id };
+  if (item.plannedArrival && item.itinerary) item.itinerary = { ...item.itinerary, arrival: item.plannedArrival };
+  const suppliedCover = resolveApiMediaUrl(item.coverImageUri);
+  const curatedCover = resolveCuratedActivityCover(item);
+  const isLowResolutionWorkbookCover = suppliedCover?.includes('/media/itineraries/') === true;
   return {
     ...item,
-    coverImageUri: resolveApiMediaUrl(item.coverImageUri) ?? resolveCuratedActivityCover(item),
+    title: formatActivityTitle(item.title),
+    // Workbook thumbnails are only 320x180 and become visibly blurred in the
+    // large result hero. Prefer the high-resolution place/city cover for UI.
+    coverImageUri: isLowResolutionWorkbookCover ? curatedCover ?? suppliedCover : suppliedCover ?? curatedCover,
   };
 }
 
@@ -403,6 +418,13 @@ export async function createGuestSession(deviceId: string) {
   );
 }
 
+export async function claimGuestSession(deviceId: string) {
+  return apiRequest<GuestUser>('/auth/claim-guest', {
+    method: 'POST',
+    body: JSON.stringify({ deviceId }),
+  });
+}
+
 export async function requestAuthCode(email: string) {
   return await apiRequest<AuthCodeTicket>('/auth/code', {
     method: 'POST',
@@ -593,8 +615,17 @@ export async function rerollDraw(input: DrawRequest & { drawSessionId: string })
     }, {
       timeoutMs: DRAW_REQUEST_TIMEOUT_MS,
     }),
-    () => {
-      demoCurrentDraw = createDemoDraw(input, demoCurrentDraw);
+    async () => {
+      const stored = await AsyncStorage.getItem(`@lazyde/current-draw:v2:${input.userId}`);
+      let previous = demoCurrentDraw;
+      if (!previous || previous.drawSessionId !== input.drawSessionId) {
+        try {
+          const restored = stored ? JSON.parse(stored) : null;
+          previous = restored?.result?.drawSessionId === input.drawSessionId ? restored.result : null;
+        } catch { previous = null; }
+      }
+      if (!previous) throw new Error('这次抽取的记录未能恢复，请返回设置重新开始。');
+      demoCurrentDraw = createDemoDraw(input, previous);
       return demoCurrentDraw;
     },
   );
@@ -688,7 +719,12 @@ export async function getActivity(activityId: number) {
     () => apiRequest<Activity>(`/activities/${activityId}`, undefined, false),
     () => {
       const demoActivity = demoActivities.find((item) => item.id === activityId);
-      if (!demoActivity) throw new Error('没有找到对应的玩法图片');
+      if (!demoActivity) {
+        const retired = retiredItineraries[activityId - 600001];
+        const corrected = retired ? practicalReplacement({ id: activityId, cityName: retired.city, title: retired.title, address: retired.poiNames[0] ?? '' }) : null;
+        if (corrected) return corrected;
+        throw new Error('这条旧路线正在重新整理，请返回选择已整理的玩法。');
+      }
       return demoActivity;
     },
   );
@@ -696,6 +732,7 @@ export async function getActivity(activityId: number) {
 }
 
 export type RecommendedActivityItem = {
+  coverCredit?: Activity['coverCredit'];
   id: number;
   title: string;
   summary: string;
@@ -724,11 +761,13 @@ export async function getRecommendedActivities(input: {
   if (input.sourceType) params.set('sourceType', input.sourceType);
   params.set('limit', String(input.limit ?? 4));
   params.set('offset', String(input.offset ?? 0));
-  return await withDemoFallback(
+  const response = await withDemoFallback(
     () => apiRequest<{ items: RecommendedActivityItem[]; total: number }>(`/activities?${params.toString()}`),
     () => {
-      const items = demoActivities
-        .filter((activity) => activity.cityId === input.cityId)
+      const channelCategories: Record<string, string> = { '美食': '美食吃喝', '治愈': '休闲躺平', 'City Walk': '城市散步', '探索': '探险猎奇' };
+      const category = input.channel ? channelCategories[input.channel] ?? input.channel : '不限';
+      const candidates = demoActivities.filter((activity) => activity.cityId === input.cityId && (category === '推荐' || matchesPlayCategory(category, activity)));
+      const items = candidates
         .slice(input.offset ?? 0, (input.offset ?? 0) + (input.limit ?? 4))
         .map((activity) => ({
           id: activity.id,
@@ -744,12 +783,17 @@ export async function getRecommendedActivities(input: {
           minPartySize: activity.minPartySize,
           maxPartySize: activity.maxPartySize,
           coverImageUri: activity.coverImageUri,
+          coverCredit: activity.coverCredit,
           steps: activity.steps,
           tips: activity.tips,
         }));
-      return { items, total: items.length };
+      return { items, total: candidates.length };
     },
   );
+  return {
+    ...response,
+    items: response.items.map((item) => ({ ...item, title: formatActivityTitle(item.title) })),
+  };
 }
 
 export async function getMyDiary(diaryId: number) {
@@ -867,7 +911,9 @@ export async function addTodo(input: {
   activityId: number;
   drawSessionId?: string | null;
   scheduledDate?: string;
+  scheduledTime?: string | null;
 }) {
+  if (input.scheduledDate && !validDepartureDate(input.scheduledDate)) throw new Error('请选择今天起一年内的有效日期');
   return await withDemoFallback(
     () => apiRequest<{ id: number; alreadyExists: boolean }>('/todos', {
       method: 'POST',
@@ -896,6 +942,7 @@ export async function addTodo(input: {
         cancelledAt: null,
         createdAt: now,
         scheduledDate: input.scheduledDate ?? todayDateString(),
+        scheduledTime: input.scheduledTime ?? null,
         activityId: activity.id,
         title: activity.title,
         summary: activity.summary,
@@ -918,10 +965,93 @@ export async function getTodos(userId?: number) {
     ? `?${new URLSearchParams({ userId: String(userId) }).toString()}`
     : '';
 
-  return await withDemoFallback(
+  const items = await withDemoFallback(
     () => apiRequest<Todo[]>(`/todos${query}`),
     readDemoTodos,
   );
+  return items.map((item) => ({ ...item, title: formatActivityTitle(item.title) }));
+}
+
+const savedKey = (userId = 900001) => `@lazyde/saved-activities:${userId}`;
+export async function saveActivity(activityId: number, userId?: number) {
+  return withDemoFallback(() => apiRequest<{ saved: boolean }>('/saved-activities', { method: 'POST', body: JSON.stringify({ activityId }) }), async () => {
+    const raw = await AsyncStorage.getItem(savedKey(userId));
+    const items: number[] = raw ? JSON.parse(raw) : [];
+    if (!items.includes(activityId)) await AsyncStorage.setItem(savedKey(userId), JSON.stringify([activityId, ...items]));
+    return { saved: true };
+  });
+}
+export async function getSavedActivities(userId?: number): Promise<Activity[]> {
+  return withDemoFallback(async () => {
+    const items = await apiRequest<{ activity: Activity }[]>('/saved-activities');
+    return items.map((item) => normalizeActivity(item.activity));
+  }, async () => {
+    const raw = await AsyncStorage.getItem(savedKey(userId));
+    const ids: number[] = raw ? JSON.parse(raw) : [];
+    const items = await Promise.all(ids.map((id) => getActivity(id).catch(() => null)));
+    return items.filter((a): a is Activity => a !== null);
+  });
+}
+export async function reactToActivity(activity: Activity, reaction: 'disliked' | 'visited') {
+  return withDemoFallback(() => apiRequest(`/activities/${activity.id}/reaction`, { method: 'POST', body: JSON.stringify({ reaction }) }), () => {
+    recordDemoOutcome(activity, reaction === 'visited' ? 'completed' : 'disliked');
+    return { saved: true };
+  });
+}
+export async function unsaveActivity(activityId: number, userId?: number) {
+  return withDemoFallback(() => apiRequest('/saved-activities/' + activityId, { method: 'DELETE' }), async () => {
+    const raw = await AsyncStorage.getItem(savedKey(userId));
+    const ids: number[] = raw ? JSON.parse(raw) : [];
+    await AsyncStorage.setItem(savedKey(userId), JSON.stringify(ids.filter((id) => id !== activityId)));
+    return { saved: false };
+  });
+}
+export async function scheduleTodo(id: number, scheduledDate: string, scheduledTime?: string | null) {
+  if (!validDepartureDate(scheduledDate)) throw new Error('请选择今天起一年内的有效日期');
+  return withDemoFallback(() => apiRequest(`/todos/${id}/schedule`, { method: 'PATCH', body: JSON.stringify({ scheduledDate, scheduledTime }) }), async () => {
+    const items = await readDemoTodos();
+    const item = items.find((a) => a.id === id);
+    if (!item || item.status !== 'pending') throw new Error('只能修改待出发的行程');
+    const activity = demoActivities.find((entry) => entry.id === item.activityId);
+    if (activity) {
+      const scheduledActivity = scheduledTime && activity.itinerary ? {...activity,itinerary:{...activity.itinerary,arrival:scheduledTime}} : activity;
+      const failure = departureFailure(scheduledActivity, {departureMode: 'plan', departureDate: scheduledDate});
+      if (failure) throw new Error(failure);
+    }
+    await writeDemoTodos(items.map((a) => a.id === id ? { ...a, scheduledDate, scheduledTime } : a));
+    return { id, scheduledDate };
+  });
+}
+export type TripProgress = { activeStep: number; paused: boolean; skipped: number[] };
+export async function getTripProgress(id: number): Promise<TripProgress> {
+  return withDemoFallback(() => apiRequest<TripProgress>(`/todos/${id}/progress`), async () => {
+    const raw = await AsyncStorage.getItem(`@lazyde/trip-progress:${id}`);
+    return raw ? JSON.parse(raw) : {activeStep: 0, paused: false, skipped: []};
+  });
+}
+export async function saveTripProgress(id: number, progress: TripProgress) {
+  return withDemoFallback(() => apiRequest<TripProgress>(`/todos/${id}/progress`, {method: 'PATCH', body: JSON.stringify(progress)}), async () => {
+    const item = (await readDemoTodos()).find((todo) => todo.id === id);
+    if (!item || item.status !== 'in_progress') throw new Error('只能更新进行中的行程');
+    await AsyncStorage.setItem(`@lazyde/trip-progress:${id}`, JSON.stringify(progress));
+    return progress;
+  });
+}
+export async function submitTripFeedback(id: number, verdict: NonNullable<Todo['feedbackVerdict']>, note: string) {
+  const trimmed = note.trim();
+  if (trimmed.length > 500) throw new Error('感受最多500字');
+  const result = await withDemoFallback(() => apiRequest(`/todos/${id}/feedback`, { method: 'POST', body: JSON.stringify({ verdict, note: trimmed }) }), async () => {
+    const items = await readDemoTodos(); const item = items.find((a) => a.id === id);
+    if (!item || !['in_progress', 'completed'].includes(item.status)) throw new Error('请先开始行程');
+    await writeDemoTodos(items.map((a) => a.id === id ? { ...a, status: 'completed', completedAt: a.completedAt ?? new Date().toISOString(), feedbackVerdict: verdict, feedbackNote: trimmed } : a));
+    return { id };
+  });
+  if (isLocalDemoMode()) {
+    const items = await readDemoTodos(); const item = items.find((a) => a.id === id);
+    const activity = item ? demoActivities.find((a) => a.id === item.activityId) : null;
+    if (activity) recordDemoOutcome(activity, verdict === 'not_for_me' ? 'disliked' : verdict === 'ended_early' ? 'viewed' : 'completed');
+  }
+  return result;
 }
 
 export async function updateTodoStatus(todoId: number, status: TodoStatus, userId?: number) {
@@ -959,6 +1089,9 @@ export async function startTodo(todoId: number, userId?: number) {
     }),
     async () => {
       const items = await readDemoTodos();
+      const target = items.find((item) => item.id === todoId);
+      if (!target || target.status !== 'pending') throw new Error('没有找到可开始的行程');
+      if (target.scheduledDate !== chinaDate()) throw new Error('请在出发当天开始，或先修改出发日期');
       const startedAt = new Date().toISOString();
       const next = items.map((item) => item.id === todoId
         ? { ...item, status: 'in_progress' as const, startedAt }

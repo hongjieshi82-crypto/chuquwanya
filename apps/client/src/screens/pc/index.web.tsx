@@ -4,17 +4,22 @@ import { useEffect, useRef, useState } from 'react';
 import { PcQuickDrawModal, type QuickDrawSubmission } from '@/components/pc-quick-draw-modal';
 import { useApp } from '@/contexts/app-context';
 import { savePendingPcBoxDraw } from '@/lib/pc-box-open-state';
-import { addTodo, getRecommendedActivities } from '@/services/api';
+import { getRecommendedActivities } from '@/services/api';
 
 export default function PcLandingScreen() {
   const router = useRouter();
-  const { isRegistered, user } = useApp();
+  const { isRegistered, user, setSelectedCityId } = useApp();
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [quickDrawLock, setQuickDrawLock] = useState<{ cityId: number; cityName: string; categoryLabel?: string } | null>(null);
 
   useEffect(() => {
     const handleMessage = async (event: MessageEvent) => {
       if (event.origin !== window.location.origin || event.source !== iframeRef.current?.contentWindow) return;
+      if (event.data?.type === 'gravity-home:city-selected') {
+        const id = Number(event.data.cityId);
+        if (Number.isInteger(id) && id > 0) setSelectedCityId(id);
+        return;
+      }
       if (event.data?.type === 'gravity-home:navigate') {
         const href = event.data.href;
         if (typeof href !== 'string' || !href.startsWith('/') || href.startsWith('//')) return;
@@ -36,6 +41,7 @@ export default function PcLandingScreen() {
           const recommendations = await getRecommendedActivities({ cityId, sourceType: 'itinerary_workbook', limit: 4, offset });
           iframeRef.current?.contentWindow?.postMessage({
             type: 'gravity-home:guides',
+            cityId,
             items: recommendations.items,
           }, window.location.origin);
         } catch (reason) {
@@ -62,18 +68,15 @@ export default function PcLandingScreen() {
           : await getRecommendedActivities({ cityId, channel, sourceType: 'itinerary_workbook', limit: 1, offset });
         const activity = recommendations?.items[0];
         const resolvedActivityId = Number.isFinite(activityId) ? activityId : activity?.id;
-        const resolvedTitle = activity?.title ?? '这套攻略';
         if (!resolvedActivityId) throw new Error('这一组攻略暂时没有可加入的玩法，请换一批再试。');
         if (actionType === 'gravity-home:open-guide') {
           router.push(`/activity/${resolvedActivityId}` as Href);
           return;
         }
-        const added = await addTodo({ userId: user?.id, activityId: resolvedActivityId });
+        router.push(`/activity/${resolvedActivityId}?intent=schedule` as Href);
         iframeRef.current?.contentWindow?.postMessage({
           type: 'gravity-home:add-trip-status',
-          status: 'success',
-          alreadyExists: added.alreadyExists,
-          title: resolvedTitle,
+          status: 'cancelled',
         }, window.location.origin);
       } catch (reason) {
         iframeRef.current?.contentWindow?.postMessage({
@@ -86,7 +89,7 @@ export default function PcLandingScreen() {
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [router, user?.id]);
+  }, [router, user?.id, setSelectedCityId]);
 
   const startQuickDraw = ({ preferences, summary }: QuickDrawSubmission) => {
     if (!quickDrawLock) return;
@@ -101,7 +104,7 @@ export default function PcLandingScreen() {
       ref={iframeRef}
       allow="geolocation"
       aria-label="粗去玩鸭周末灵感首页"
-      src={`/gravity-home/index.html?v=auth-cta-76&auth=${isRegistered ? 'registered' : 'guest'}`}
+      src={`/gravity-home/index.html?v=visual-system-77&auth=${isRegistered ? 'registered' : 'guest'}`}
       style={{
         width: '100%',
         height: '100dvh',

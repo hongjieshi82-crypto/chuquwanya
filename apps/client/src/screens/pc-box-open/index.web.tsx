@@ -760,7 +760,7 @@ function PcBoxResultContent() {
   }, [addCurrentDrawToTodos, currentDraw, message]);
 
   const handleReroll = async () => {
-    if (!currentDraw || currentDraw.attemptsRemaining <= 0 || isRerolling) return;
+    if (!currentDraw || currentDraw.alternativesRemaining === 0 || isRerolling) return;
 
     setIsRerolling(true);
     setRerollReveal(null);
@@ -893,7 +893,7 @@ function PcBoxResult({
   onReset: () => void;
 }) {
   const { message } = App.useApp();
-  const { activity, attemptsRemaining, recommendation } = draw;
+  const { activity, alternativesRemaining, recommendation } = draw;
   const [isFavorite, setIsFavorite] = useState(false);
   const [isSavingPoster, setIsSavingPoster] = useState(false);
   const activitySteps = activity.steps.length
@@ -1001,10 +1001,10 @@ function PcBoxResult({
             </Button>
           </Space>
           <Space wrap>
-            <Text type="secondary">今日还可抽 {attemptsRemaining} 次</Text>
-            {attemptsRemaining > 0 ? (
+            <Text type="secondary">{typeof alternativesRemaining === 'number' ? `还有 ${alternativesRemaining} 个新地点` : '可继续探索'}</Text>
+            {alternativesRemaining !== 0 ? (
               <Button loading={isRerolling} icon={<ReloadOutlined />} onClick={onReroll}>
-                再抽一次
+                换一个
               </Button>
             ) : (
               <Button icon={<GiftOutlined />} onClick={onReset}>

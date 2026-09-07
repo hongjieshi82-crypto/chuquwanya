@@ -9,7 +9,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SVGProps } from 'react';
 import { useApp } from '@/contexts/app-context';
-import { savePendingPcBoxDraw } from '@/lib/pc-box-open-state';
+import { readPendingPcBoxDraw, savePendingPcBoxDraw } from '@/lib/pc-box-open-state';
+import { DeparturePicker } from '@/components/departure-picker';
+import { chinaDate, validDepartureDate, type DepartureMode } from '@/lib/departure-policy';
 import { getPcTravelBudgetRange } from '@/constants/pc-travel-budget-tiers';
 import { palette, radii } from '@/theme';
 import type { City, Preferences } from '@/types';
@@ -30,7 +32,8 @@ type MatchPreferenceGroup = {
     | 'travelDuration'
     | 'budget'
     | 'mood'
-    | 'surpriseLevel';
+    | 'surpriseLevel'
+    | 'category';
   label: string;
   options: string[];
   descriptions?: Record<string, string>;
@@ -77,6 +80,7 @@ const matchPreferenceGroups: MatchPreferenceGroup[] = [
 ];
 
 const initialMatchSelections: Record<string, string> = {
+  category: '不限',
   partySize: '1 人',
   destinationScope: '周边',
   travelDuration: '当天',
@@ -116,6 +120,12 @@ function findMatchingCity(cities: City[], locationName: string) {
     const provinceName = city.province.trim().replace(/市$/, '');
     return cityName === normalizedLocationName || provinceName === normalizedLocationName;
   });
+}
+
+function getCityOptionLabel(city: City) {
+  const cityName = city.name.trim().replace(/市$/, '');
+  const provinceName = city.province.trim().replace(/市$/, '');
+  return cityName === provinceName ? city.name : `${city.name} · ${city.province}`;
 }
 
 async function storePcLocatedCity(city: PcLocatedCity) {
@@ -188,8 +198,13 @@ export default function PcBoxConfigScreen() {
     isRegistered,
     clearError,
   } = useApp();
-  const [matchSelections, setMatchSelections] =
-    useState<Record<string, string>>(initialMatchSelections);
+  const [restoredDraw] = useState(readPendingPcBoxDraw);
+  const [matchSelections, setMatchSelections] = useState<Record<string, string>>(() => {
+    const p = restoredDraw?.preferences;
+    return p ? { ...initialMatchSelections, category: p.category, partySize: p.partySize >= 3 ? '多人' : `${p.partySize} 人`, travelDuration: p.travelDurationLabel ?? '当天', budget: p.budgetLabel ?? '划算出行', mood: ['放松', '探索', '热闹'].includes(p.mood) ? p.mood : '放松' } : initialMatchSelections;
+  });
+  const [departureMode, setDepartureMode] = useState<DepartureMode>(restoredDraw?.preferences.departureMode ?? 'idea');
+  const [departureDate, setDepartureDate] = useState(restoredDraw?.preferences.departureDate ?? '');
   const [locatedCity, setLocatedCity] = useState<PcLocatedCity>(defaultPcLocatedCity);
   const [locationNotice, setLocationNotice] = useState<string | null>(null);
   const [isStartingDraw, setIsStartingDraw] = useState(false);
@@ -240,6 +255,8 @@ export default function PcBoxConfigScreen() {
 
   const goStart = useCallback((target: '/box/open' | '/box/slot-preview' = '/box/slot-preview') => {
     if (isBooting || isStartingDraw) return;
+    if (departureMode === 'plan' && !validDepartureDate(departureDate)) { setDrawError('请选择今天起一年内的出发日期'); return; }
+    if (matchSelections.category !== '不限' && matchSelections.travelDuration === '小长假') { setDrawError('这个主题暂不支持完整小长假，请选择当天、周末游或不限分类。'); return; }
 
     const partySize = partySizeValues[matchSelections.partySize] ?? 1;
     const budgetRange = getPcTravelBudgetRange(matchSelections.travelDuration, matchSelections.budget);
@@ -254,15 +271,17 @@ export default function PcBoxConfigScreen() {
     }
 
     const preferences: Preferences = {
+      departureMode: matchSelections.travelDuration !== '当天' && departureMode === 'now' ? 'idea' : departureMode,
+      departureDate: departureMode === 'now' ? chinaDate() : departureMode === 'plan' ? departureDate : null,
       partySize,
       durationMinutes: null,
       budgetMin: budgetRange.min,
       budgetMax: budgetRange.max,
       mood: matchSelections.mood ?? '放松',
       randomLevel,
-      category: '不限',
+      category: matchSelections.category ?? '不限',
       environment: 'either',
-      radiusKm: originCity?.id === drawCityId ? 10 : null,
+      radiusKm: null,
       originName: locatedCity.name,
       originLatitude: locatedCity.latitude,
       originLongitude: locatedCity.longitude,
@@ -322,6 +341,8 @@ export default function PcBoxConfigScreen() {
     locatedCity.name,
     locatedCity.source,
     matchSelections,
+    departureMode,
+    departureDate,
     router,
     selectedCityId,
   ]);
@@ -336,7 +357,9 @@ export default function PcBoxConfigScreen() {
     setMatchSelections((previous) => ({
       ...previous,
       [key]: option,
+      ...(key === 'category' && option !== '不限' && previous.travelDuration === '小长假' ? { travelDuration: '当天' } : {}),
     }));
+    if (key === 'travelDuration' && option !== '当天' && departureMode === 'now') setDepartureMode('idea');
   };
 
   const handleManualCitySelect = (cityId: number) => {
@@ -358,6 +381,12 @@ export default function PcBoxConfigScreen() {
 
   const locatedCityOption = findMatchingCity(cities, locatedCity.name);
   const destinationCityOption = cities.find((city) => city.id === selectedCityId) ?? locatedCityOption ?? cities[0];
+  const destinationName = destinationCityOption?.name ?? '请选择目的地';
+  const originName = locatedCity.name.trim().replace(/市$/, '');
+  const normalizedDestinationName = destinationName.trim().replace(/市$/, '');
+  const routeSummary = originName === normalizedDestinationName
+    ? locatedCity.name
+    : `${locatedCity.name} → ${destinationName}`;
 
   return (
     <ConfigProvider
@@ -422,11 +451,11 @@ export default function PcBoxConfigScreen() {
                       <Select
                         aria-label="选择探索城市"
                         className={`pc-box-city-select${locatedCityOption ? ' is-selected' : ''}`}
-                        options={cities.map((city) => ({ label: `${city.name} · ${city.province}`, value: city.id }))}
+                        options={cities.map((city) => ({ label: getCityOptionLabel(city), value: city.id }))}
                         placeholder={locatedCity.name}
                         showSearch
                         optionFilterProp="label"
-                        popupClassName="pc-box-city-dropdown"
+                        classNames={{ popup: { root: 'pc-box-city-dropdown' } }}
                         value={locatedCityOption?.id}
                         onChange={handleManualCitySelect}
                       />
@@ -449,7 +478,7 @@ export default function PcBoxConfigScreen() {
                   {matchPreferenceGroups.slice(0, 4).map((group) => (
                     <MatchOptionGroup
                       key={group.key}
-                      group={group}
+                      group={group.key === 'travelDuration' && matchSelections.category !== '不限' ? { ...group, options: ['当天', '周末游'] } : group}
                       selected={matchSelections[group.key] ?? group.options[0]}
                       onSelect={handleMatchSelect}
                     />
@@ -457,6 +486,10 @@ export default function PcBoxConfigScreen() {
                 </div>
               </Card>
 
+              <Card className="pc-box-section" variant="borderless">
+                <MatchOptionGroup group={{ key: 'category', label: '玩法类型', options: ['不限', '约会', '休闲躺平', '娱乐玩乐', '探险猎奇', '美食吃喝', '城市散步'] }} selected={matchSelections.category ?? '不限'} onSelect={handleMatchSelect} />
+                <DeparturePicker mode={departureMode} date={departureDate} period={matchSelections.travelDuration ?? '当天'} onChange={(mode, date) => { setDepartureMode(mode); setDepartureDate(date); }} />
+              </Card>
               <Card className={`pc-box-section pc-box-surprise-section${isSurpriseEditorOpen ? ' is-open' : ''}`} variant="borderless">
                 <div className="pc-box-section-heading pc-box-surprise-heading">
                   <span className="pc-box-section-icon">
@@ -518,7 +551,7 @@ export default function PcBoxConfigScreen() {
             <div className="pc-box-action">
               <div className="pc-box-summary">
                 <Text className="pc-box-summary-value">
-                  {`${locatedCity.name} → ${destinationCityOption?.name ?? '请选择目的地'} · `}
+                  {`${routeSummary} · `}
                   {matchPreferenceGroups
                     .map((group) => matchSelections[group.key] ?? group.options[0])
                     .join(' · ')}
@@ -557,7 +590,7 @@ function MatchOptionGroup({
   variant?: 'default' | 'surprise';
 }) {
   return (
-    <div className={`pc-box-group pc-box-group-${variant}`}>
+    <div className={`pc-box-group pc-box-group-${variant} pc-box-group-${group.key}`}>
       <Text className="pc-box-label">{group.label}</Text>
       <Tag.CheckableTagGroup
         aria-label={group.label}
@@ -569,9 +602,7 @@ function MatchOptionGroup({
                 <span className="pc-box-surprise-title"><i aria-hidden="true" /><strong>{option}</strong></span>
                 <small>{group.descriptions?.[option]}</small>
               </span>
-            ) : (
-              option
-            ),
+            ) : <span className="pc-box-option-label">{option}</span>,
           value: option,
         }))}
         value={selected}

@@ -27,6 +27,8 @@ import { pool, withTransaction } from "./db.js";
 import { AppError } from "./errors.js";
 import { registerPaymentRoutes } from "./payments.js";
 import { parseJsonArray, type ActivityRow, toActivityDto } from "./types.js";
+import { cityRouteCategories, hardBudgetMinimum, practicalReplacement, requestedTravelDays } from './itinerary-policy.js';
+import { chinaDate, departureFailure, withDeparture } from './departure-policy.js';
 import { buildWeekWindow, registerTodoRoutes } from "./todos.js";
 import { registerTravelRoutes } from "./travel/routes.js";
 import { getCityWeather } from "./weather.service.js";
@@ -35,7 +37,6 @@ import { attachSupabaseUser, isSupabaseAuthConfigured, requestAuthUserId } from 
 
 const environmentValues = ["indoor", "outdoor", "either"] as const;
 const DRAW_SEMANTIC_TOP_K = 3;
-const DAILY_DRAW_LIMIT = 3;
 
 const guestSessionSchema = z.object({
   deviceId: z.string().min(8).max(128),
@@ -75,6 +76,8 @@ const profileUpdateSchema = z
   });
 
 const preferencesSchema = z.object({
+  departureMode: z.enum(['idea', 'now', 'plan']).optional(),
+  departureDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   partySize: z.number().int().min(1).max(20),
   durationMinutes: z.number().int().min(30).max(1_440).nullable().default(null),
   budgetMin: z.number().int().min(0).max(10_000).nullable().optional(),
@@ -774,17 +777,14 @@ function buildActivityQuery(
   const distance = createDistanceSql(preferences);
   const isCategoryBlindBox = input.preferences.clientSource === "pc" &&
     input.preferences.surpriseLevelLabel?.endsWith("分类盲盒") === true;
-  const canUseWorkbookPlans = input.preferences.clientSource === "pc";
 
   const currentWeek = buildWeekWindow().weekStartDate;
   const conditions = [
     "a.city_id = ?",
     "a.is_active = TRUE",
-    ...(isCategoryBlindBox
-      ? ["a.source_type = 'itinerary_workbook'"]
-      : canUseWorkbookPlans
-        ? ["(a.source_type = 'itinerary_workbook' OR (a.content_status = 'published' AND a.content_score >= 70))"]
-        : ["a.content_status = 'published'", "a.content_score >= 70"]),
+    "a.content_status = 'published'",
+    "a.content_score >= 70",
+    "(a.source_type IS NULL OR a.source_type <> 'itinerary_workbook')",
     `NOT EXISTS (
       SELECT 1
       FROM draw_results dr
@@ -818,10 +818,10 @@ function buildActivityQuery(
   }
 
   if (applyOptionalFilters) {
-    if (preferences.budgetMin !== null && preferences.budgetMin !== undefined) {
+    if (hardBudgetMinimum(preferences) > 0) {
       conditions.push(input.preferences.clientSource === "pc" ? "a.budget_yuan >= ?" : "(a.budget_yuan * ?) >= ?");
-      if (input.preferences.clientSource === "pc") values.push(preferences.budgetMin);
-      else values.push(input.preferences.partySize, preferences.budgetMin);
+      if (input.preferences.clientSource === "pc") values.push(hardBudgetMinimum(preferences));
+      else values.push(input.preferences.partySize, hardBudgetMinimum(preferences));
     }
     if (preferences.budgetMax !== null) {
       conditions.push(input.preferences.clientSource === "pc" ? "a.budget_yuan <= ?" : "(a.budget_yuan * ?) <= ?");
@@ -921,7 +921,6 @@ function buildCandidatePoolQuery(
   const distance = createDistanceSql(input.preferences);
   const isCategoryBlindBox = input.preferences.clientSource === "pc" &&
     input.preferences.surpriseLevelLabel?.endsWith("分类盲盒") === true;
-  const canUseWorkbookPlans = input.preferences.clientSource === "pc";
   const safeLimit = Math.min(100, Math.max(1, Math.trunc(limit)));
   const activityIds = Array.from(new Set(options?.activityIds ?? []))
     .map((id) => Number(id))
@@ -931,11 +930,9 @@ function buildCandidatePoolQuery(
   const conditions = [
     "a.city_id = ?",
     "a.is_active = TRUE",
-    ...(isCategoryBlindBox
-      ? ["a.source_type = 'itinerary_workbook'"]
-      : canUseWorkbookPlans
-        ? ["(a.source_type = 'itinerary_workbook' OR (a.content_status = 'published' AND a.content_score >= 70))"]
-        : ["a.content_status = 'published'", "a.content_score >= 70"]),
+    "a.content_status = 'published'",
+    "a.content_score >= 70",
+    "(a.source_type IS NULL OR a.source_type <> 'itinerary_workbook')",
     `NOT EXISTS (
           SELECT 1
           FROM draw_results dr
@@ -958,25 +955,27 @@ function buildCandidatePoolQuery(
     currentWeek,
   ];
 
-  if (isCategoryBlindBox) {
-    conditions.push("a.min_party_size <= ?", "a.max_party_size >= ?");
-    values.push(input.preferences.partySize, input.preferences.partySize);
-    if (input.preferences.budgetMin !== null && input.preferences.budgetMin !== undefined) {
-      conditions.push("a.budget_yuan >= ?");
-      values.push(input.preferences.budgetMin);
-    }
-    if (input.preferences.budgetMax !== null) {
-      conditions.push("a.budget_yuan <= ?");
-      values.push(input.preferences.budgetMax);
-    }
-    if (input.preferences.category !== "不限") {
-      conditions.push("(a.category = ? OR JSON_CONTAINS(a.mood_tags, JSON_QUOTE(?)))");
-      values.push(input.preferences.category, input.preferences.category);
-    }
-    if (input.preferences.travelDurationLabel) {
-      conditions.push("JSON_CONTAINS(a.mood_tags, JSON_QUOTE(?))");
-      values.push(input.preferences.travelDurationLabel);
-    }
+  conditions.push("a.min_party_size <= ?", "a.max_party_size >= ?");
+  values.push(input.preferences.partySize, input.preferences.partySize);
+  const category = input.preferences.category === '浪漫约会' ? '约会' : input.preferences.category;
+  const knownIds = Object.entries(cityRouteCategories).filter(([, tags]) => tags.includes(category)).map(([id]) => Number(id));
+  if (category !== '不限') {
+    conditions.push(`(a.category = ? OR JSON_CONTAINS(a.mood_tags, JSON_QUOTE(?))${knownIds.length ? ` OR a.id IN (${knownIds.join(',')})` : ''})`);
+    values.push(category, category);
+  }
+  const requestedDays = requestedTravelDays(input.preferences);
+  if (requestedDays) {
+    const dayIds = requestedDays === '当天' ? Object.keys(cityRouteCategories).map(Number) : [];
+    conditions.push(`(JSON_CONTAINS(a.mood_tags, JSON_QUOTE(?))${dayIds.length ? ` OR a.id IN (${dayIds.join(',')})` : ''})`);
+    values.push(requestedDays);
+  }
+  if (hardBudgetMinimum(input.preferences) > 0) {
+    conditions.push("a.budget_yuan >= ?");
+    values.push(hardBudgetMinimum(input.preferences));
+  }
+  if (input.preferences.budgetMax != null) {
+    conditions.push("a.budget_yuan <= ?");
+    values.push(input.preferences.budgetMax);
   }
 
   if (activityIds.length > 0) {
@@ -1052,11 +1051,32 @@ async function findActivityForDraw(
   input: z.infer<typeof drawSchema>,
   drawSessionId: string,
 ) {
+  const [history] = await connection.execute(
+    `SELECT a.id, a.city_id, a.city_name, a.title, a.address FROM (
+       SELECT a.id, a.city_id, c.name AS city_name, a.title, a.address
+       FROM todos t
+       JOIN activities a ON a.id = t.activity_id JOIN cities c ON c.id = a.city_id
+       WHERE t.user_id = ? AND t.status = 'completed' AND t.completed_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+         AND NOT EXISTS (SELECT 1 FROM trip_feedback f WHERE f.todo_id = t.id AND f.verdict = 'ended_early')
+       ORDER BY t.completed_at DESC LIMIT 100
+     ) a`, [input.userId],
+  );
+  const placeKeys = (row: Pick<ActivityRow, 'id' | 'city_id' | 'city_name' | 'title' | 'address'>): string[] => {
+    const practical = practicalReplacement({ id: row.id, cityName: row.city_name, title: row.title, address: row.address });
+    if (practical && 'placeKeys' in practical && Array.isArray(practical.placeKeys)) return practical.placeKeys.filter((key): key is string => typeof key === 'string');
+    return [practical && 'placeKey' in practical && typeof practical.placeKey === 'string' ? practical.placeKey : `${row.city_id}:${row.address}`];
+  };
+  const [reactions] = await connection.execute(`SELECT a.id, a.city_id, c.name AS city_name, a.title, a.address FROM activity_reactions r JOIN activities a ON a.id = r.activity_id JOIN cities c ON c.id = a.city_id WHERE r.user_id = ? AND r.updated_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`, [input.userId]);
+  const seenPlaces = new Set([...(history as ActivityRow[]), ...(reactions as ActivityRow[])].flatMap(placeKeys));
+  const [sessionPlaces] = await connection.execute(`SELECT a.id, a.city_id, c.name AS city_name, a.title, a.address FROM draw_results dr JOIN activities a ON a.id = dr.activity_id JOIN cities c ON c.id = a.city_id WHERE dr.draw_session_id = ?`, [drawSessionId]);
+  for (const key of (sessionPlaces as ActivityRow[]).flatMap(placeKeys)) seenPlaces.add(key);
+  const unseenRows = (rows: ActivityRow[]) => rows.filter((row) => placeKeys(row).every((key) => !seenPlaces.has(key)) && !departureFailure(toActivityDto(row), input.preferences));
   let cityWeather: Awaited<ReturnType<typeof getCityWeather>> = null;
   try {
     const [cityRows] = await connection.execute("SELECT name FROM cities WHERE id = ? AND is_active = TRUE LIMIT 1", [input.cityId]);
     const cityName = (cityRows as Array<{ name: string }>)[0]?.name;
-    cityWeather = cityName ? await getCityWeather(cityName) : null;
+    const needsTodayWeather = input.preferences.departureMode === 'now' || input.preferences.departureDate === chinaDate();
+    cityWeather = cityName && needsTodayWeather ? await getCityWeather(cityName) : null;
   } catch (error) {
     console.warn({ error, cityId: input.cityId }, "Weather lookup failed; continuing without weather hard filters");
   }
@@ -1074,7 +1094,7 @@ async function findActivityForDraw(
       const enrichedSemanticRows = await enrichCandidateRowsWithCoordinates(
         connection,
         input,
-        semanticRows as ActivityRow[],
+        unseenRows(semanticRows as ActivityRow[]),
       );
       const semanticSelection = await selectActivityWithRecommendation(
         input.preferences,
@@ -1095,7 +1115,7 @@ async function findActivityForDraw(
 
   const query = buildCandidatePoolQuery(input, drawSessionId);
   const [activityRows] = await connection.execute(query.sql, query.values);
-  const fallbackRows = activityRows as ActivityRow[];
+  const fallbackRows = unseenRows(activityRows as ActivityRow[]);
   if (fallbackRows.length === 0) {
     return {
       status: "no_result" as const,
@@ -1103,7 +1123,8 @@ async function findActivityForDraw(
     };
   }
   const rows = await enrichCandidateRowsWithCoordinates(connection, input, fallbackRows);
-  return selectActivityWithRecommendation(input.preferences, rows, input.drawContext, cityWeather);
+  const selection = await selectActivityWithRecommendation(input.preferences, rows, input.drawContext, cityWeather);
+  return selection;
 }
 
 const activitySelect = `
@@ -1172,7 +1193,8 @@ async function getCurrentDrawForUser(userId: number) {
   }
 
   const [resultRows] = await pool.execute(
-    `${activitySelect}
+    `SELECT a.*, c.name AS city_name, dr.created_at AS drawn_at
+      FROM activities a INNER JOIN cities c ON c.id = a.city_id
       INNER JOIN draw_results dr ON dr.activity_id = a.id
      WHERE dr.draw_session_id = ?
        AND a.is_active = TRUE
@@ -1181,7 +1203,7 @@ async function getCurrentDrawForUser(userId: number) {
     [session.id],
   );
 
-  const result = (resultRows as Array<{ attempt_no: number } & ActivityRow>)[0];
+  const result = (resultRows as Array<{ attempt_no: number; drawn_at: Date } & ActivityRow>)[0];
   if (!result) {
     return null;
   }
@@ -1191,8 +1213,8 @@ async function getCurrentDrawForUser(userId: number) {
     draw: {
       drawSessionId: session.id,
       attemptsUsed: dailyAttemptsUsed,
-      attemptsRemaining: Math.max(0, DAILY_DRAW_LIMIT - dailyAttemptsUsed),
-      activity: toActivityDto(result),
+      attemptsRemaining: 1,
+      activity: withDeparture(toActivityDto(result), preferences, new Date(result.drawn_at)),
     },
     input: {
       cityId: Number(session.city_id),
@@ -1365,9 +1387,7 @@ export function createApp() {
     "/api/v1/activities",
     asyncRoute(async (request, response) => {
       const query = homeCommunityFeedSchema.parse(request.query);
-      const filters: string[] = query.sourceType === "itinerary_workbook"
-        ? ["a.is_active = TRUE", "a.source_type = 'itinerary_workbook'"]
-        : ["a.is_active = TRUE", "a.content_status = 'published'", "a.content_score >= 70"];
+      const filters: string[] = ["a.is_active = TRUE", "a.content_status = 'published'", "a.content_score >= 70", "(a.source_type IS NULL OR a.source_type <> 'itinerary_workbook')"];
       const params: Array<string | number> = [];
       const tagFilters: Array<string | number> = [];
 
@@ -1414,6 +1434,7 @@ export function createApp() {
       response.json({
         data: {
           items: rows.map((row) => ({
+            ...toActivityDto(row),
             id: row.id,
             title: row.title,
             summary: row.summary,
@@ -1474,6 +1495,32 @@ export function createApp() {
       },
     });
   });
+
+  app.post(
+    "/api/v1/auth/claim-guest",
+    asyncRoute(async (request, response) => {
+      const userId = readAuthenticatedUserId(request);
+      const input = guestSessionSchema.parse(request.body);
+      await withTransaction(async (connection) => {
+        const [guestRows] = await connection.execute(
+          "SELECT id FROM users WHERE device_id = ? AND auth_type = 'guest' FOR UPDATE",
+          [input.deviceId],
+        );
+        const guestUserId = Number((guestRows as Array<{ id: number }>)[0]?.id);
+        if (Number.isFinite(guestUserId) && guestUserId !== userId) {
+          await mergeGuestIntoUser(connection, guestUserId, userId);
+        }
+      });
+      const [rows] = await pool.execute(
+        `SELECT id, device_id, phone, email, password_hash, auth_type, nickname, avatar_uri
+         FROM users WHERE id = ?`,
+        [userId],
+      );
+      const user = (rows as UserRow[])[0];
+      if (!user) throw new AppError(404, "USER_NOT_FOUND", "登录账号不存在");
+      response.json({ data: await toUserDtoForRequest(request, user) });
+    }),
+  );
 
   app.post(
     "/api/v1/auth/code",
@@ -1724,15 +1771,6 @@ export function createApp() {
         const drawSessionId = input.drawSessionId ?? randomUUID();
         const dailyAttemptsUsed = await getDailyDrawCount(connection, drawInput.userId);
 
-        if (dailyAttemptsUsed >= DAILY_DRAW_LIMIT) {
-          throw new AppError(
-            429,
-            "DAILY_DRAW_LIMIT_REACHED",
-            "今天的 3 次抽卡机会已经用完，明天 0 点后再来吧",
-            { limit: DAILY_DRAW_LIMIT, used: dailyAttemptsUsed, remaining: 0 },
-          );
-        }
-
         if (!input.drawSessionId) {
           await connection.execute(
             `INSERT INTO draw_sessions
@@ -1772,10 +1810,6 @@ export function createApp() {
           throw new AppError(409, "DRAW_SESSION_CLOSED", "这次抽取已经结束");
         }
 
-        if (session.attempts_used >= 3) {
-          throw new AppError(409, "DRAW_LIMIT_REACHED", "本次免费抽取已经用完");
-        }
-
         const selection = await findActivityForDraw(connection, drawInput, drawSessionId);
 
         if (selection.status === "no_result") {
@@ -1805,8 +1839,8 @@ export function createApp() {
         return {
           drawSessionId,
           attemptsUsed: dailyAttemptsUsed + 1,
-          attemptsRemaining: Math.max(0, DAILY_DRAW_LIMIT - dailyAttemptsUsed - 1),
-          activity: toActivityDto(activity),
+          attemptsRemaining: 1, // Legacy compatibility; unknown inventory is not a zero quota.
+          activity: withDeparture(toActivityDto(activity), drawInput.preferences),
           recommendation,
         };
       });

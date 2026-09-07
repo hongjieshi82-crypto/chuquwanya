@@ -113,15 +113,15 @@ export default function DrawScreen() {
           <View style={styles.actions}>
             <Pressable
               accessibilityRole="button"
-              disabled={currentDraw.attemptsRemaining <= 0 || isRerolling}
+              disabled={currentDraw.alternativesRemaining === 0 || isRerolling}
               onPress={() => void handleReroll()}
               style={({ pressed }) => [
                 styles.lightButton,
-                (currentDraw.attemptsRemaining <= 0 || isRerolling) && styles.disabled,
+                (currentDraw.alternativesRemaining === 0 || isRerolling) && styles.disabled,
                 pressed && styles.pressed,
               ]}>
               <Text style={styles.lightButtonText}>
-                {currentDraw.attemptsRemaining > 0 ? `重抽 · 今日剩 ${currentDraw.attemptsRemaining} 次` : '今日机会已用完'}
+                {currentDraw.alternativesRemaining === 0 ? '当前条件已看完' : '换一个新灵感'}
               </Text>
             </Pressable>
             <Pressable

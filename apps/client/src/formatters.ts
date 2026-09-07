@@ -13,6 +13,12 @@ export function formatBudget(value: number) {
   return '100元以上';
 }
 
+/** Remove workbook sequence suffixes such as 02/05/20 without damaging
+ * numbers that belong to a place name (798艺术区、合柴1972、公园1903). */
+export function formatActivityTitle(value: string) {
+  return value.trim().replace(/[\s·#_-]*(?<!\d)(?:0[1-9]|[1-9]\d)\s*$/, '').trim();
+}
+
 export function formatDistanceMetric(value: number, recommendationDistance?: string) {
   const summary = recommendationDistance?.trim() ?? '';
   const needsMapConfirmation = summary.includes('地图确认') || summary.includes('缺少坐标');

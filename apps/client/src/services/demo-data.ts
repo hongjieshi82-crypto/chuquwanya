@@ -1,6 +1,7 @@
 import { Image as NativeImage } from 'react-native';
 
-import itineraryPlansRaw from '@/data/itinerary-plans.json';
+import { practicalActivities, cityRouteCategories, preferenceFailure } from '../../../api/src/itinerary-policy';
+import { departureFailure, withDeparture } from '../../../api/src/departure-policy';
 
 import type {
   Activity,
@@ -14,23 +15,7 @@ import type { Attraction, Destination, TravelTag } from '@/types/travel';
 
 type StaticAsset = number | string | { uri: string };
 
-type WorkbookPlan = {
-  city: string;
-  title: string;
-  summary: string;
-  partyOptions: string[];
-  travelDuration: string;
-  daysCount: number;
-  perPersonBudgetYuan: number;
-  budgetLabel: string;
-  mood: string;
-  surpriseLevel: string;
-  playTags: string[];
-  poiNames: string[];
-  itineraryText: string;
-  tips: string[];
-  coverImageUri: string | null;
-};
+
 
 const westLakeImage = require('../../assets/images/pc-hero-west-lake.jpg') as StaticAsset;
 function bundledTravelImage(fileName: string) {
@@ -54,6 +39,14 @@ const beijingOlympicForestImage = bundledTravelImage('beijing-olympic-forest.jpg
 const beijingWudaoyingHutongImage = bundledTravelImage('beijing-wudaoying-hutong.jpg');
 const beijing798ArtDistrictImage = bundledTravelImage('beijing-798-art-district.jpg');
 const beijingZhuantaHutongImage = bundledTravelImage('beijing-zhuanta-hutong.jpg');
+const beijingBeihaiParkImage = bundledTravelImage('beijing-beihai-park.jpg');
+const beijingForbiddenCityImage = bundledTravelImage('beijing-forbidden-city.jpg');
+const beijingTempleOfHeavenImage = bundledTravelImage('beijing-temple-of-heaven.jpg');
+const beijingUniversalStudiosImage = bundledTravelImage('beijing-universal-studios.jpg');
+const beijingNiujieImage = bundledTravelImage('beijing-niujie.jpg');
+const beijingJingshanImage = bundledTravelImage('beijing-jingshan.jpg');
+const beijingShichahaiImage = bundledTravelImage('beijing-shichahai.jpg');
+const beijingShougangImage = bundledTravelImage('beijing-shougang.jpg');
 const shanghaiWukangRoadImage = bundledTravelImage('shanghai-wukang-road.jpg');
 const shanghaiXuhuiRiversideImage = bundledTravelImage('shanghai-xuhui-riverside.jpg');
 const shenzhenLianhuashanImage = bundledTravelImage('shenzhen-lianhuashan.jpg');
@@ -128,6 +121,14 @@ export const demoPlaceImageUris = {
 } as const;
 
 const curatedActivityCoverRules = [
+  { keywords: ['北海公园'], uri: beijingBeihaiParkImage },
+  { keywords: ['故宫博物院', '故宫'], uri: beijingForbiddenCityImage },
+  { keywords: ['天坛公园', '天坛'], uri: beijingTempleOfHeavenImage },
+  { keywords: ['北京环球度假区', '环球度假区'], uri: beijingUniversalStudiosImage },
+  { keywords: ['牛街'], uri: beijingNiujieImage },
+  { keywords: ['景山公园', '景山'], uri: beijingJingshanImage },
+  { keywords: ['什刹海'], uri: beijingShichahaiImage },
+  { keywords: ['首钢园'], uri: beijingShougangImage },
   { keywords: ['奥林匹克森林公园', '奥森'], uri: beijingOlympicForestImage },
   { keywords: ['五道营胡同'], uri: beijingWudaoyingHutongImage },
   { keywords: ['798艺术区', '798 艺术区', '去798', '在 798'], uri: beijing798ArtDistrictImage },
@@ -754,79 +755,12 @@ const additionalActivities: Activity[] = [
 
 const originalDemoActivities = [...baseActivities, ...additionalActivities];
 
-function workbookPartyRange(options: string[]) {
-  const values = options.flatMap((option) => option.match(/\d+/g) ?? []).map(Number).filter(Number.isFinite);
-  if (!values.length) return { min: 1, max: 4 };
-  return { min: Math.min(...values), max: Math.max(...values) };
-}
-
-function workbookSteps(plan: WorkbookPlan) {
-  const blocks = plan.itineraryText
-    .split(/[\n；;]/)
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .flatMap((item) => item.split(/(?=D\d+\s*(?:上午|午间|下午|傍晚|夜间))/i))
-    .map((item) => item.replace(/^D\d+\s*/i, '').trim())
-    .filter(Boolean);
-  return blocks.length ? blocks : [plan.summary];
-}
-
-const workbookActivities: Activity[] = (itineraryPlansRaw as WorkbookPlan[]).map((plan, index) => {
-  const city = demoCities.find((item) => item.name === plan.city);
-  const party = workbookPartyRange(plan.partyOptions);
-  const primaryPoi = plan.poiNames[0] || plan.city;
-  return {
-    id: 600_001 + index,
-    cityId: city?.id ?? 1,
-    cityName: plan.city,
-    title: plan.title,
-    summary: plan.summary,
-    description: plan.itineraryText || plan.summary,
-    category: plan.playTags[0] || '城市漫游',
-    mood: plan.mood || '放松',
-    moodTags: [...new Set([plan.mood, ...plan.playTags, plan.travelDuration, plan.budgetLabel, `${plan.surpriseLevel}度惊喜`].filter(Boolean))],
-    environment: 'either',
-    rainFriendly: 'unknown',
-    heatSensitive: 'unknown',
-    windSensitive: 'unknown',
-    minPartySize: party.min,
-    maxPartySize: Math.max(party.max, party.min),
-    durationMinutes: Math.max(60, plan.daysCount * 480),
-    budgetYuan: Math.max(0, plan.perPersonBudgetYuan),
-    distanceKm: 0,
-    district: primaryPoi,
-    address: primaryPoi,
-    latitude: null,
-    longitude: null,
-    navigationUrl: `https://uri.amap.com/search?keyword=${encodeURIComponent(`${plan.city}${primaryPoi}`)}`,
-    coverImageUri: plan.coverImageUri,
-    steps: workbookSteps(plan),
-    tips: plan.tips,
-    accentColor: '#C9FF62',
-  };
-});
-
-function createActivityVariants(activity: Activity): Activity[] {
-  const place = activity.address || activity.district || activity.title;
-  const common = {
-    ...activity,
-    coverImageUri: activity.coverImageUri ?? null,
-  };
-  if (activity.environment === 'indoor') {
-    return [
-      { ...common, id: 20_000 + activity.id * 10 + 1, title: `在${place}只追一种颜色`, summary: '给自己一个颜色限制，把普通参观变成一场视觉搜集。', mood: '探索', moodTags: [...new Set([...activity.moodTags, '颜色挑战', '观察'])], steps: ['选定今天的主题色', '寻找三件符合颜色的细节', '离开前选出最喜欢的一件'], tips: [...activity.tips, '不使用闪光灯影响他人'] },
-      { ...common, id: 20_000 + activity.id * 10 + 2, title: `给${place}写三句观察`, summary: '不用写长游记，只记录三个真实看到的细节。', mood: '放松', moodTags: [...new Set([...activity.moodTags, '记录', '独处'])], steps: ['先完整走一遍空间', '挑三个想停留的细节', '分别写下一句观察'], tips: [...activity.tips, '尊重场馆拍摄规定'] },
-    ];
-  }
-  return [
-    { ...common, id: 20_000 + activity.id * 10 + 1, title: `在${place}完成五色收集`, summary: '不追打卡点，只收集今天在城市里遇见的五种颜色。', mood: '探索', moodTags: [...new Set([...activity.moodTags, '拍照', '颜色挑战'])], steps: ['从主入口开始慢走', '依次收集五种不同颜色', '用最喜欢的颜色结束路线'], tips: [...activity.tips, '拍摄时注意行人与隐私'] },
-    { ...common, id: 20_000 + activity.id * 10 + 2, title: `给${place}做一张声音地图`, summary: '暂时收起攻略，用三段声音记住一处真实地点。', mood: '放松', moodTags: [...new Set([...activity.moodTags, '声音地图', '独处'])], steps: ['安静走十分钟', '记录三种不同的环境声音', '在最舒服的位置停留十五分钟'], tips: [...activity.tips, '避免在安静区域外放声音'] },
-  ];
-}
-
-export const demoActivities = [
-  ...workbookActivities,
-  ...originalDemoActivities.flatMap((activity) => [activity, ...createActivityVariants(activity)]),
+export const demoActivities: Activity[] = [
+  ...practicalActivities,
+  ...originalDemoActivities.map((a) => ({
+    ...a, sourceType: 'local_curated', distanceKm: 0,
+    moodTags: [...new Set([...a.moodTags, ...(cityRouteCategories[a.id] ?? []), '当天'])],
+  })),
 ];
 
 export const demoAttractions: Attraction[] = demoActivities.map((item, index) => ({
@@ -843,127 +777,60 @@ export const demoAttractions: Attraction[] = demoActivities.map((item, index) =>
   destinationName: item.cityName,
 }));
 
-const demoRecentActivityIds: number[] = [];
-const DEMO_RECENT_DRAW_LIMIT = 8;
-const DEMO_DAILY_DRAW_LIMIT = 3;
-let demoDailyDrawDate = '';
-let demoDailyDrawCount = 0;
-
-function consumeDemoDailyDraw() {
-  const dateKey = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Shanghai',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date());
-  if (demoDailyDrawDate !== dateKey) {
-    demoDailyDrawDate = dateKey;
-    demoDailyDrawCount = 0;
-  }
-  if (demoDailyDrawCount >= DEMO_DAILY_DRAW_LIMIT) {
-    throw new Error('今天的 3 次抽卡机会已经用完，明天 0 点后再来吧');
-  }
-  demoDailyDrawCount += 1;
-  return demoDailyDrawCount;
+type DemoDrawMemory = { date: string; count: number; records: { id: number; places: string[]; at: number; kind?: 'viewed' | 'completed' | 'disliked'; session?: string }[] };
+const memoryKey = '@lazyde/draw-memory:v2';
+function readDrawMemory(): DemoDrawMemory {
+  try {
+    const raw = typeof window !== 'undefined' ? window.localStorage.getItem(memoryKey) : null;
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (parsed && typeof parsed.date === 'string' && Number.isInteger(parsed.count) && Array.isArray(parsed.records)) {
+      return { date: parsed.date, count: Math.max(0, parsed.count), records: parsed.records.filter((r: { id: number; places: string[]; at: number }) => Number.isFinite(r.id) && Array.isArray(r.places) && r.places.every((p) => typeof p === 'string') && Number.isFinite(r.at) && Date.now() - r.at < 30 * 86400000).slice(-100) };
+    }
+  } catch {}
+  return { date: '', count: 0, records: [] };
 }
-
-function demoActivityPlaceKey(activity: Activity) {
-  return `${activity.cityId}:${activity.address || activity.district || activity.title}`;
+let demoDrawMemory = readDrawMemory();
+function persistDrawMemory() {
+  try { if (typeof window !== 'undefined') window.localStorage.setItem(memoryKey, JSON.stringify(demoDrawMemory)); } catch {}
 }
-
-function rememberDemoActivity(activityId: number) {
-  const existingIndex = demoRecentActivityIds.indexOf(activityId);
-  if (existingIndex >= 0) demoRecentActivityIds.splice(existingIndex, 1);
-  demoRecentActivityIds.push(activityId);
-  if (demoRecentActivityIds.length > DEMO_RECENT_DRAW_LIMIT) {
-    demoRecentActivityIds.splice(0, demoRecentActivityIds.length - DEMO_RECENT_DRAW_LIMIT);
-  }
+function recordDemoDraw() {
+  const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  if (demoDrawMemory.date !== date) { demoDrawMemory.date = date; demoDrawMemory.count = 0; }
+  demoDrawMemory.count += 1; persistDrawMemory();
+  return demoDrawMemory.count;
 }
-
-function pickDemoActivity(candidates: Activity[], previous?: DrawResult | null) {
-  const recentIds = new Set(demoRecentActivityIds);
-  const recentPlaces = new Set(
-    demoRecentActivityIds
-      .map((id) => demoActivities.find((activity) => activity.id === id))
-      .filter((activity): activity is Activity => Boolean(activity))
-      .map(demoActivityPlaceKey),
-  );
-  if (previous) {
-    recentIds.add(previous.activity.id);
-    recentPlaces.add(demoActivityPlaceKey(previous.activity));
-  }
-
-  // Prefer a genuinely different place, then a different task at a known place,
-  // and only fall back to the full city pool after every option has been seen.
-  const unseenPlaces = candidates.filter((activity) => !recentPlaces.has(demoActivityPlaceKey(activity)));
-  const unseenActivities = candidates.filter((activity) => !recentIds.has(activity.id));
-  const pool = unseenPlaces.length ? unseenPlaces : unseenActivities.length ? unseenActivities : candidates;
-  return pool[Math.floor(Math.random() * pool.length)]!;
+function demoActivityPlaces(a: Activity) {
+  return a.placeKeys ?? [a.placeKey ?? `${a.cityId}:${a.address || a.district || a.title}`];
 }
-
-function buildCategoryDemoCandidates(input: DrawRequest, cityCandidates: Activity[]) {
-  const isCategoryBlindBox = input.preferences.clientSource === 'pc' &&
-    input.preferences.surpriseLevelLabel?.endsWith('分类盲盒') === true;
-  if (!isCategoryBlindBox || input.preferences.category === '不限') return cityCandidates;
-
-  const category = input.preferences.category;
-  const blueprints: Record<string, {
-    title: (place: string) => string;
-    summary: string;
-    steps: (place: string) => string[];
-  }> = {
-    约会: {
-      title: (place) => `和喜欢的人在${place}过一个不赶时间的下午`,
-      summary: '从见面、共同体验到散步收尾，一套适合两个人完成的城市约会攻略。',
-      steps: (place) => [`在${place}附近集合，先找一杯喜欢的饮品`, '一起完成一项有纪念感的体验', '沿街慢走，用一张合照结束今天'],
-    },
-    休闲躺平: {
-      title: (place) => `在${place}把半天调成松弛模式`,
-      summary: '减少赶路和打卡，用停留、散步和一顿舒服的饭把节奏慢下来。',
-      steps: (place) => [`慢慢抵达${place}，不设置打卡任务`, '找舒服的位置停留至少四十分钟', '在附近吃饭或散步后自然返程'],
-    },
-    娱乐玩乐: {
-      title: (place) => `去${place}解锁一场即兴玩乐挑战`,
-      summary: '以游戏和互动体验为核心，适合朋友临时组局的半日攻略。',
-      steps: (place) => [`确认${place}当天开放和预约情况`, '完成一项核心游戏或互动体验', '用合照或积分结果结束挑战'],
-    },
-    探险猎奇: {
-      title: (place) => `从${place}出发寻找一条冷门路线`,
-      summary: '避开最常规的打卡方式，用线索和观察完成一次城市微探险。',
-      steps: (place) => [`准备轻便装备并抵达${place}`, '沿推荐线索寻找一处少见的城市细节', '天黑前完成返程并记录探索发现'],
-    },
-    美食吃喝: {
-      title: (place) => `在${place}附近完成一条本地吃喝路线`,
-      summary: '从小吃、正餐到甜品或夜宵，用三站认识这个街区的味道。',
-      steps: (place) => [`从${place}附近的一家代表性小店开始`, '步行前往第二站，尝一道当地正餐', '用甜品、咖啡或夜宵完成第三站'],
-    },
-    城市散步: {
-      title: (place) => `从${place}开始随意转三个弯`,
-      summary: '用一条低压力步行路线观察建筑、街道和城市日常。',
-      steps: (place) => [`从${place}的主入口或地铁站出发`, '连续转三个弯，记录沿途三个细节', '在终点附近休息并整理照片'],
-    },
-  };
-  const blueprint = blueprints[category];
-  if (!blueprint) return cityCandidates;
-
-  return cityCandidates.slice(0, Math.max(3, Math.min(8, cityCandidates.length))).map((activity, index) => {
-    const place = activity.address || activity.district || activity.title;
-    return {
-      ...activity,
-      id: 700_000 + activity.id * 10 + index,
-      title: blueprint.title(place),
-      summary: blueprint.summary,
-      description: blueprint.summary,
-      category,
-      mood: category,
-      moodTags: [...new Set([...activity.moodTags, category, input.preferences.travelDurationLabel ?? '当天', input.preferences.budgetLabel ?? '划算出行'])],
-      minPartySize: category === '约会' ? 2 : 1,
-      maxPartySize: category === '约会' ? 2 : Math.max(4, input.preferences.partySize),
-      budgetYuan: input.preferences.budgetMax ?? Math.max(input.preferences.budgetMin ?? 0, activity.budgetYuan),
-      steps: blueprint.steps(place),
-    };
+function availableDemoCandidates(candidates: Activity[], previous?: DrawResult | null, session?: string) {
+  const blocked = demoDrawMemory.records.filter((r) => r.kind === 'completed' || r.kind === 'disliked' || (session && r.session === session));
+  const ids = new Set(blocked.map((r) => r.id));
+  const places = new Set(blocked.flatMap((r) => r.places));
+  if (previous) { ids.add(previous.activity.id); demoActivityPlaces(previous.activity).forEach((p) => places.add(p)); }
+  return candidates.filter((a) => !ids.has(a.id) && demoActivityPlaces(a).every((p) => !places.has(p)));
+}
+function rememberDemoActivity(activity: Activity, session?: string, kind: 'viewed' | 'completed' | 'disliked' = 'viewed') {
+  demoDrawMemory.records.push({ id: activity.id, places: demoActivityPlaces(activity), at: Date.now(), kind, session });
+  demoDrawMemory.records = demoDrawMemory.records.slice(-100); persistDrawMemory();
+}
+export function recordDemoOutcome(activity: Activity, kind: 'viewed' | 'completed' | 'disliked') { rememberDemoActivity(activity, undefined, kind); }
+function pickDemoActivity(candidates: Activity[], preferences: DrawRequest['preferences']) {
+  const viewed = new Set(demoDrawMemory.records.flatMap((r) => r.places));
+  const fresh = candidates.filter((a) => demoActivityPlaces(a).every((p) => !viewed.has(p)));
+  if (fresh.length) candidates = fresh;
+  const weights = candidates.map((a) => {
+    const mood = a.mood === preferences.mood || a.moodTags.includes(preferences.mood);
+    const tier = preferences.budgetLabel;
+    const preferred = tier === '品质享受' ? a.budgetYuan >= (preferences.budgetMin ?? 400) : tier === '舒服躺玩' ? a.budgetYuan >= (preferences.budgetMin ?? 200) : true;
+    const randomness = Math.max(0, Math.min(1, preferences.randomLevel / 100));
+    const partyFit = preferences.partySize === 1 ? a.moodTags.includes('独自探索') : preferences.partySize >= 3 ? a.moodTags.includes('朋友同行') : a.category === '约会';
+    return (1 + (mood ? 2 : 0) + (preferred ? 2 : 0) + (partyFit ? 1 : 0)) * (1 - randomness) + randomness;
   });
+  let cursor = Math.random() * weights.reduce((sum, w) => sum + w, 0);
+  for (let i = 0; i < candidates.length; i++) { cursor -= weights[i]!; if (cursor < 0) return candidates[i]!; }
+  return candidates[candidates.length - 1]!;
 }
+
 
 function createUuid() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -989,30 +856,38 @@ export function createDemoGuest(deviceId: string): GuestUser {
 export function createDemoDraw(
   input: DrawRequest,
   previous?: DrawResult | null,
+  now = new Date(),
 ): DrawResult {
   const cityCandidates = demoActivities.filter((activity) => activity.cityId === input.cityId);
-  const candidates = buildCategoryDemoCandidates(input, cityCandidates);
+  const candidates = cityCandidates.filter((activity) => !departureFailure(activity, input.preferences, now) && !preferenceFailure(input.preferences, {
+    ...activity, sourceType: activity.sourceType ?? '',
+  }));
   if (!candidates.length) {
     const selectedCity = demoCities.find((city) => city.id === input.cityId)?.name ?? '当前城市';
-    throw new Error(`${selectedCity}暂时没有符合条件的本地玩法，请调整条件或选择其他城市。`);
+    throw new Error(`${selectedCity}暂时没有同时符合分类、人数、天数和预算的已整理玩法，请调整条件。本次未扣次数。`);
   }
   if (previous && candidates.length < 2) {
     throw new Error('当前条件下暂时只有这一条玩法，没有新的结果可供重抽。');
   }
 
-  const attemptsUsed = consumeDemoDailyDraw();
-  const activity = pickDemoActivity(candidates, previous);
-  rememberDemoActivity(activity.id);
+  const session = previous?.drawSessionId ?? createUuid();
+  const unseen = availableDemoCandidates(candidates, previous, session);
+  if (!unseen.length) throw new Error('当前条件下的新地点已经看完了。可以调整分类、预算或天数，本次未扣次数。');
+  const activity = withDeparture(pickDemoActivity(unseen, input.preferences), input.preferences, now);
+  const attemptsUsed = recordDemoDraw();
+  rememberDemoActivity(activity, session);
+  const alternativesRemaining = availableDemoCandidates(candidates, null, session).length;
   return {
-    drawSessionId: previous?.drawSessionId ?? createUuid(),
+    drawSessionId: session,
     attemptsUsed,
-    attemptsRemaining: Math.max(0, 3 - attemptsUsed),
+    attemptsRemaining: alternativesRemaining,
+    alternativesRemaining,
     activity,
     recommendation: {
       status: 'selected',
       cardId: activity.id,
       poiId: activity.id,
-      reason: `符合你“${input.preferences.mood}”的心情，也在本次预算与出行范围内。`,
+      reason: '已匹配分类、人数、天数及参考预算；出行日天气、门票和开放状态仍需确认。',
       constraintSummary: {
         distance: input.preferences.destinationScopeLabel ?? '按当前范围',
         budget: input.preferences.budgetLabel ?? `约 ¥${activity.budgetYuan}`,
@@ -1024,7 +899,7 @@ export function createDemoDraw(
         cardPage: '盲盒结果',
         detailPage: '玩法详情',
         schedulePage: '加入行程',
-        executableLabel: '现在可以出发',
+        executableLabel: '出发前确认开放与预约',
       },
     },
   };

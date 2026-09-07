@@ -74,7 +74,7 @@ export default function ActivityDetailScreen() {
   const { width } = useWindowDimensions();
   const isWeb = Platform.OS === 'web';
   const isDesktopWeb = Platform.OS === 'web' && width >= 900;
-  const params = useLocalSearchParams<{ id: string; source?: string; drawSessionId?: string }>();
+  const params = useLocalSearchParams<{ id: string; source?: string; drawSessionId?: string; intent?: string; plannedDate?: string; plannedTime?: string }>();
   const { currentDraw, user } = useApp();
   const { bottom } = useLayoutInsets();
   const activityId = Number(params.id);
@@ -250,10 +250,13 @@ export default function ActivityDetailScreen() {
     else router.replace('/trips');
   }
 
-  async function addTripDirectly() {
+  async function addTripDirectly(scheduledDate?: string, scheduledTime?: string) {
+    if (!activity) throw new Error('玩法尚未加载');
     const result = await addTodo({
       userId: user?.id,
-      activityId,
+      activityId: activity.id,
+      scheduledDate,
+      scheduledTime,
       drawSessionId: isDrawEntry ? drawSessionId ?? currentDraw?.drawSessionId : undefined,
     });
     setIsInActiveTrip(true);
@@ -302,11 +305,15 @@ export default function ActivityDetailScreen() {
   if (isWeb) {
     return (
       <PcItineraryDetail
-        activity={activity}
+        key={activity.id}
+        activity={{ ...activity, plannedDate: typeof params.plannedDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(params.plannedDate) ? params.plannedDate : activity.plannedDate, plannedArrival: typeof params.plannedTime === 'string' && /^\d{2}:\d{2}$/.test(params.plannedTime) ? params.plannedTime : activity.plannedArrival }}
+        scheduleInitially={params.intent === 'schedule'}
+        userId={user?.id}
         isAlreadyAdded={isInActiveTrip}
         onAdd={addTripDirectly}
         onBack={returnFromDetail}
         onMap={openNavigation}
+        onViewTrips={() => router.replace('/trips')}
       />
     );
   }

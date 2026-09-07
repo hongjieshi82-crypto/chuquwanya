@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { cityRouteCategories, hardBudgetMinimum, matchesPlayCategory, requestedTravelDays } from './itinerary-policy.js';
 
 import type { ActivityRow } from "./types.js";
 import { parseJsonArray } from "./types.js";
@@ -255,7 +256,7 @@ function toCandidate(row: ActivityRow): CandidateCard {
     description: row.description,
     category: row.category,
     mood: row.mood,
-    mood_tags: parseJsonArray(row.mood_tags),
+    mood_tags: [...new Set([...parseJsonArray(row.mood_tags), ...(cityRouteCategories[row.id] ?? []), ...(cityRouteCategories[row.id] ? ['当天'] : [])])],
     environment: row.environment,
     rain_friendly: row.rain_friendly ?? "unknown",
     heat_sensitive: row.heat_sensitive ?? "unknown",
@@ -393,6 +394,9 @@ function getHardFailure(
     ? candidate.card_price
     : candidate.card_price * preferences.partySize;
 
+  if (!matchesPlayCategory(preferences.category, { category: candidate.category, moodTags: candidate.mood_tags })) return '玩法分类不匹配';
+  const requestedDays = requestedTravelDays(preferences);
+  if (requestedDays && !candidate.mood_tags.includes(requestedDays)) return '出游天数不匹配';
   if (candidate.min_party_size > preferences.partySize || candidate.max_party_size < preferences.partySize) {
     return "人数不匹配";
   }
@@ -418,7 +422,7 @@ function getHardFailure(
   if (preferences.radiusKm !== null && candidate.distance_km > preferences.radiusKm) {
     return "距离超出";
   }
-  if (preferences.budgetMin !== null && preferences.budgetMin !== undefined && totalCost < preferences.budgetMin) {
+  if (totalCost < hardBudgetMinimum(preferences)) {
     return "预算档位不匹配";
   }
   if (preferences.budgetMax !== null && totalCost > preferences.budgetMax) {

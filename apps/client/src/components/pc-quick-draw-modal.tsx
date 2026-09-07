@@ -3,6 +3,8 @@ import { useMemo, useState } from 'react';
 
 import { getPcTravelBudgetRange } from '@/constants/pc-travel-budget-tiers';
 import type { Preferences } from '@/types';
+import { DeparturePicker } from '@/components/departure-picker';
+import { chinaDate, validDepartureDate, type DepartureMode } from '@/lib/departure-policy';
 
 const { Text, Title } = Typography;
 
@@ -32,8 +34,12 @@ export function PcQuickDrawModal({
   const [partySize, setPartySize] = useState('2 人');
   const [duration, setDuration] = useState('当天');
   const [budget, setBudget] = useState('划算出行');
+  const [departureMode, setDepartureMode] = useState<DepartureMode>('idea');
+  const [departureDate, setDepartureDate] = useState('');
 
   const resetSelections = () => {
+    setDepartureMode('idea');
+    setDepartureDate('');
     setPartySize('2 人');
     setDuration('当天');
     setBudget('划算出行');
@@ -56,6 +62,8 @@ export function PcQuickDrawModal({
     const budgetRange = getPcTravelBudgetRange(duration, budget);
     const travelDuration = duration === '当天' ? 'same-day' : duration === '周末游' ? '2-3days' : '4-5days';
     const preferences: Preferences = {
+      departureMode: duration !== '当天' && departureMode === 'now' ? 'idea' : departureMode,
+      departureDate: departureMode === 'now' ? chinaDate() : departureMode === 'plan' ? departureDate : null,
       partySize: partyValue,
       durationMinutes: null,
       budgetMin: budgetRange.min,
@@ -101,7 +109,7 @@ export function PcQuickDrawModal({
       rootClassName="pc-quick-draw-modal-root"
       footer={null}
       open={open}
-      width={680}
+      width={760}
       styles={{
         mask: { backgroundColor: 'rgba(4,5,7,.78)', backdropFilter: 'blur(14px)' },
         container: {
@@ -122,9 +130,11 @@ export function PcQuickDrawModal({
         <Title level={2}>{title}</Title>
         <p>已锁定 <b>{lock?.cityName}</b>{lock?.categoryLabel ? <> · <b>{lock.categoryLabel}</b></> : null}</p>
         {isRomance ? <div className="pc-quick-draw-fixed"><span>同行人数</span><b>固定 2 人</b></div> : optionGroup('同行人数', ['1 人', '2 人', '多人'], partySize, setPartySize)}
-        {optionGroup('出游时长', ['当天', '周末游', '小长假'], duration, setDuration)}
+        {optionGroup('出游时长', lock?.categoryLabel ? ['当天', '周末游'] : ['当天', '周末游', '小长假'], duration, (value) => { setDuration(value); if (value !== '当天' && departureMode === 'now') setDepartureMode('idea'); })}
+        {lock?.categoryLabel ? <small style={{ color: '#96a68a', display: 'block', marginTop: 8 }}>当前主题支持单日或周末双日；小长假可在通用设置中选择综合路线。</small> : null}
         {optionGroup('预算方式', ['划算出行', '舒服躺玩', '品质享受'], budget, setBudget)}
-        <Button className="pc-quick-draw-submit" size="large" type="primary" onClick={submit}>开始抽选　→</Button>
+        <DeparturePicker mode={departureMode} date={departureDate} period={duration} onChange={(mode, date) => { setDepartureMode(mode); setDepartureDate(date); }} />
+        <Button className="pc-quick-draw-submit" size="large" type="primary" disabled={departureMode === 'plan' && !validDepartureDate(departureDate)} onClick={submit}>开始抽选　→</Button>
       </div>
     </Modal>
   );

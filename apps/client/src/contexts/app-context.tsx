@@ -12,20 +12,21 @@ import { Platform } from 'react-native';
 
 import {
   addTodo,
+  claimGuestSession,
   createGuestSession,
   createOrContinueDraw,
   getCities,
+  getCurrentDraw,
   getPreferenceOptions,
   logoutAccount,
   rerollDraw,
-  resolveApiMediaUrl,
+  normalizeActivity,
   tryRestoreSession,
 } from '@/services/api';
-import { resolveCuratedActivityCover } from '@/services/demo-data';
 import type { City, DrawResult, GuestUser, PreferenceOptions, Preferences } from '@/types';
 
 const DEVICE_KEY = '@lazyde/device-id';
-const CURRENT_DRAW_KEY_PREFIX = '@lazyde/current-draw:';
+const CURRENT_DRAW_KEY_PREFIX = '@lazyde/current-draw:v2:';
 const CURRENT_DRAW_TTL_MS = 7 * 24 * 60 * 60 * 1_000;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i;
 
@@ -81,12 +82,7 @@ function getCurrentDrawKey(userId: number) {
 function normalizeCurrentDrawCover(result: DrawResult): DrawResult {
   return {
     ...result,
-    activity: {
-      ...result.activity,
-      coverImageUri:
-        resolveApiMediaUrl(result.activity.coverImageUri) ??
-        resolveCuratedActivityCover(result.activity),
-    },
+    activity: normalizeActivity(result.activity),
   };
 }
 
@@ -150,7 +146,9 @@ export function AppProvider({ children }: PropsWithChildren) {
         getPreferenceOptions(),
         tryRestoreSession(),
       ]);
-      const activeUser = restoredUser ?? await createGuestSession(deviceId);
+      const activeUser = restoredUser?.authType === 'registered'
+        ? await claimGuestSession(deviceId)
+        : restoredUser ?? await createGuestSession(deviceId);
 
       setCities(cityData);
       setOptions(optionData);
@@ -161,6 +159,14 @@ export function AppProvider({ children }: PropsWithChildren) {
       if (snapshot) {
         setCurrentDraw(normalizeCurrentDrawCover(snapshot.result));
         setLastDrawInput(snapshot.input);
+      } else if (activeUser.authType === 'registered') {
+        const serverSnapshot = await getCurrentDraw().catch(() => null);
+        if (serverSnapshot?.draw) {
+          const result = normalizeCurrentDrawCover(serverSnapshot.draw);
+          setCurrentDraw(result);
+          setLastDrawInput(serverSnapshot.input);
+          await writeStoredCurrentDraw(activeUser.id, result, serverSnapshot.input);
+        }
       }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '应用初始化失败');
@@ -256,6 +262,9 @@ export function AppProvider({ children }: PropsWithChildren) {
       retry: bootstrap,
       logout: async () => {
         await logoutAccount();
+        setCurrentDraw(null);
+        setLastDrawInput(null);
+        setError(null);
         setUser(null);
         await bootstrap();
       },

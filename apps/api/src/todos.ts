@@ -8,7 +8,8 @@ import { z } from "zod";
 import { verifyAuthToken } from "./auth.js";
 import { pool, withTransaction } from "./db.js";
 import { AppError } from "./errors.js";
-import { parseJsonArray } from "./types.js";
+import { parseJsonArray, toActivityDto, type ActivityRow } from "./types.js";
+import { chinaDate, validDepartureDate, departureFailure } from './departure-policy.js';
 import { isSupabaseAuthConfigured, requestAuthUserId } from "./supabase-auth.js";
 
 const todoStatusValues = ["pending", "in_progress", "completed", "cancelled"] as const;
@@ -80,6 +81,7 @@ const createTodoSchema = z.object({
   activityId: z.number().int().positive(),
   drawSessionId: z.string().uuid().nullable().optional(),
   scheduledDate: dateKeySchema.optional(),
+  scheduledTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable().optional(),
 });
 
 const todoQuerySchema = z.object({
@@ -177,6 +179,9 @@ const communityFollowSchema = z.object({
 type TodoStatus = (typeof todoStatusValues)[number];
 
 type TodoRow = {
+  scheduledTime?: string | null;
+  feedbackVerdict?: string | null;
+  feedbackNote?: string | null;
   id: number;
   status: TodoStatus;
   startedAt: Date | string | null;
@@ -485,6 +490,9 @@ function normalizeDateTimeValue(value: Date | string | null) {
 
 function toTodoDto(row: TodoRow) {
   return {
+    scheduledTime: row.scheduledTime ?? null,
+    feedbackVerdict: row.feedbackVerdict ?? null,
+    feedbackNote: row.feedbackNote ?? null,
     id: row.id,
     status: row.status,
     startedAt: normalizeDateTimeValue(row.startedAt),
@@ -1530,7 +1538,7 @@ async function getDiaryById(
 async function listTodosForWeek(
   connection: Pick<PoolConnection, "execute">,
   userId: number,
-  weekStartDate: string,
+  weekStartDate: string | null,
 ) {
   const [rows] = await connection.execute(
     `SELECT
@@ -1544,6 +1552,9 @@ async function listTodosForWeek(
        t.created_at AS createdAt,
        t.scheduled_date AS scheduledDate,
        t.week_start_date AS weekStartDate,
+       t.scheduled_time AS scheduledTime,
+       f.verdict AS feedbackVerdict,
+       f.note AS feedbackNote,
        a.id AS activityId,
        a.title,
        a.summary,
@@ -1557,13 +1568,14 @@ async function listTodosForWeek(
      FROM todos t
      INNER JOIN activities a ON a.id = t.activity_id
      INNER JOIN cities c ON c.id = a.city_id
+     LEFT JOIN trip_feedback f ON f.todo_id = t.id AND f.user_id = t.user_id
      WHERE t.user_id = ?
-       AND t.week_start_date = ?
+       AND (? IS NULL OR t.week_start_date = ?)
      ORDER BY
        FIELD(t.status, 'in_progress', 'pending', 'completed', 'cancelled'),
        t.scheduled_date ASC,
        t.created_at DESC`,
-    [userId, weekStartDate],
+    [userId, weekStartDate, weekStartDate],
   );
 
   return (rows as TodoRow[]).map(toTodoDto);
@@ -1619,6 +1631,85 @@ async function buildWeekResponse(userId: number, dateKey = toChinaDateKey()) {
 }
 
 export function registerTodoRoutes(app: Express) {
+  app.get('/api/v1/todos/:id/progress', asyncRoute(async (request, response) => {
+    const userId = resolveUserId(request);
+    const id = z.coerce.number().int().positive().parse(request.params.id);
+    const [rows] = await pool.execute(`SELECT p.active_step AS activeStep, p.paused, p.skipped FROM todos t LEFT JOIN trip_execution_progress p ON p.todo_id = t.id WHERE t.id = ? AND t.user_id = ?`, [id, userId]);
+    const row = (rows as {activeStep: number | null; paused: number; skipped: unknown}[])[0];
+    if (!row) throw new AppError(404, 'TODO_NOT_FOUND', '行程不存在');
+    const skipped = typeof row.skipped === 'string' ? JSON.parse(row.skipped) : row.skipped;
+    response.json({data: {activeStep: row.activeStep ?? 0, paused: Boolean(row.paused), skipped: Array.isArray(skipped) ? skipped : []}});
+  }));
+  app.patch('/api/v1/todos/:id/progress', asyncRoute(async (request, response) => {
+    const userId = resolveUserId(request);
+    const id = z.coerce.number().int().positive().parse(request.params.id);
+    const input = z.object({activeStep: z.number().int().min(0), paused: z.boolean(), skipped: z.array(z.number().int().min(0)).max(500)}).parse(request.body);
+    await withTransaction(async (db) => {
+      const [rows] = await db.execute(`SELECT t.status, a.*, c.name AS city_name FROM todos t JOIN activities a ON a.id = t.activity_id JOIN cities c ON c.id = a.city_id WHERE t.id = ? AND t.user_id = ? FOR UPDATE`, [id, userId]);
+      const row = (rows as (ActivityRow & {status: string})[])[0];
+      if (!row || row.status !== 'in_progress') throw new AppError(409, 'INVALID_PROGRESS_STATE', '只能更新进行中的行程');
+      const count = toActivityDto(row).steps.length;
+      if (input.activeStep >= count || input.skipped.some((step) => step >= count)) throw new AppError(400, 'INVALID_STEP', '行程步骤无效');
+      await db.execute(`INSERT INTO trip_execution_progress (todo_id, active_step, paused, skipped) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE active_step = VALUES(active_step), paused = VALUES(paused), skipped = VALUES(skipped)`, [id, input.activeStep, input.paused, JSON.stringify([...new Set(input.skipped)])]);
+    });
+    response.json({data: input});
+  }));
+  app.post('/api/v1/activities/:id/reaction', asyncRoute(async (request, response) => {
+    const userId = resolveUserId(request);
+    const id = z.coerce.number().int().positive().parse(request.params.id);
+    const input = z.object({ reaction: z.enum(['disliked', 'visited']) }).parse(request.body);
+    await ensureActivityIsActive(pool, id);
+    await pool.execute('INSERT INTO activity_reactions (user_id, activity_id, reaction) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE reaction = VALUES(reaction), updated_at = CURRENT_TIMESTAMP', [userId, id, input.reaction]);
+    response.json({ data: { saved: true } });
+  }));
+  app.get('/api/v1/saved-activities', asyncRoute(async (request, response) => {
+    const userId = resolveUserId(request);
+    const [rows] = await pool.execute(`SELECT a.*, c.name AS city_name, s.created_at AS savedAt FROM saved_activities s JOIN activities a ON a.id = s.activity_id JOIN cities c ON c.id = a.city_id WHERE s.user_id = ? ORDER BY s.created_at DESC`, [userId]);
+    response.json({ data: (rows as (ActivityRow & { savedAt: string })[]).map((row) => ({ activity: toActivityDto(row), savedAt: row.savedAt })) });
+  }));
+  app.post('/api/v1/saved-activities', asyncRoute(async (request, response) => {
+    const userId = resolveUserId(request);
+    const input = z.object({ activityId: z.number().int().positive() }).parse(request.body);
+    await ensureActivityIsActive(pool, input.activityId);
+    await pool.execute('INSERT INTO saved_activities (user_id, activity_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE activity_id = VALUES(activity_id)', [userId, input.activityId]);
+    response.json({ data: { saved: true } });
+  }));
+  app.delete('/api/v1/saved-activities/:activityId', asyncRoute(async (request, response) => {
+    const userId = resolveUserId(request);
+    const activityId = z.coerce.number().int().positive().parse(request.params.activityId);
+    await pool.execute('DELETE FROM saved_activities WHERE user_id = ? AND activity_id = ?', [userId, activityId]);
+    response.json({ data: { saved: false } });
+  }));
+  app.patch('/api/v1/todos/:id/schedule', asyncRoute(async (request, response) => {
+    const userId = resolveUserId(request);
+    const id = z.coerce.number().int().positive().parse(request.params.id);
+    const input = z.object({ scheduledDate: dateKeySchema, scheduledTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable().optional() }).parse(request.body);
+    if (!validDepartureDate(input.scheduledDate)) throw new AppError(400, 'INVALID_DEPARTURE_DATE', '请选择今天起一年内的有效日期');
+    const [activityRows] = await pool.execute(`SELECT a.*, c.name AS city_name FROM todos t JOIN activities a ON a.id = t.activity_id JOIN cities c ON c.id = a.city_id WHERE t.id = ? AND t.user_id = ?`, [id, userId]);
+    const activityRow = (activityRows as ActivityRow[])[0];
+    if (!activityRow) throw new AppError(404, 'TODO_NOT_FOUND', '行程不存在');
+    const activity = toActivityDto(activityRow);
+    if (input.scheduledTime && activity.itinerary) activity.itinerary = {...activity.itinerary, arrival:input.scheduledTime};
+    const failure = departureFailure(activity, { departureMode: 'plan', departureDate: input.scheduledDate });
+    if (failure) throw new AppError(400, 'INVALID_DEPARTURE_TIME', failure);
+    const [result] = await pool.execute(`UPDATE todos SET scheduled_date = ?, scheduled_time = ?, week_start_date = ? WHERE id = ? AND user_id = ? AND status = 'pending'`, [input.scheduledDate, input.scheduledTime ?? null, getWeekStartDateKey(input.scheduledDate), id, userId]);
+    if (!(result as { affectedRows: number }).affectedRows) throw new AppError(409, 'CANNOT_RESCHEDULE', '只能修改待出发的行程');
+    response.json({ data: { id, scheduledDate: input.scheduledDate } });
+  }));
+  app.post('/api/v1/todos/:id/feedback', asyncRoute(async (request, response) => {
+    const userId = resolveUserId(request);
+    const id = z.coerce.number().int().positive().parse(request.params.id);
+    const input = z.object({ verdict: z.enum(['worth_it', 'okay', 'not_for_me', 'ended_early']), note: z.string().trim().max(500).default('') }).parse(request.body);
+    await withTransaction(async (db) => {
+      const [rows] = await db.execute('SELECT status FROM todos WHERE id = ? AND user_id = ? FOR UPDATE', [id, userId]);
+      const status = (rows as { status: string }[])[0]?.status;
+      if (!status || !['in_progress', 'completed'].includes(status)) throw new AppError(409, 'TODO_NOT_STARTED', '请先开始行程再填写完成感受');
+      await db.execute(`INSERT INTO trip_feedback (todo_id, user_id, verdict, note) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE verdict = VALUES(verdict), note = VALUES(note)`, [id, userId, input.verdict, input.note]);
+      await db.execute(`UPDATE todos SET status = 'completed', completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP) WHERE id = ? AND user_id = ?`, [id, userId]);
+      if (input.verdict === 'not_for_me') await db.execute(`INSERT INTO activity_reactions (user_id, activity_id, reaction) SELECT user_id, activity_id, 'disliked' FROM todos WHERE id = ? AND user_id = ? ON DUPLICATE KEY UPDATE reaction = 'disliked', updated_at = CURRENT_TIMESTAMP`, [id, userId]);
+    });
+    response.json({ data: { id, status: 'completed', feedbackVerdict: input.verdict, feedbackNote: input.note } });
+  }));
   app.get(
     "/api/v1/community/overview",
     asyncRoute(async (request, response) => {
@@ -1849,13 +1940,7 @@ export function registerTodoRoutes(app: Express) {
           today: currentWeek.today,
         });
       }
-      if (!isDateKeyInSameWeek(scheduledDate, currentWeek.today)) {
-        throw new AppError(400, "TODO_DATE_OUT_OF_CURRENT_WEEK", "只能加入本周内的约定", {
-          scheduledDate,
-          weekStartDate: currentWeek.weekStartDate,
-          weekEndDate: currentWeek.weekEndDate,
-        });
-      }
+      if (!validDepartureDate(scheduledDate)) throw new AppError(400, 'INVALID_DEPARTURE_DATE', '请选择今天起一年内的出发日期');
       const weekStartDate = getWeekStartDateKey(scheduledDate);
 
       const result = await withTransaction(async (connection) => {
@@ -1896,8 +1981,8 @@ export function registerTodoRoutes(app: Express) {
 
         const [insertResult] = await connection.execute(
           `INSERT INTO todos
-             (user_id, activity_id, draw_session_id, scheduled_date, week_start_date, source)
-           VALUES (?, ?, ?, ?, ?, ?)`,
+             (user_id, activity_id, draw_session_id, scheduled_date, week_start_date, source, scheduled_time)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
           [
             userId,
             input.activityId,
@@ -1905,6 +1990,7 @@ export function registerTodoRoutes(app: Express) {
             scheduledDate,
             weekStartDate,
             input.drawSessionId ? "draw" : "manual",
+            input.scheduledTime ?? null,
           ],
         );
         const todoId = (insertResult as { insertId: number }).insertId;
@@ -1950,7 +2036,7 @@ export function registerTodoRoutes(app: Express) {
       await ensureUserExists(pool, userId);
       const week = buildWeekWindow();
 
-      response.json({ data: await listTodosForWeek(pool, userId, week.weekStartDate) });
+      response.json({ data: await listTodosForWeek(pool, userId, null) });
     }),
   );
 
@@ -1969,8 +2055,8 @@ export function registerTodoRoutes(app: Express) {
              cancelled_at = NULL
          WHERE id = ?
            AND user_id = ?
-           AND status = 'pending'`,
-        [todoId, userId],
+           AND status = 'pending' AND scheduled_date = ?`,
+        [todoId, userId, chinaDate()],
       );
 
       if ((result as { affectedRows: number }).affectedRows === 0) {

@@ -1,3 +1,5 @@
+import { practicalReplacement } from './itinerary-policy.js';
+
 export type ActivityRow = {
   id: number;
   city_id: number;
@@ -56,6 +58,7 @@ export function parseJsonArray(value: unknown): string[] {
 
 export function toActivityDto(row: ActivityRow) {
   const moodTags = parseJsonArray(row.mood_tags);
+  const practical = practicalReplacement({ id: row.id, cityName: row.city_name, title: row.title, address: row.address });
 
   return {
     id: row.id,
@@ -88,12 +91,13 @@ export function toActivityDto(row: ActivityRow) {
     distanceKm: Number(row.city_distance_km),
     district: row.district,
     address: row.address,
-    latitude: row.latitude === null ? null : Number(row.latitude),
-    longitude: row.longitude === null ? null : Number(row.longitude),
     navigationUrl: row.navigation_url,
     coverImageUri: typeof row.cover_image === 'string' && row.cover_image.trim() !== '' ? row.cover_image.trim() : null,
     steps: parseJsonArray(row.steps),
     tips: parseJsonArray(row.tips),
     accentColor: row.accent_color,
+    ...(practical ? { ...practical, id: row.id } : {}),
+    // Published runtime facts are authoritative over editorial reference data.
+    ...{latitude: row.latitude === null ? null : Number(row.latitude), longitude: row.longitude === null ? null : Number(row.longitude)},
   };
 }

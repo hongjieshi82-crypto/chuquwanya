@@ -17,6 +17,10 @@ const allIcons = Object.entries(iconGroups).flatMap(([category, names]) =>
   names.map((name) => ({ category, name, src: `./assets/icons/${category}/${name}.avif` })),
 );
 
+function cleanGuideTitle(value) {
+  return String(value || '').replace(/\s*0[1-9]\s*$/, '').trim();
+}
+
 function setupAppNavigationBridge() {
   if (window.parent === window) return;
 
@@ -109,7 +113,10 @@ function setupGravityField() {
     return Math.round((base + ((index * 23) % Math.round(base * 0.34))) * displayScale);
   };
 
-  const visibleIcons = window.innerWidth <= 760 ? allIcons.filter((_, index) => index % 4 !== 3) : allIcons;
+  // Keep a dense mobile pool while omitting every fourth body to leave enough
+  // rendering headroom for smooth physics on phones.
+  const isMobilePool = window.innerWidth <= 760;
+  const visibleIcons = isMobilePool ? allIcons.filter((_, index) => index % 4 !== 3) : allIcons;
   visibleIcons.forEach((icon, index) => {
     const size = sizeFor(index);
     const button = document.createElement('button');
@@ -122,6 +129,12 @@ function setupGravityField() {
     image.src = icon.src;
     image.alt = '';
     image.draggable = false;
+    image.loading = 'eager';
+    image.decoding = 'async';
+    if (isMobilePool && index < 8) image.fetchPriority = 'high';
+    const markImageReady = () => button.classList.add('is-image-ready');
+    image.addEventListener('load', markImageReady, { once: true });
+    if (image.complete) requestAnimationFrame(markImageReady);
     button.append(image);
     field.append(button);
 
@@ -139,7 +152,7 @@ function setupGravityField() {
       },
     );
     Composite.add(engine.world, body);
-    const entry = { body, element: button, icon, size };
+    const entry = { body, element: button, image, icon, size };
     entries.push(entry);
 
     const activate = () => {
@@ -371,6 +384,14 @@ function setupGravityField() {
   fieldObserver.observe(field);
   rebuildWalls();
   render();
+  const revealPool = () => document.documentElement.classList.add('gravity-ready');
+  if (isMobilePool) {
+    const decoded = entries.slice(0, 6).map(({ image }) => typeof image.decode === 'function' ? image.decode().catch(() => undefined) : Promise.resolve());
+    Promise.all(decoded).then(() => requestAnimationFrame(revealPool));
+    window.setTimeout(revealPool, 320);
+  } else {
+    revealPool();
+  }
   window.addEventListener('pagehide', () => { cancelAnimationFrame(frameId); fieldObserver.disconnect(); }, { once: true });
 }
 
@@ -554,7 +575,7 @@ function upgradeWeekendGuideCards() {
     const order = card.dataset.order || String(index + 1).padStart(2, '0');
     const category = card.querySelector('.place-card-copy small')?.textContent?.trim() || '城市漫游';
     const facts = card.querySelector('.place-card-facts')?.textContent?.trim() || '';
-    const title = card.querySelector('.place-card-copy h3')?.textContent?.trim() || '';
+    const title = cleanGuideTitle(card.querySelector('.place-card-copy h3')?.textContent);
     const steps = [...card.querySelectorAll('.guide-checklist li span')].map((node) => node.textContent?.trim() || '');
     const images = [...card.querySelectorAll('.place-media img')].map((image) => ({ src: image.getAttribute('src') || '', alt: image.getAttribute('alt') || '' }));
     const city = facts.split('·')[0]?.trim() || '北京';
@@ -788,32 +809,10 @@ function setupCityRecommendations() {
     });
   };
 
-  const renderRecommendations = (city) => {
-    const pool = categoryPool(city, activeCategory);
-    cards.forEach((card, index) => {
-      const [category, title, meta, images] = pool[(recommendationOffset + index) % pool.length];
-      card.classList.toggle('is-contrast-card', index === 3);
-      card.querySelector('.place-card-facts').textContent = `${city} · ${meta}`;
-      card.querySelector('.place-card-copy small').textContent = category;
-      card.querySelector('.place-card-copy h3').textContent = title;
-      const routeMastCity = card.querySelector('.visual-top span:last-child');
-      if (routeMastCity) routeMastCity.textContent = `${city.toUpperCase()} · CITY ROUTE`;
-      const routeTitle = card.querySelector('.visual-copy h2');
-      if (routeTitle) routeTitle.textContent = title;
-      const routeCategory = card.querySelector('.cover-kicker span');
-      if (routeCategory) routeCategory.textContent = category;
-      const steps = guideStepTemplates[category] || ['确认路线与开放时间', '完成攻略的核心体验', '记录今天最喜欢的一个瞬间'];
-      card.querySelectorAll('.guide-checklist li span').forEach((node, stepIndex) => {
-        node.textContent = steps[stepIndex] || steps[steps.length - 1];
-      });
-      const media = card.querySelector('.place-media');
-      media.dataset.leftLabel = '玩法场景';
-      media.dataset.rightLabel = '城市灵感';
-      media.querySelectorAll('img').forEach((node, imageIndex) => {
-        node.src = image(images[imageIndex]);
-        node.alt = `${city}${category}玩法场景`;
-      });
-      card.href = `/destinations?cityName=${encodeURIComponent(city)}`;
+  const renderRecommendations = () => {
+    cards.forEach((card) => {
+      card.style.display = 'none';
+      delete card.dataset.activityId;
     });
   };
 
@@ -863,6 +862,7 @@ function setupCityRecommendations() {
     const normalized = normalizeCity(requestedCity);
     const city = Object.keys(catalog).find((name) => normalizeCity(name) === normalized) || '北京';
     currentCity = city;
+    if (window.parent !== window) window.parent.postMessage({ type: 'gravity-home:city-selected', cityId: cityIds[city], cityName: city }, window.location.origin);
     recommendationOffset = 0;
     inputs.forEach((input) => { input.value = city; });
     if (cityLabel) cityLabel.textContent = city;
@@ -997,24 +997,68 @@ function setupCityRecommendations() {
   window.addEventListener('message', (event) => {
     if (event.origin !== window.location.origin) return;
     if (event.data?.type === 'gravity-home:guides') {
+      if (event.data.cityId !== cityIds[currentCity]) return;
       const items = Array.isArray(event.data.items) ? event.data.items : [];
+      cards.forEach((card, index) => { card.style.display = index < items.length ? '' : 'none'; });
+      if (!items.length) showHomeToast('当前城市暂无更多已整理路线，请返回上一批或换个城市', 'error');
       items.slice(0, 4).forEach((item, index) => {
         const card = cards[index];
         if (!card) return;
         const category = guideCategory(item);
         const party = item.minPartySize === item.maxPartySize ? `${item.minPartySize} 人` : `${item.minPartySize}–${item.maxPartySize} 人`;
         card.dataset.activityId = String(item.id);
+        card.href = `/activity/${item.id}`;
+        const heroImage = card.querySelector('.card-visual > img');
+        const photoNote = card.querySelector('.photo-note');
+        if (photoNote) {
+          photoNote.replaceChildren();
+          if (item.coverCredit?.kind === 'illustration') photoNote.textContent = '主题示意 · 非地点实拍';
+          else if (item.coverCredit?.author) { const creditLink = document.createElement('a'); creditLink.href = '/media/city-plays/credits.html'; creditLink.target = '_blank'; creditLink.rel = 'noreferrer'; creditLink.style.color = 'inherit'; creditLink.textContent = '实景 · 图片来源'; creditLink.addEventListener('click', (event) => event.stopPropagation()); photoNote.append(creditLink); }
+          else photoNote.textContent = '地点图片';
+        }
+        if (heroImage) {
+          heroImage.style.display = item.coverImageUri ? '' : 'none';
+          if (item.coverImageUri) { heroImage.src = item.coverImageUri; heroImage.alt = item.title; }
+        }
+        const caption = card.querySelector('.cover-caption .status');
+        if (caption) caption.textContent = '参考路线 · 出行日期待确认';
+        const subtitle = card.querySelector('.cover-caption p');
+        if (subtitle) subtitle.textContent = item.summary;
+        const why = card.querySelector('.why p');
+        if (why) why.textContent = item.summary;
+        const tagsNode = card.querySelector('.tags');
+        if (tagsNode) {
+          tagsNode.replaceChildren();
+          [category, guideDuration(item), party].forEach((label) => {
+            const tag = document.createElement('span'); tag.textContent = label; tagsNode.append(tag);
+          });
+        }
+        const miniRoute = card.querySelector('.mini-route');
+        if (miniRoute) {
+          miniRoute.replaceChildren();
+          (item.steps || []).slice(0, 3).forEach((step, stepIndex) => {
+            const row = document.createElement('div'); row.className = 'mini-stop';
+            const ordinal = document.createElement('time'); ordinal.textContent = String(stepIndex + 1).padStart(2, '0');
+            const dot = document.createElement('i'); const copy = document.createElement('div');
+            const title = document.createElement('b'); title.textContent = String(step);
+            copy.append(title); row.append(ordinal, dot, copy); miniRoute.append(row);
+          });
+        }
+        card.querySelectorAll('.place-media img').forEach((imageNode) => {
+          imageNode.style.display = item.coverImageUri ? '' : 'none';
+          if (item.coverImageUri) { imageNode.src = item.coverImageUri; imageNode.alt = item.title; }
+        });
         card.querySelector('.place-card-copy small').textContent = category;
-        card.querySelector('.place-card-copy h3').textContent = item.title;
+        card.querySelector('.place-card-copy h3').textContent = cleanGuideTitle(item.title);
         card.querySelector('.place-card-facts').textContent = `${item.cityName} · ${guideDuration(item)} · ${party}`;
         const routeMastCity = card.querySelector('.visual-top span:last-child');
         if (routeMastCity) routeMastCity.textContent = `${item.cityName.toUpperCase()} · CITY ROUTE`;
         const routeTitle = card.querySelector('.visual-copy h2');
-        if (routeTitle) routeTitle.textContent = item.title;
+        if (routeTitle) routeTitle.textContent = cleanGuideTitle(item.title);
         const routeCategory = card.querySelector('.cover-kicker span');
         if (routeCategory) routeCategory.textContent = category;
         const metrics = card.querySelectorAll('.plan-meta span');
-        if (metrics[0] && Number.isFinite(item.distanceKm)) metrics[0].innerHTML = `<b>${item.distanceKm.toFixed(1)}</b> KM`;
+        if (metrics[0]) metrics[0].textContent = Number.isFinite(item.distanceKm) && item.distanceKm > 0 ? `${item.distanceKm.toFixed(1)} KM` : '距离待确认';
         if (metrics[1] && Number.isFinite(item.durationMinutes)) metrics[1].innerHTML = `<b>${Math.max(1, item.durationMinutes / 60).toFixed(1)}</b> H`;
         if (metrics[2] && Number.isFinite(item.budgetYuan)) metrics[2].innerHTML = `<b>¥${Math.round(item.budgetYuan)}</b> / 人`;
         const steps = realGuideSteps(item);
@@ -1039,24 +1083,29 @@ function setupCityRecommendations() {
     pendingAddButton = null;
   });
 
-  applyCity('北京', false, 'default');
-
-  if (navigator.geolocation) {
+  inputs.forEach((input) => {
+    if (input.tagName === 'SELECT') Object.keys(cityProfiles).forEach((city) => {
+      const option = document.createElement('option'); option.value = city; option.textContent = city; input.append(option);
+    });
+  });
+  let storedCity = null;
+  try { storedCity = localStorage.getItem('@weekend-oracle/home-city'); } catch {}
+  applyCity(storedCity && cityProfiles[storedCity] ? storedCity : '北京', false, storedCity ? 'manual' : 'default');
+  const notice = document.querySelector('#home-city-notice');
+  if (notice && !storedCity) notice.textContent = '';
+  document.querySelector('#home-locate')?.addEventListener('click', () => {
+    if (!navigator.geolocation) { if (notice) notice.textContent = '请手动选择城市'; return; }
+    if (notice) notice.textContent = '定位中…';
     navigator.geolocation.getCurrentPosition(({ coords }) => {
-      let nearestCity = '北京';
-      let nearestDistance = Infinity;
-      Object.entries(cityCoordinates).forEach(([city, [latitude, longitude]]) => {
-        const distance = Math.hypot(coords.latitude - latitude, (coords.longitude - longitude) * Math.cos(coords.latitude * Math.PI / 180));
-        if (distance < nearestDistance) {
-          nearestCity = city;
-          nearestDistance = distance;
-        }
+      let nearestCity = ''; let nearestDistance = Infinity;
+      Object.entries(cityCoordinates).forEach(([city, [lat, lon]]) => {
+        const distance = Math.hypot(coords.latitude - lat, (coords.longitude - lon) * Math.cos(coords.latitude * Math.PI / 180));
+        if (distance < nearestDistance) { nearestCity = city; nearestDistance = distance; }
       });
-      applyCity(nearestDistance < 2.5 ? nearestCity : '北京', true, nearestDistance < 2.5 ? 'device' : 'default');
-    }, () => applyCity('北京', true, 'default'), { maximumAge: 86_400_000, timeout: 8_000 });
-  } else {
-    applyCity('北京', true, 'default');
-  }
+      if (nearestDistance < 1) { applyCity(nearestCity, true, 'device'); if (notice) notice.textContent = '可手动更改'; }
+      else if (notice) notice.textContent = '附近城市未覆盖，请手动选';
+    }, () => { if (notice) notice.textContent = '定位未开启，可手动选择'; }, { maximumAge: 300000, timeout: 8000 });
+  });
 }
 
 setupSectionObserver();

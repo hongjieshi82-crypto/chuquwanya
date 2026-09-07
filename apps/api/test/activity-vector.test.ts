@@ -144,6 +144,8 @@ test("Chroma 候选 id 回表查询仍排除当前抽卡会话已出结果", () 
   ]);
   assert.match(String(result.values[3]), /^\d{4}-\d{2}-\d{2}$/);
   assert.deepEqual(result.values.slice(4), [
+    1,
+    1,
     30,
     10,
     20,

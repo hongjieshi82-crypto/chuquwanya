@@ -134,6 +134,8 @@ export type PreferenceOptions = {
 };
 
 export type Preferences = {
+  departureMode?: import('../../api/src/departure-policy').DepartureMode;
+  departureDate?: string | null;
   partySize: number;
   durationMinutes: number | null;
   budgetMin?: number | null;
@@ -158,6 +160,13 @@ export type Preferences = {
 };
 
 export type Activity = {
+  plannedDate?: string | null;
+  plannedArrival?: string;
+  coverCredit?: import('../../api/src/city-play-catalog').PhotoCredit;
+  placeKey?: string;
+  placeKeys?: string[];
+  experienceKey?: string;
+  itinerary?: import('../../api/src/itinerary-policy').PracticalItinerary;
   id: number;
   cityId: number;
   cityName: string;
@@ -224,6 +233,7 @@ export type DrawRecommendation = {
 };
 
 export type DrawResult = {
+  alternativesRemaining?: number;
   drawSessionId: string;
   attemptsUsed: number;
   attemptsRemaining: number;
@@ -242,6 +252,9 @@ export type DrawRestorePayload = {
 export type TodoStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
 
 export type Todo = {
+  feedbackVerdict?: 'worth_it' | 'okay' | 'not_for_me' | 'ended_early' | null;
+  feedbackNote?: string | null;
+  scheduledTime?: string | null;
   id: number;
   status: TodoStatus;
   startedAt: string | null;

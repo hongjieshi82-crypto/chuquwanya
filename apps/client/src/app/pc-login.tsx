@@ -22,8 +22,8 @@ export default function PcEmailLoginScreen() {
   const cameFromDraw = params.reason === 'draw';
 
   useEffect(() => {
-    if (auth.user) window.location.assign(returnTo);
-  }, [auth.user, returnTo]);
+    if (auth.user && !busy && view !== 'reset-code') window.location.assign(returnTo);
+  }, [auth.user, busy, returnTo, view]);
   useEffect(() => {
     if (!cooldown) return;
     const timer = window.setInterval(() => setCooldown((value) => Math.max(0, value - 1)), 1000);
@@ -49,14 +49,14 @@ export default function PcEmailLoginScreen() {
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (busy) return;
-    if ((view === 'signup' || view === 'reset-code') && (password.length < 6 || password !== confirmPassword)) return;
+    if ((view === 'signup' || view === 'reset-code') && (password.length < 8 || password !== confirmPassword)) return;
     if (view === 'signup') { await sendCode('signup'); return; }
     if (view === 'forgot') { await sendCode('reset'); return; }
     setBusy(true);
     if (view === 'password') await auth.signIn(email.trim(), password);
     else if (view === 'email-code') await auth.verifyLoginCode(email.trim(), code);
     else if (view === 'signup-code') await auth.verifySignUpCode(email.trim(), code);
-    else await auth.resetPasswordWithCode(email.trim(), code, password);
+    else if (await auth.resetPasswordWithCode(email.trim(), code, password)) window.location.assign(returnTo);
     setBusy(false);
   };
   const hasPassword = view === 'password' || view === 'signup' || view === 'reset-code';
@@ -72,12 +72,13 @@ export default function PcEmailLoginScreen() {
       <p>{auth.loading ? '正在检查登录状态…' : isCodeView ? `验证码已发送至 ${email.trim()}` : view === 'signup' ? '创建账号，同步你的旅行和收藏' : view === 'forgot' || view === 'reset-code' ? '验证邮箱后重置登录密码' : cameFromDraw ? '你的盲盒偏好已保存，登录后继续抽取' : '登录后同步你的行程'}</p>
       {!isCodeView ? <div className="auth-gate-tabs"><button className={view === 'password' ? 'active' : ''} type="button" onClick={() => switchView('password')}>登录</button><button className={view === 'signup' ? 'active' : ''} type="button" onClick={() => switchView('signup')}>注册</button></div> : null}
       <form className="auth-gate-form" onSubmit={(event) => void submit(event)}>
-        {isCodeView ? <label><span>#</span><input inputMode="numeric" autoComplete="one-time-code" value={code} placeholder="输入邮箱验证码" onChange={(event) => setCode(event.target.value.replace(/\s/g, '').slice(0, 8))} /></label> : <label><span>@</span><input type="email" autoComplete="email" value={email} placeholder="邮箱地址" onChange={(event) => setEmail(event.target.value)} /></label>}
-        {hasPassword ? <label><span>●</span><input type="password" autoComplete={view === 'password' ? 'current-password' : 'new-password'} value={password} placeholder={view === 'password' ? '密码' : '密码，至少 6 位'} onChange={(event) => setPassword(event.target.value)} /></label> : null}
+        {isCodeView ? <label><span>#</span><input inputMode="numeric" autoComplete="one-time-code" value={code} placeholder="输入 6 位邮箱验证码" onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} /></label> : <label><span>@</span><input type="email" autoComplete="email" value={email} placeholder="邮箱地址" onChange={(event) => setEmail(event.target.value)} /></label>}
+        {hasPassword ? <label><span>●</span><input type="password" autoComplete={view === 'password' ? 'current-password' : 'new-password'} value={password} placeholder={view === 'password' ? '密码' : '密码，至少 8 位'} onChange={(event) => setPassword(event.target.value)} /></label> : null}
         {hasConfirmation ? <label><span>●</span><input type="password" autoComplete="new-password" value={confirmPassword} placeholder="确认密码" onChange={(event) => setConfirmPassword(event.target.value)} /></label> : null}
+        {hasPassword && password && password.length < 8 ? <div className="auth-gate-message">密码还差 {8 - password.length} 位，至少需要 8 位。</div> : null}
         {hasConfirmation && confirmPassword && password !== confirmPassword ? <div className="auth-gate-message">两次输入的密码不一致。</div> : null}
         {auth.message ? <div className="auth-gate-message">{auth.message}</div> : null}
-        <button className="auth-gate-submit" disabled={busy || auth.loading || !auth.configured || !email.trim() || (hasPassword && password.length < 6) || (hasConfirmation && password !== confirmPassword) || (isCodeView && !code.trim())} type="submit">{busy ? '处理中…' : view === 'password' ? '密码登录' : view === 'email-code' ? '验证并登录' : view === 'signup' ? '发送注册验证码' : view === 'signup-code' ? '完成邮箱验证' : view === 'forgot' ? '发送重置验证码' : '重置密码并登录'}</button>
+        <button className="auth-gate-submit" disabled={busy || auth.loading || !auth.configured || !email.trim() || (hasPassword && password.length < 8) || (hasConfirmation && password !== confirmPassword) || (isCodeView && code.length !== 6)} type="submit">{busy ? '处理中…' : view === 'password' ? '密码登录' : view === 'email-code' ? '验证并登录' : view === 'signup' ? '发送注册验证码' : view === 'signup-code' ? '完成邮箱验证' : view === 'forgot' ? '发送重置验证码' : '重置密码并登录'}</button>
         {view === 'password' ? <div className="auth-gate-secondary"><button type="button" onClick={() => void sendCode('login')}>邮箱验证码登录</button><button type="button" onClick={() => switchView('forgot')}>忘记密码？</button></div> : null}
         {view === 'forgot' ? <button className="auth-gate-text" type="button" onClick={() => switchView('password')}>返回密码登录</button> : null}
         {isCodeView ? <div className="auth-gate-secondary"><button disabled={busy || cooldown > 0} type="button" onClick={() => void (view === 'signup-code' ? auth.resendSignUpCode(email) : sendCode(view === 'reset-code' ? 'reset' : 'login'))}>{cooldown ? `${cooldown} 秒后可重发` : '重新发送'}</button><button type="button" onClick={() => switchView(view === 'signup-code' ? 'signup' : view === 'reset-code' ? 'forgot' : 'password')}>返回</button></div> : null}

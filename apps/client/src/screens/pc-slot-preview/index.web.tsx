@@ -6,13 +6,16 @@ import 'antd/dist/reset.css';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, SVGProps } from 'react';
-import { Image as NativeImage } from 'react-native';
+import { Image as NativeImage, useWindowDimensions } from 'react-native';
 
+import { MobileGachaMachine } from '@/components/mobile-gacha-machine';
 import { useApp } from '@/contexts/app-context';
+import { reactToActivity, saveActivity } from '@/services/api';
 import { formatBudget, formatDuration } from '@/formatters';
 import {
   clearPendingPcBoxDraw,
   readPendingPcBoxDraw,
+  savePendingPcBoxDraw,
   type PendingPcBoxDraw,
 } from '@/lib/pc-box-open-state';
 import type { Preferences } from '@/types';
@@ -23,6 +26,11 @@ const SPIN_MINIMUM_MS = 3_200;
 const REEL_STOP_GAP_MS = 560;
 const SYMBOL_COUNT = 12;
 const REEL_SYMBOLS = Array.from({ length: SYMBOL_COUNT * 2 }, (_, index) => index % SYMBOL_COUNT);
+function FeedbackIcon({ type }: { type: 'heart' | 'check' | 'close' }) {
+  return <svg aria-hidden="true" className="travel-slot-feedback-icon" viewBox="0 0 24 24">
+    {type === 'heart' ? <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z" /> : type === 'check' ? <><circle cx="12" cy="12" r="9" /><path d="m8 12 2.5 2.5L16.5 9" /></> : <><circle cx="12" cy="12" r="9" /><path d="m9 9 6 6m0-6-6 6" /></>}
+  </svg>;
+}
 type StaticAsset = number | string | { uri: string };
 const reelIconAssets = [
   [
@@ -258,15 +266,21 @@ function SlotReel({
 
 export default function PcSlotPreviewScreen() {
   const router = useRouter();
-  const { cities, clearError, currentDraw, isBooting, reroll, selectedCityId, startDraw } = useApp();
+  const { width } = useWindowDimensions();
+  const isMobile = width <= 760;
+  const { cities, clearError, currentDraw, isBooting, reroll, selectedCityId, startDraw, user } = useApp();
   const [pendingDraw] = useState<PendingPcBoxDraw | null>(() => readPendingPcBoxDraw());
   const [stage, setStage] = useState<SlotStage>('idle');
   const [stoppedReels, setStoppedReels] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [reactionBusy, setReactionBusy] = useState(false);
+  const [savedResult, setSavedResult] = useState(false);
   const [isLeverPulling, setIsLeverPulling] = useState(false);
   const runIdRef = useRef(0);
   const mountedRef = useRef(true);
   const leverTimerRef = useRef<number | null>(null);
+  const drawBusyRef = useRef(false);
+  const hasDrawnRef = useRef(false);
 
   const finalSymbols = useMemo(() => {
     const seed = currentDraw?.activity.id ?? pendingDraw?.cityId ?? 5;
@@ -285,7 +299,7 @@ export default function PcSlotPreviewScreen() {
       randomLevel: 70,
       category: '不限',
       environment: 'either',
-      radiusKm: 10,
+      radiusKm: null,
       originName: city.name,
       originLatitude: null,
       originLongitude: null,
@@ -296,27 +310,32 @@ export default function PcSlotPreviewScreen() {
       clientSource: 'pc',
       destinationScopeLabel: `${city.name}本地`,
       travelDurationLabel: '当天',
-      budgetLabel: '适中',
+      budgetLabel: '划算出行',
       surpriseLevelLabel: '高惊喜',
     };
 
     return { cityId: city.id, preferences };
   }, [cities, selectedCityId]);
 
-  useEffect(() => () => {
-    mountedRef.current = false;
-    runIdRef.current += 1;
-    if (leverTimerRef.current !== null) window.clearTimeout(leverTimerRef.current);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      drawBusyRef.current = false;
+      runIdRef.current += 1;
+      if (leverTimerRef.current !== null) window.clearTimeout(leverTimerRef.current);
+    };
   }, []);
 
   const startSlotDraw = useCallback(async () => {
-    if (isBooting || stage === 'launching' || stage === 'spinning' || stage === 'settling') return;
-    if (stage === 'revealed' && currentDraw && currentDraw.attemptsRemaining <= 0) return;
+    if (isBooting || drawBusyRef.current || stage === 'launching' || stage === 'spinning' || stage === 'settling') return;
 
-    const isRepeatDraw = stage === 'revealed' && currentDraw !== null;
+    const isRepeatDraw = hasDrawnRef.current && currentDraw !== null;
+    drawBusyRef.current = true;
     const runId = runIdRef.current + 1;
     runIdRef.current = runId;
     setErrorMessage(null);
+    setSavedResult(false);
     setStoppedReels(0);
     setStage('launching');
     setIsLeverPulling(true);
@@ -332,36 +351,45 @@ export default function PcSlotPreviewScreen() {
       ? reroll()
       : pendingDraw
         ? startDraw(pendingDraw.cityId, pendingDraw.preferences)
-        : currentDraw
-          ? wait(760)
-          : directDrawInput
+        : directDrawInput
             ? startDraw(directDrawInput.cityId, directDrawInput.preferences)
             : Promise.reject(new Error('城市数据尚未准备完成，请稍后重试。'));
+    // Attach the rejection handler immediately, before the launch animation.
+    const outcomePromise = Promise.allSettled([drawPromise, wait(LAUNCH_CHARGE_MS + (isRepeatDraw ? 500 : SPIN_MINIMUM_MS))]);
     await wait(LAUNCH_CHARGE_MS);
     if (!mountedRef.current || runId !== runIdRef.current) return;
     setStage('spinning');
-    const [drawOutcome] = await Promise.allSettled([drawPromise, wait(SPIN_MINIMUM_MS)]);
+    const [drawOutcome] = await outcomePromise;
     if (!mountedRef.current || runId !== runIdRef.current) return;
 
     if (drawOutcome.status === 'rejected') {
+      drawBusyRef.current = false;
       setStage('error');
       setErrorMessage(drawOutcome.reason instanceof Error ? drawOutcome.reason.message : '抽取失败，请稍后重试。');
       return;
     }
 
+    hasDrawnRef.current = true;
     setStage('settling');
-    for (let reel = 1; reel <= 3; reel += 1) {
+    if (isMobile) {
+      // Let the selected capsule land and glow before showing the result.
+      await wait(1_950);
+      if (!mountedRef.current || runId !== runIdRef.current) return;
+      window.navigator.vibrate?.([25, 30, 50]);
+    } else for (let reel = 1; reel <= 3; reel += 1) {
       await wait(REEL_STOP_GAP_MS);
       if (!mountedRef.current || runId !== runIdRef.current) return;
       setStoppedReels(reel);
       window.navigator.vibrate?.(reel === 3 ? [35, 25, 75] : 28);
     }
 
+    drawBusyRef.current = false;
     setStage('revealed');
     if (pendingDraw && !isRepeatDraw) clearPendingPcBoxDraw();
-  }, [clearError, currentDraw, directDrawInput, isBooting, pendingDraw, reroll, stage, startDraw]);
+  }, [clearError, currentDraw, directDrawInput, isBooting, isMobile, pendingDraw, reroll, stage, startDraw]);
 
   const resetPreview = () => {
+    if (drawBusyRef.current) return;
     runIdRef.current += 1;
     if (leverTimerRef.current !== null) window.clearTimeout(leverTimerRef.current);
     leverTimerRef.current = null;
@@ -372,6 +400,30 @@ export default function PcSlotPreviewScreen() {
   };
 
   const isActive = stage === 'launching' || stage === 'spinning' || stage === 'settling';
+  const adjustConditions = () => {
+    if (pendingDraw) savePendingPcBoxDraw(pendingDraw);
+    else if (directDrawInput) savePendingPcBoxDraw({ ...directDrawInput, summary: '调整上次条件' });
+    router.push('/box/config');
+  };
+  const noNewChoices = currentDraw?.alternativesRemaining === 0;
+  const handleReaction = async (reaction: 'disliked' | 'visited') => {
+    if (!currentDraw || reactionBusy) return;
+    setReactionBusy(true);
+    try { await reactToActivity(currentDraw.activity, reaction); if (!noNewChoices) await startSlotDraw(); }
+    catch (e) { setErrorMessage(e instanceof Error ? e.message : '记录失败，请重试'); }
+    finally { setReactionBusy(false); }
+  };
+  const saveResult = async () => {
+    if (!currentDraw || reactionBusy) return; setReactionBusy(true);
+    try { await saveActivity(currentDraw.activity.id, user?.id); setSavedResult(true); }
+    catch (e) { setErrorMessage(e instanceof Error ? e.message : '收藏失败'); }
+    finally { setReactionBusy(false); }
+  };
+  const resultChoices = <div className="travel-slot-result-choices" aria-label="对这条推荐的反馈">
+    <button className="is-save" type="button" disabled={reactionBusy || savedResult} onClick={() => void saveResult()}><FeedbackIcon type={savedResult ? 'check' : 'heart'} />{savedResult ? '已收藏' : '先收藏'}</button>
+    <button type="button" disabled={reactionBusy} onClick={() => void handleReaction('visited')}><FeedbackIcon type="check" />去过了</button>
+    <button type="button" disabled={reactionBusy} onClick={() => void handleReaction('disliked')}><FeedbackIcon type="close" />不感兴趣</button>
+  </div>;
   const areReelsMoving = stage === 'spinning' || stage === 'settling';
   const statusLabel = isBooting
     ? '正在准备旅行数据…'
@@ -402,28 +454,30 @@ export default function PcSlotPreviewScreen() {
     <ConfigProvider theme={{ token: { colorPrimary: '#ff7426', borderRadius: 18, fontFamily: 'Inter, PingFang SC, Microsoft YaHei, sans-serif' } }}>
       <main className={`travel-slot-page stage-${stage}${isLeverPulling ? ' is-lever-pulling' : ''}`}>
         <style>{travelSlotCss}</style>
-        <style>{mobileMachineCss}</style>
-        <section className="mobile-world-machine" aria-label="周末旅行灵感机">
-          <header><button type="button" onClick={() => router.replace('/box/config')}>← 返回设置</button><span>下一站，粗去玩鸭</span></header>
+        {isMobile ? <section className="mobile-world-machine" aria-label="周末旅行扭蛋机">
+          <header><button type="button" onClick={() => router.replace('/box/config')}>← 返回</button><span>{stage === 'revealed' ? '你的旅行方案' : '旅行扭蛋机'}</span></header>
           {stage === 'revealed' && currentDraw ? (
             <article className="mobile-world-result">
               {currentDraw.activity.coverImageUri ? <img src={currentDraw.activity.coverImageUri} alt={currentDraw.activity.title} /> : null}
               <div><small>本次抽中 · {currentDraw.activity.cityName}</small><h1>{currentDraw.activity.title}</h1><p>{currentDraw.activity.summary}</p>
-                <p>{formatDuration(currentDraw.activity.durationMinutes)} · {formatBudget(currentDraw.activity.budgetYuan)}</p>
+                <div className="mobile-result-metrics"><span><small>预计用时</small><b>{formatDuration(currentDraw.activity.durationMinutes)}</b></span><span><small>参考预算</small><b>{formatBudget(currentDraw.activity.budgetYuan)}</b></span></div>
+                <div className="mobile-result-actions">
+                {resultChoices}
                 <button type="button" onClick={() => router.push(`/activity/${currentDraw.activity.id}?source=ai&drawSessionId=${encodeURIComponent(currentDraw.drawSessionId)}`)}>查看完整路线 →</button>
-                <button className="mobile-world-secondary" type="button" disabled={currentDraw.attemptsRemaining <= 0} onClick={() => void startSlotDraw()}>{currentDraw.attemptsRemaining > 0 ? `再抽一次 · 剩 ${currentDraw.attemptsRemaining} 次` : '今日机会已用完'}</button>
+                <button className="mobile-world-secondary" type="button" disabled={noNewChoices} onClick={() => void startSlotDraw()}>{noNewChoices ? '当前条件暂无新地点' : '换一个新灵感'}</button>
+                {noNewChoices ? <button className="mobile-world-secondary" type="button" onClick={adjustConditions}>调整条件，发现更多</button> : null}
+                </div>
               </div>
             </article>
           ) : (
-            <div className="mobile-world-art">
-              <img src="/media/ui/mobile-travel-machine-v1.png" alt="奶油白旅行灵感机里，小鸭背着行囊，与火车一起探索森林和湖泊" />
-              <span className="mobile-world-display" role="status">{isActive ? '正在寻找你的下一站…' : '周末灵感机'}</span>
-              <button className="mobile-world-start" type="button" disabled={isBooting || isActive} onClick={() => void startSlotDraw()}>{isBooting ? '准备中…' : isActive ? '抽取中…' : stage === 'error' ? '重新抽取' : '抽一个好去处'}</button>
-            </div>
+            <MobileGachaMachine
+              stage={stage}
+              ready={!isBooting}
+              winnerSeed={currentDraw?.activity.id ?? 0}
+              onStart={() => void startSlotDraw()}
+            />
           )}
-          <p className="mobile-world-caption">{isActive ? statusLabel : pendingDraw?.summary ?? '把目的地交给一点随机，把周末留给自己。'}</p>
-        </section>
-        <section className="travel-slot-stage" aria-live="polite">
+        </section> : <section className="travel-slot-stage" aria-live="polite">
           <div className="travel-slot-machine">
             <picture className="travel-slot-shell-picture">
               <source media="(max-aspect-ratio: 4/3)" srcSet={portraitMachineShellUri} />
@@ -491,7 +545,7 @@ export default function PcSlotPreviewScreen() {
                   <section className="travel-slot-result" aria-label={`推荐结果：${currentDraw.activity.title}`}>
                     <header className="travel-slot-result-header">
                       <span>本次抽中</span>
-                      <span>今日剩 {currentDraw.attemptsRemaining} 次</span>
+                      <span>{typeof currentDraw.alternativesRemaining === 'number' ? `还有 ${currentDraw.alternativesRemaining} 个新地点` : '可继续探索'}</span>
                     </header>
                     <div className="travel-slot-result-body">
                       <div className="travel-slot-result-media">
@@ -514,11 +568,12 @@ export default function PcSlotPreviewScreen() {
                         </div>
                       </div>
                     </div>
+                    {resultChoices}
                     <footer className="travel-slot-result-actions">
                       <button
-                        disabled={currentDraw.attemptsRemaining <= 0}
+                        disabled={noNewChoices}
                         onClick={() => void startSlotDraw()}>
-                        {currentDraw.attemptsRemaining > 0 ? '再抽一次' : '今日机会已用完'}
+                        {noNewChoices ? '当前条件暂无新地点' : '换一个'}
                       </button>
                       <button onClick={() => router.push(`/activity/${currentDraw.activity.id}?source=ai&drawSessionId=${encodeURIComponent(currentDraw.drawSessionId)}`)}>查看方案详情</button>
                     </footer>
@@ -529,7 +584,7 @@ export default function PcSlotPreviewScreen() {
               <button
                 aria-label="启动周末灵感机开始抽取"
                 className="travel-slot-lever"
-                disabled={isBooting || isActive || (stage === 'revealed' && (currentDraw?.attemptsRemaining ?? 0) <= 0)}
+                disabled={isBooting || isActive || (stage === 'revealed' && noNewChoices)}
                 onClick={() => void startSlotDraw()}>
                 <span className="travel-slot-lever-ball">🦆</span>
                 <span className="travel-slot-lever-stick" />
@@ -545,7 +600,7 @@ export default function PcSlotPreviewScreen() {
               <button
                 aria-label="启动旅行"
                 className="travel-slot-main-button"
-                disabled={isBooting || isActive || (stage === 'revealed' && (currentDraw?.attemptsRemaining ?? 0) <= 0)}
+                disabled={isBooting || isActive || (stage === 'revealed' && noNewChoices)}
                 onClick={() => void startSlotDraw()}
               />
               <span className="travel-slot-orb orb-two" />
@@ -559,41 +614,22 @@ export default function PcSlotPreviewScreen() {
               </Text>
             </div>
           </div>
-        </section>
+        </section>}
 
         {errorMessage ? (
           <Alert
             className="travel-slot-error"
             type="error"
             showIcon
-            title="周末灵感机抽取失败"
+            title="暂时没有生成合适的方案"
             description={errorMessage}
-            action={stage === 'error'
-              ? <Button size="small" icon={<ReloadOutlined />} onClick={resetPreview}>重新试一次</Button>
-              : <Button size="small" onClick={() => router.replace('/box/config')}>返回设置</Button>}
+            action={<div style={{ display: 'flex', gap: 8 }}><Button size="small" onClick={adjustConditions}>调整条件</Button>{!/没有|看完|日期|时间/.test(errorMessage) ? <Button size="small" icon={<ReloadOutlined />} onClick={() => { resetPreview(); window.setTimeout(() => void startSlotDraw(), 0); }}>重新抽取</Button> : null}</div>}
           />
         ) : null}
       </main>
     </ConfigProvider>
   );
 }
-
-const mobileMachineCss = `
-.mobile-world-machine{display:none}
-@media(max-width:760px){
-.travel-slot-page:has(.mobile-world-machine){background:#101607;height:calc(100dvh - 70px - env(safe-area-inset-bottom,0px))!important;overflow-y:auto!important;padding:0!important}
-.travel-slot-page>.travel-slot-stage{display:none!important}
-.mobile-world-machine{display:flex;flex-direction:column;min-height:100%;color:#eff5e7;font-family:Inter,"PingFang SC",sans-serif}
-.mobile-world-machine>header{height:60px;flex:none;padding:0 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}.mobile-world-machine>header button{border:0;background:none;color:#d1ddc7;font-size:13px;padding:10px 0}.mobile-world-machine>header span{font-size:13px;color:#c9ff62;font-weight:800}
-.mobile-world-art{position:relative;width:min(100%,calc((100dvh - 190px) * .667));min-width:260px;max-width:100%;margin:auto;aspect-ratio:2/3;flex:none}
-.mobile-world-art>img{display:block;width:100%;height:100%;object-fit:contain}
-.mobile-world-display{position:absolute;left:30%;right:30%;top:19.8%;height:5.2%;display:grid;place-items:center;color:#fff;font-size:clamp(10px,3.3vw,15px);font-weight:900;text-align:center}
-.mobile-world-start{position:absolute;left:29%;width:43%;top:79.5%;height:7.6%;border:0;border-radius:20%;background:transparent;color:#203005;font-size:clamp(12px,3.7vw,17px);font-weight:950;cursor:pointer;touch-action:manipulation}.mobile-world-start:active{background:#efffa52b}.mobile-world-start:disabled{color:#526527}
-.mobile-world-caption{max-width:360px;margin:12px auto 24px;padding:0 22px;text-align:center;font-size:12px;line-height:1.7;color:#a8b599}
-.mobile-world-result{margin:16px 20px;background:#151d13;border:1px solid #c9ff6238;border-radius:24px;overflow:hidden}.mobile-world-result>img{width:100%;height:230px;object-fit:cover;display:block}.mobile-world-result>div{padding:24px 20px}.mobile-world-result small{color:#c9ff62}.mobile-world-result h1{font-size:28px;line-height:1.25;margin:14px 0}.mobile-world-result p{color:#aeb8a6;line-height:1.7;font-size:14px}.mobile-world-result button{display:block;min-height:48px;width:100%;border:0;border-radius:14px;background:#c9ff62;color:#152009;font-size:15px;font-weight:850;margin-top:14px}.mobile-world-result .mobile-world-secondary{background:transparent;border:1px solid #ffffff26;color:#dde7d4}.mobile-world-result button:disabled{opacity:.45}
-.travel-slot-page .travel-slot-error{position:relative!important;inset:auto!important;width:auto!important;margin:0 20px 24px!important}
-}
-`;
 
 const travelSlotCss = String.raw`
 html, body { width: 100%; min-height: 100%; margin: 0; background: #f47b22; }
@@ -1114,6 +1150,12 @@ html, body { overflow: hidden; background: #171b12; }
   font-size: clamp(10px,.82vw,13px);
   line-height: 1;
 }
+.travel-slot-result-choices{display:flex;flex-wrap:wrap;gap:8px;margin:clamp(14px,1.6vh,20px) 0 0;padding:0}
+.travel-slot-result-choices button{min-height:36px;padding:0 13px;border:1px solid rgba(255,255,255,.17);border-radius:999px;display:inline-flex;align-items:center;gap:7px;color:rgba(255,255,255,.68);background:rgba(8,11,10,.32);font:inherit;font-size:clamp(10px,.76vw,12px);font-weight:800;cursor:pointer;backdrop-filter:blur(10px);transition:border-color .2s ease,color .2s ease,background .2s ease}
+.travel-slot-feedback-icon{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.travel-slot-result-choices button:hover:not(:disabled){border-color:rgba(217,255,104,.62);color:#efffd6;background:rgba(201,255,98,.09)}
+.travel-slot-result-choices button.is-save{border-color:rgba(217,255,104,.45);color:#e9ffc4;background:rgba(201,255,98,.08)}
+.travel-slot-result-choices button:disabled{opacity:.5;cursor:default}
 .travel-slot-result-actions { position: relative; z-index: 5; display: flex; align-items: center; justify-content: flex-end; gap: 12px; width: 100%; padding-top: clamp(13px,1.5vh,20px); border-top: 1px solid rgba(255,255,255,.13); }
 .travel-slot-result-actions button {
   min-width: 0;
