@@ -28,6 +28,18 @@ export interface RecommendItem {
 
 const recommendCache = new TtlCache<RecommendItem[]>(config.ai.recommendCacheTtl);
 
+function parseStringList(value: unknown): string[] {
+  const text = String(value ?? "").trim();
+  if (!text) return [];
+  try {
+    const parsed = JSON.parse(text) as unknown;
+    if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
+  } catch {
+    // Legacy attraction rows use comma-separated values.
+  }
+  return text.split(/[,，]/).map((item) => item.trim()).filter(Boolean);
+}
+
 export class RecommendationService {
   private recall: RecallService;
   private ranking = new RankingService();
@@ -114,8 +126,8 @@ export class RecommendationService {
       rating: Number(row.rating),
       popularity: Number(row.popularity),
       ticketPriceMax: Number(row.ticketPriceMax),
-      bestSeasons: JSON.parse(String(row.bestSeasons ?? "[]")) as string[],
-      suitableAudiences: JSON.parse(String(row.suitableAudiences ?? "[]")) as string[],
+      bestSeasons: parseStringList(row.bestSeasons),
+      suitableAudiences: parseStringList(row.suitableAudiences),
       tags: String(row.tagNames ?? "").split(",").filter(Boolean),
       embeddingPointId: row.embeddingPointId ? String(row.embeddingPointId) : null,
       recStrategies: new Set(["tag"]),

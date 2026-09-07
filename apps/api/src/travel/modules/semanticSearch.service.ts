@@ -26,8 +26,9 @@ export class SemanticSearchService {
     if (!embeddingService.isAvailable()) {
       return this.keywordFallback(query, target, limit);
     }
-    const vector = await embeddingService.embedOne(query);
-    const results: SemanticSearchResult[] = [];
+    try {
+      const vector = await embeddingService.embedOne(query);
+      const results: SemanticSearchResult[] = [];
 
     if (target === "attraction" || target === "all") {
       const hits = await vectorStoreService.search(
@@ -61,7 +62,10 @@ export class SemanticSearchService {
       }
     }
 
-    return results.sort((a, b) => b.score - a.score).slice(0, limit);
+      return results.sort((a, b) => b.score - a.score).slice(0, limit);
+    } catch {
+      return this.keywordFallback(query, target, limit);
+    }
   }
 
   private async getAttractionDetail(id: number): Promise<SemanticSearchResult | null> {

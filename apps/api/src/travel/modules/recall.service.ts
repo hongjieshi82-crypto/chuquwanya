@@ -35,6 +35,19 @@ export interface RecallContext {
 
 const RECALL_LIMIT = 80;
 
+function parseStringList(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map(String).filter(Boolean);
+  const text = String(value ?? "").trim();
+  if (!text) return [];
+  try {
+    const parsed = JSON.parse(text) as unknown;
+    if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
+  } catch {
+    // Legacy rows store these fields as comma-separated text.
+  }
+  return text.split(/[,，]/).map((item) => item.trim()).filter(Boolean);
+}
+
 export class RecallService {
   constructor(private pool: Pool) {}
 
@@ -86,8 +99,8 @@ export class RecallService {
       rating: Number(row.rating),
       popularity: Number(row.popularity),
       ticketPriceMax: Number(row.ticketPriceMax),
-      bestSeasons: JSON.parse(String(row.bestSeasons ?? "[]")) as string[],
-      suitableAudiences: JSON.parse(String(row.suitableAudiences ?? "[]")) as string[],
+      bestSeasons: parseStringList(row.bestSeasons),
+      suitableAudiences: parseStringList(row.suitableAudiences),
       tags: String(row.tagNames ?? "").split(",").filter(Boolean),
       embeddingPointId: row.embeddingPointId ? String(row.embeddingPointId) : null,
       recStrategies: new Set(["tag"]),
@@ -149,8 +162,8 @@ export class RecallService {
       rating: Number(row.rating),
       popularity: Number(row.popularity),
       ticketPriceMax: Number(row.ticketPriceMax),
-      bestSeasons: JSON.parse(String(row.bestSeasons ?? "[]")) as string[],
-      suitableAudiences: JSON.parse(String(row.suitableAudiences ?? "[]")) as string[],
+      bestSeasons: parseStringList(row.bestSeasons),
+      suitableAudiences: parseStringList(row.suitableAudiences),
       tags: String(row.tagNames ?? "").split(",").filter(Boolean),
       embeddingPointId: row.embeddingPointId ? String(row.embeddingPointId) : null,
       recStrategies: new Set(["semantic"]),
@@ -254,8 +267,8 @@ export class RecallService {
         rating: Number(row.rating),
         popularity: Number(row.popularity),
         ticketPriceMax: Number(row.ticketPriceMax),
-        bestSeasons: JSON.parse(String(row.bestSeasons ?? "[]")) as string[],
-        suitableAudiences: JSON.parse(String(row.suitableAudiences ?? "[]")) as string[],
+        bestSeasons: parseStringList(row.bestSeasons),
+        suitableAudiences: parseStringList(row.suitableAudiences),
         tags: String(row.tagNames ?? "").split(",").filter(Boolean),
         embeddingPointId: row.embeddingPointId ? String(row.embeddingPointId) : null,
         recStrategies: new Set(["behavior"]),
@@ -339,8 +352,8 @@ export class RecallService {
       rating: Number(row.rating),
       popularity: Number(row.popularity),
       ticketPriceMax: Number(row.ticketPriceMax),
-      bestSeasons: JSON.parse(String(row.bestSeasons ?? "[]")) as string[],
-      suitableAudiences: JSON.parse(String(row.suitableAudiences ?? "[]")) as string[],
+      bestSeasons: parseStringList(row.bestSeasons),
+      suitableAudiences: parseStringList(row.suitableAudiences),
       tags: String(row.tagNames ?? "").split(",").filter(Boolean),
       embeddingPointId: row.embeddingPointId ? String(row.embeddingPointId) : null,
       recStrategies: new Set(["collaborative"]),
