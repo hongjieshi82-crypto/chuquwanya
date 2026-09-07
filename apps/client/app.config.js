@@ -3,6 +3,9 @@ const githubPagesBaseUrl = process.env.EXPO_GITHUB_PAGES_BASE_URL;
 module.exports = ({ config }) => {
   const experiments = {
     ...config.experiments,
+    // Expo 56's on-demand export drops sibling watchFolders. Our shared
+    // itinerary policies live in ../api/src and need the full Metro file map.
+    onDemandFilesystem: false,
   };
   const plugins = [
     ...(config.plugins ?? []),

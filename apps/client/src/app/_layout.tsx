@@ -10,6 +10,7 @@ import { AppProvider, useApp } from '@/contexts/app-context';
 import { palette } from '@/theme';
 import { MobileNavigation } from '@/components/mobile-navigation';
 import { MobileLayoutStyles } from '@/components/mobile-layout';
+import { SiteFooter } from '@/components/site-footer';
 
 const pcPaths = new Set([
   '/pc',
@@ -70,6 +71,7 @@ function RoutedContent() {
 
   return <>
     {isPcPage ? <PcExperienceShell><Slot /></PcExperienceShell> : Platform.OS === 'web' ? <Slot /> : <AppStack />}
+    {Platform.OS === 'web' && pathname !== '/pc' ? <SiteFooter /> : null}
     {Platform.OS === 'web' ? <><MobileLayoutStyles /><MobileNavigation /></> : null}
   </>;
 }
