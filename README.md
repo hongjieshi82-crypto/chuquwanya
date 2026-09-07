@@ -98,6 +98,34 @@ API 默认地址为 `http://localhost:3001/api/v1`，Web 默认由 Expo 开发�
 
 仓库已提供 API + MySQL + 可选 Chroma 的 Docker Compose 生产配置。详见 [ECS 后端部署手册](docs/ECS_BACKEND_DEPLOYMENT.md)。
 
+## 正式前端部署
+
+正式域名：<https://chuquwanya.fun>。前端通过 `.github/workflows/deploy-frontend.yml`
+从 `main` 自动构建并发布到 GitHub Pages，使用域名根路径。首页底部显示
+“京ICP备2026046201号-2”，链接至工信部备案查询网站。
+
+Expo 56 的生产导出默认启用按需文件系统，会忽略本项目指向 `apps/api/src`
+的共享规则扫描目录；`app.config.js` 显式设置 `experiments.onDemandFilesystem: false`
+以保证 CI 能解析共享行程规则。不要直接移除此设置。
+
+GitHub 仓库 Settings → Secrets and variables → Actions → Variables 中配置：
+
+- `EXPO_PUBLIC_API_URL`：正式 HTTPS API 地址，包含 `/api/v1`；GitHub Pages 不运行后端。
+- `EXPO_PUBLIC_SUPABASE_URL`：登录项目的公开 URL。
+- `EXPO_PUBLIC_SUPABASE_ANON_KEY`：仅允许浏览器公开匿名密钥，不能填写 service role 密钥。
+
+这些变量在构建时写入前端，修改后需要重新运行部署工作流。生产构建禁用本地 `.env`
+自动加载，避免把开发机局域网地址带入部署。
+
+阿里云 DNS 配置：根记录 `@` 的 A 值为 `185.199.108.153`、`185.199.109.153`、
+`185.199.110.153`、`185.199.111.153`；`www` CNAME 为 `hongjieshi82-crypto.github.io`。
+GitHub Pages 设置中的 Custom domain 为 `chuquwanya.fun`，开启 Enforce HTTPS。
+使用 Actions 发布时，必须在 Pages 设置中绑定域名，不能仅依赖产物中的 `CNAME`。
+
+验收时检查首页、`/destinations`、`/box/config` 的直接访问与刷新，以及桌面和手机宽度
+下的备案链接；登录、行程生成和保存必须在正式后端接通后单独验收，不能用静态首页
+或本地参考路线代替后端验收。
+
 ## 视觉方向
 
 - 以“粗去玩鸭”为对外品牌，保留紫色、奶油白和大圆角的轻游戏化视觉。
