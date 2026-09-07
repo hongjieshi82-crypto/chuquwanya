@@ -32,22 +32,20 @@ try {
     "013_sample_diary_comments_extra.sql",
   ]);
   const migrationOrderOverrides = new Map([
-    // The workbook import writes the admission columns introduced by the
-    // content quality migration. Both files historically used adjacent 033/
-    // 034 numbers, so a plain lexical sort runs the import too early when an
-    // existing database predates those columns.
-    ["034_content_quality_system.sql", 33_001],
-    ["033_import_18_city_itineraries.sql", 33_002],
+    // The workbook import writes fields introduced by both the content quality
+    // and content source migrations. Its historical 033 prefix cannot express
+    // that dependency, so execute it immediately after migration 035.
+    ["033_import_18_city_itineraries.sql", 35_001],
   ]);
+  const migrationSortKey = (file: string) => {
+    const numericPrefix = Number.parseInt(file.match(/^(\d+)/)?.[1] ?? "999", 10);
+    return migrationOrderOverrides.get(file) ?? numericPrefix * 1_000;
+  };
   const migrationFiles = (await readdir(migrationsDir))
     .filter((file) => file.endsWith(".sql") && !deferredCommunityFixtures.has(file))
     .sort((left, right) => {
-      const leftOrder = migrationOrderOverrides.get(left);
-      const rightOrder = migrationOrderOverrides.get(right);
-      if (leftOrder !== undefined || rightOrder !== undefined) {
-        return (leftOrder ?? Number.MAX_SAFE_INTEGER) - (rightOrder ?? Number.MAX_SAFE_INTEGER);
-      }
-      return left.localeCompare(right);
+      const order = migrationSortKey(left) - migrationSortKey(right);
+      return order || left.localeCompare(right);
     });
 
   for (const file of migrationFiles) {
