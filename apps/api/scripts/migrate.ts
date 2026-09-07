@@ -31,9 +31,24 @@ try {
     "012_sample_diary_comments.sql",
     "013_sample_diary_comments_extra.sql",
   ]);
+  const migrationOrderOverrides = new Map([
+    // The workbook import writes the admission columns introduced by the
+    // content quality migration. Both files historically used adjacent 033/
+    // 034 numbers, so a plain lexical sort runs the import too early when an
+    // existing database predates those columns.
+    ["034_content_quality_system.sql", 33_001],
+    ["033_import_18_city_itineraries.sql", 33_002],
+  ]);
   const migrationFiles = (await readdir(migrationsDir))
     .filter((file) => file.endsWith(".sql") && !deferredCommunityFixtures.has(file))
-    .sort();
+    .sort((left, right) => {
+      const leftOrder = migrationOrderOverrides.get(left);
+      const rightOrder = migrationOrderOverrides.get(right);
+      if (leftOrder !== undefined || rightOrder !== undefined) {
+        return (leftOrder ?? Number.MAX_SAFE_INTEGER) - (rightOrder ?? Number.MAX_SAFE_INTEGER);
+      }
+      return left.localeCompare(right);
+    });
 
   for (const file of migrationFiles) {
     const sql = await readFile(resolve(migrationsDir, file), "utf8");
