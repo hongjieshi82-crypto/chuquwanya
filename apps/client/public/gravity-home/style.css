@@ -1505,3 +1505,12 @@ button { font: inherit; }
   .card-actions .secondary { display: none; }
   .card-actions .primary { height: 42px; min-height: 42px; font-size: 12px; }
 }
+
+/* Keep desktop navigation clear of the city picker on laptop screens. */
+@media (min-width: 981px) and (max-width: 1600px) {
+  .topbar { gap: 20px; }
+  .topbar .nav { position: static; left: auto; transform: none; gap: clamp(18px, 2vw, 30px); font-size: 16px; white-space: nowrap; }
+  .topbar .city-switcher { min-width: 210px; padding-left: 12px; gap: 6px; }
+  .topbar .city-switcher label { display: none; }
+  .topbar .nav-cta { width: 108px; min-width: 108px; }
+}
