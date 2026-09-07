@@ -98,6 +98,10 @@ API 默认地址为 `http://localhost:3001/api/v1`，Web 默认由 Expo 开发�
 
 仓库已提供 API + MySQL + 可选 Chroma 的 Docker Compose 生产配置。详见 [ECS 后端部署手册](docs/ECS_BACKEND_DEPLOYMENT.md)。
 
+正式 API：<https://api.chuquwanya.fun/api/v1>。`api.chuquwanya.fun` 由阿里云 DNS
+指向现有 ECS，Nginx 终止 TLS 后反向代理至仅监听 `127.0.0.1:3001` 的 API 容器。
+MySQL 只在 Docker 内部网络开放。Certbot 负责 API 证书及自动续期。
+
 ## 正式前端部署
 
 正式域名：<https://chuquwanya.fun>。前端通过 `.github/workflows/deploy-frontend.yml`
