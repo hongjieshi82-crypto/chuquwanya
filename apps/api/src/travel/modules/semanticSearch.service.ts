@@ -115,6 +115,7 @@ export class SemanticSearchService {
     limit: number,
   ): Promise<SemanticSearchResult[]> {
     const like = `%${query}%`;
+    const safeLimit = Math.max(1, Math.min(50, Math.trunc(limit)));
     const results: SemanticSearchResult[] = [];
 
     if (target === "attraction" || target === "all") {
@@ -125,8 +126,8 @@ export class SemanticSearchService {
          LEFT JOIN travel_tags t ON t.id = at.tag_id
          WHERE a.is_active = TRUE AND (a.name LIKE ? OR a.summary LIKE ?)
          GROUP BY a.id
-         LIMIT ?`,
-        [like, like, limit],
+         LIMIT ${safeLimit}`,
+        [like, like],
       );
       for (const row of rows as Array<Record<string, unknown>>) {
         results.push({
@@ -148,8 +149,8 @@ export class SemanticSearchService {
          LEFT JOIN travel_tags t ON t.id = dt.tag_id
          WHERE d.is_active = TRUE AND (d.name LIKE ? OR d.summary LIKE ?)
          GROUP BY d.id
-         LIMIT ?`,
-        [like, like, limit],
+         LIMIT ${safeLimit}`,
+        [like, like],
       );
       for (const row of rows as Array<Record<string, unknown>>) {
         results.push({

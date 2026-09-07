@@ -350,17 +350,19 @@ export class RecallService {
 
   /** 并行多路召回 + 去重合并 */
   async multiRecall(ctx: RecallContext): Promise<AttractionCandidate[]> {
-    const [tag, semantic, behavior, collaborative] = await Promise.all([
+    const recallResults = await Promise.allSettled([
       this.tagRecall(ctx),
       this.semanticRecall(ctx),
       this.behaviorRecall(ctx),
       this.collaborativeRecall(ctx),
     ]);
-
+    // Vector infrastructure is optional in the small ECS deployment. A Qdrant
+    // outage must not take down tag recall and the database fallback.
     const merged = new Map<number, AttractionCandidate>();
 
-    for (const list of [tag, semantic, behavior, collaborative]) {
-      for (const item of list) {
+    for (const result of recallResults) {
+      if (result.status !== "fulfilled") continue;
+      for (const item of result.value) {
         const existing = merged.get(item.attractionId);
         if (!existing) {
           merged.set(item.attractionId, item);

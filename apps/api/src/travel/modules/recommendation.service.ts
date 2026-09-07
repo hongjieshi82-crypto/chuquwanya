@@ -82,6 +82,7 @@ export class RecommendationService {
   }
 
   private async popularityFallback(input: RecommendRequest, limit: number): Promise<RankedAttraction[]> {
+    const safeLimit = Math.max(1, Math.min(100, Math.trunc(limit)));
     const params: unknown[] = [];
     let filter = "";
     if (input.destination) {
@@ -102,8 +103,8 @@ export class RecommendationService {
        WHERE a.is_active = TRUE ${filter}
        GROUP BY a.id
        ORDER BY a.popularity DESC, a.rating DESC
-       LIMIT ?`,
-      [...params, limit] as (string | number)[],
+       LIMIT ${safeLimit}`,
+      params as (string | number)[],
     );
 
     return (rows as Array<Record<string, unknown>>).map((row) => ({
