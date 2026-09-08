@@ -40,6 +40,18 @@ export default function PcLandingScreen() {
   const { isDesktop, scale } = useDesktopCanvas();
 
   useEffect(() => {
+    const previousOverflow = document.documentElement.style.overflow;
+    const previousBodyOverflow = document.body.style.overflow;
+    window.scrollTo(0, 0);
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.documentElement.style.overflow = previousOverflow;
+      document.body.style.overflow = previousBodyOverflow;
+    };
+  }, []);
+
+  useEffect(() => {
     const handleMessage = async (event: MessageEvent) => {
       if (event.origin !== window.location.origin || event.source !== iframeRef.current?.contentWindow) return;
       if (event.data?.type === 'gravity-home:city-selected') {
@@ -126,7 +138,7 @@ export default function PcLandingScreen() {
   };
 
   return <>
-    <div style={{ position: 'relative', width: '100%', height: '100dvh', overflow: 'hidden', background: '#0d0d13' }}>
+    <div style={{ position: 'fixed', inset: 0, width: '100dvw', height: '100dvh', overflow: 'hidden', background: '#0d0d13' }}>
       <iframe
         className="mobile-home-frame"
         ref={iframeRef}
