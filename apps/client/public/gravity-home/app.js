@@ -118,7 +118,7 @@ function setupGravityField() {
   // Keep a dense mobile pool while omitting every fourth body to leave enough
   // rendering headroom for smooth physics on phones.
   const isMobilePool = window.innerWidth <= 760;
-  const visibleIcons = isMobilePool ? allIcons.filter((_, index) => index % 2 === 0) : allIcons;
+  const visibleIcons = isMobilePool ? allIcons.filter((_, index) => index % 4 !== 3) : allIcons;
   visibleIcons.forEach((icon, index) => {
     const size = sizeFor(index);
     const button = document.createElement('button');
