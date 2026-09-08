@@ -21,6 +21,11 @@ function cleanGuideTitle(value) {
   return String(value || '').replace(/\s*0[1-9]\s*$/, '').trim();
 }
 
+function optimizedTravelImage(value) {
+  const src = String(value || '');
+  return src.replace(/\/media\/travel\/([^?]+?)\.(?:jpe?g|png)(\?.*)?$/i, '/media/optimized/travel/$1.webp$2');
+}
+
 function setupAppNavigationBridge() {
   if (window.parent === window) return;
 
@@ -1084,7 +1089,7 @@ function setupCityRecommendations() {
         }
         if (heroImage) {
           heroImage.style.display = item.coverImageUri ? '' : 'none';
-          if (item.coverImageUri) { heroImage.src = item.coverImageUri; heroImage.alt = item.title; }
+          if (item.coverImageUri) { heroImage.src = optimizedTravelImage(item.coverImageUri); heroImage.alt = item.title; }
         }
         const caption = card.querySelector('.cover-caption .status');
         if (caption) caption.textContent = '参考路线 · 出行日期待确认';
@@ -1112,7 +1117,7 @@ function setupCityRecommendations() {
         }
         card.querySelectorAll('.place-media img').forEach((imageNode) => {
           imageNode.style.display = item.coverImageUri ? '' : 'none';
-          if (item.coverImageUri) { imageNode.src = item.coverImageUri; imageNode.alt = item.title; }
+          if (item.coverImageUri) { imageNode.src = optimizedTravelImage(item.coverImageUri); imageNode.alt = item.title; }
         });
         card.querySelector('.place-card-copy small').textContent = category;
         card.querySelector('.place-card-copy h3').textContent = cleanGuideTitle(item.title);
