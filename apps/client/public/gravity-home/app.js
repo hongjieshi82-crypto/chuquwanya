@@ -809,10 +809,37 @@ function setupCityRecommendations() {
     });
   };
 
-  const renderRecommendations = () => {
-    cards.forEach((card) => {
-      card.style.display = 'none';
+  const renderRecommendations = (city) => {
+    const fallbackItems = catalog[city] || catalog['北京'];
+    cards.forEach((card, index) => {
+      const [category, title, facts, imageNames] = fallbackItems[index] || fallbackItems[0];
+      const imageUris = imageNames.map(image);
+      card.style.display = '';
       delete card.dataset.activityId;
+      card.href = `/destinations?destinationId=${index + 1}`;
+      const categoryNode = card.querySelector('.place-card-copy small');
+      const titleNode = card.querySelector('.place-card-copy h3');
+      const factsNode = card.querySelector('.place-card-facts');
+      const routeTitle = card.querySelector('.visual-copy h2');
+      const routeCategory = card.querySelector('.cover-kicker span');
+      const routeCity = card.querySelector('.visual-top span:last-child');
+      if (categoryNode) categoryNode.textContent = category;
+      if (titleNode) titleNode.textContent = title;
+      if (factsNode) factsNode.textContent = `${city} · ${facts}`;
+      if (routeTitle) routeTitle.textContent = title;
+      if (routeCategory) routeCategory.textContent = category;
+      if (routeCity) routeCity.textContent = `${city.toUpperCase()} · CITY ROUTE`;
+      const heroImage = card.querySelector('.card-visual > img');
+      if (heroImage) {
+        heroImage.src = imageUris[0];
+        heroImage.alt = `${city}${title}`;
+        heroImage.style.display = '';
+      }
+      card.querySelectorAll('.place-media img').forEach((imageNode, imageIndex) => {
+        imageNode.src = imageUris[imageIndex] || imageUris[0];
+        imageNode.alt = `${city}${title}`;
+        imageNode.style.display = '';
+      });
     });
   };
 
@@ -999,8 +1026,10 @@ function setupCityRecommendations() {
     if (event.data?.type === 'gravity-home:guides') {
       if (event.data.cityId !== cityIds[currentCity]) return;
       const items = Array.isArray(event.data.items) ? event.data.items : [];
-      cards.forEach((card, index) => { card.style.display = index < items.length ? '' : 'none'; });
-      if (!items.length) showHomeToast('当前城市暂无更多已整理路线，请返回上一批或换个城市', 'error');
+      if (!items.length) {
+        showHomeToast('当前城市暂无更多已整理路线，已保留本地精选攻略', 'error');
+        return;
+      }
       items.slice(0, 4).forEach((item, index) => {
         const card = cards[index];
         if (!card) return;
