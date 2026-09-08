@@ -8,6 +8,14 @@ module.exports = ({ config }) => {
     onDemandFilesystem: false,
   };
   const plugins = [
+    [
+      'expo-router',
+      {
+        // Keep the initial web bundle focused on the current page. Other
+        // routes load on demand instead of blocking mobile hydration.
+        asyncRoutes: { web: 'production' },
+      },
+    ],
     ...(config.plugins ?? []),
     [
       'expo-image-picker',
