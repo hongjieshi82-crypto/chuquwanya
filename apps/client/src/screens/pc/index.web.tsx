@@ -144,18 +144,18 @@ export default function PcLandingScreen() {
         ref={iframeRef}
         allow="geolocation"
         aria-label="粗去玩鸭周末灵感首页"
-        src={`/gravity-home/index.html?v=desktop-canvas-1280x800-v2&auth=${isRegistered ? 'registered' : 'guest'}`}
+        src={`/gravity-home/index.html?v=desktop-canvas-1280x800-v3&auth=${isRegistered ? 'registered' : 'guest'}`}
         style={isDesktop ? {
           position: 'absolute',
-          left: '50%',
-          top: '50%',
+          left: `calc(50% - ${(DESKTOP_CANVAS_WIDTH * scale) / 2}px)`,
+          top: `calc(50% - ${(DESKTOP_CANVAS_HEIGHT * scale) / 2}px)`,
           width: DESKTOP_CANVAS_WIDTH,
           height: DESKTOP_CANVAS_HEIGHT,
           display: 'block',
           border: 0,
           background: '#0d0d13',
-          transform: `translate(-50%, -50%) scale(${scale})`,
-          transformOrigin: 'center',
+          transform: `scale(${scale})`,
+          transformOrigin: 'top left',
         } : {
           width: '100%', height: '100dvh', display: 'block', border: 0, background: '#0d0d13',
         }}
