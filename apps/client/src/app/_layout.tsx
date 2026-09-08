@@ -72,7 +72,7 @@ function RoutedContent() {
 
   return <>
     {isPcPage ? <PcExperienceShell><Slot /></PcExperienceShell> : Platform.OS === 'web' ? <Slot /> : <AppStack />}
-    {Platform.OS === 'web' && pathname !== '/pc' ? <SiteFooter /> : null}
+    {Platform.OS === 'web' ? <SiteFooter /> : null}
     {Platform.OS === 'web' ? <><MobileLayoutStyles /><MobileNavigation /></> : null}
   </>;
 }
