@@ -666,7 +666,7 @@ function setupCityRecommendations() {
   const categorySubmit = document.querySelector('#category-draw-submit');
   if (cards.length !== 4) return;
 
-  const image = (name) => `/media/travel/${name}.jpg`;
+  const image = (name) => `/media/optimized/travel/${name}.webp`;
   const catalog = {
     '北京': [
       ['公园漫游', '在奥森盲走一段林间路', '1 天 · 2 人', ['beijing-olympic-forest', 'beijing-wudaoying-hutong', 'beijing-798-art-district']],
@@ -859,6 +859,10 @@ function setupCityRecommendations() {
       card.style.display = '';
       delete card.dataset.activityId;
       card.href = `/destinations?destinationId=${index + 1}`;
+      const fallbackAddButton = card.querySelector('.place-add-trip');
+      const fallbackDetailButton = card.querySelector('.place-open-detail');
+      if (fallbackAddButton) fallbackAddButton.hidden = true;
+      if (fallbackDetailButton) fallbackDetailButton.textContent = '探索更多玩法';
       const categoryNode = card.querySelector('.place-card-copy small');
       const titleNode = card.querySelector('.place-card-copy h3');
       const factsNode = card.querySelector('.place-card-facts');
@@ -1039,6 +1043,7 @@ function setupCityRecommendations() {
     const addTrip = (event) => {
       event.preventDefault();
       event.stopPropagation();
+      if (!card.dataset.activityId) return;
       if (pendingAddButton) return;
       pendingAddButton = addButton;
       addButton.textContent = '正在加入…';
@@ -1051,6 +1056,10 @@ function setupCityRecommendations() {
     const openGuide = (event) => {
       event.preventDefault();
       event.stopPropagation();
+      if (!card.dataset.activityId) {
+        window.parent.postMessage({ type: 'gravity-home:navigate', href: '/destinations' }, window.location.origin);
+        return;
+      }
       window.parent.postMessage(guidePayload('gravity-home:open-guide'), window.location.origin);
     };
     detailButton?.addEventListener('click', openGuide);
@@ -1065,6 +1074,14 @@ function setupCityRecommendations() {
 
   window.addEventListener('message', (event) => {
     if (event.origin !== window.location.origin) return;
+    if (event.data?.type === 'gravity-home:cities') {
+      const cities = Array.isArray(event.data.cities) ? event.data.cities : [];
+      cities.forEach((city) => {
+        if (typeof city?.name === 'string' && Number.isInteger(city?.id)) cityIds[city.name] = city.id;
+      });
+      requestRealGuides();
+      return;
+    }
     if (event.data?.type === 'gravity-home:guides') {
       if (event.data.cityId !== cityIds[currentCity]) return;
       const items = Array.isArray(event.data.items) ? event.data.items : [];
@@ -1079,6 +1096,10 @@ function setupCityRecommendations() {
         const party = item.minPartySize === item.maxPartySize ? `${item.minPartySize} 人` : `${item.minPartySize}–${item.maxPartySize} 人`;
         card.dataset.activityId = String(item.id);
         card.href = `/activity/${item.id}`;
+        const liveAddButton = card.querySelector('.place-add-trip');
+        const liveDetailButton = card.querySelector('.place-open-detail');
+        if (liveAddButton) liveAddButton.hidden = false;
+        if (liveDetailButton) liveDetailButton.textContent = '查看完整路线';
         const heroImage = card.querySelector('.card-visual > img');
         const photoNote = card.querySelector('.photo-note');
         if (photoNote) {

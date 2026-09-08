@@ -1,5 +1,5 @@
 import { type Href, useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { PcQuickDrawModal, type QuickDrawSubmission } from '@/components/pc-quick-draw-modal';
 import { useApp } from '@/contexts/app-context';
@@ -24,10 +24,21 @@ function useMobileViewport() {
 
 export default function PcLandingScreen() {
   const router = useRouter();
-  const { isRegistered, user, setSelectedCityId } = useApp();
+  const { cities, isRegistered, user, setSelectedCityId } = useApp();
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [quickDrawLock, setQuickDrawLock] = useState<{ cityId: number; cityName: string; categoryLabel?: string } | null>(null);
   const isMobile = useMobileViewport();
+
+  const syncCitiesToHome = useCallback(() => {
+    iframeRef.current?.contentWindow?.postMessage({
+      type: 'gravity-home:cities',
+      cities: cities.map(({ id, name }) => ({ id, name })),
+    }, window.location.origin);
+  }, [cities]);
+
+  useEffect(() => {
+    syncCitiesToHome();
+  }, [syncCitiesToHome]);
 
   useEffect(() => {
     const previousOverflow = document.documentElement.style.overflow;
@@ -132,9 +143,10 @@ export default function PcLandingScreen() {
       <iframe
         className="mobile-home-frame"
         ref={iframeRef}
+        onLoad={syncCitiesToHome}
         allow="geolocation"
         aria-label="粗去玩鸭周末灵感首页"
-        src={`/gravity-home/index.html?v=${isMobile ? 'mobile-layout-v6' : 'desktop-full-viewport-v4'}&auth=${isRegistered ? 'registered' : 'guest'}`}
+        src={`/gravity-home/index.html?v=${isMobile ? 'mobile-layout-v7' : 'desktop-full-viewport-v4'}&auth=${isRegistered ? 'registered' : 'guest'}`}
         style={isMobile ? {
           width: '100%',
           height: '100dvh',
