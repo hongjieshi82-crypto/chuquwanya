@@ -77,6 +77,8 @@ function setupGravityField() {
   const field = document.querySelector('#gravity-field');
   if (!field || !window.Matter) return;
 
+  field.replaceChildren();
+
   const { Body, Bodies, Composite, Engine, Events, Sleeping } = Matter;
   const engine = Engine.create({ enableSleeping: true });
   // A noticeably weightier setup than Matter's default: quick fall, restrained bounce,
@@ -116,7 +118,7 @@ function setupGravityField() {
   // Keep a dense mobile pool while omitting every fourth body to leave enough
   // rendering headroom for smooth physics on phones.
   const isMobilePool = window.innerWidth <= 760;
-  const visibleIcons = isMobilePool ? allIcons.filter((_, index) => index % 4 !== 3) : allIcons;
+  const visibleIcons = isMobilePool ? allIcons.filter((_, index) => index % 2 === 0) : allIcons;
   visibleIcons.forEach((icon, index) => {
     const size = sizeFor(index);
     const button = document.createElement('button');
@@ -393,6 +395,41 @@ function setupGravityField() {
     revealPool();
   }
   window.addEventListener('pagehide', () => { cancelAnimationFrame(frameId); fieldObserver.disconnect(); }, { once: true });
+}
+
+function setupGravityPreview() {
+  const field = document.querySelector('#gravity-field');
+  if (!field || field.children.length) return;
+  const previewIcons = allIcons.filter((_, index) => index % 3 === 0).slice(0, 12);
+  previewIcons.forEach((icon, index) => {
+    const size = 66 + (index % 4) * 8;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'gravity-ball gravity-ball-preview is-image-ready';
+    button.style.setProperty('--size', `${size}px`);
+    button.style.left = `${4 + (index % 4) * 24}%`;
+    button.style.top = `${12 + Math.floor(index / 4) * 27}%`;
+    button.style.transform = `rotate(${(index % 5 - 2) * 4}deg)`;
+    button.setAttribute('aria-label', icon.name.replace(/^\d+-/, ''));
+    const image = document.createElement('img');
+    image.src = icon.src;
+    image.alt = '';
+    image.decoding = 'async';
+    image.loading = index < 6 ? 'eager' : 'lazy';
+    button.append(image);
+    field.append(button);
+  });
+  document.documentElement.classList.add('gravity-ready');
+}
+
+function loadGravityPhysics() {
+  const start = () => setupGravityField();
+  if (window.Matter) { start(); return; }
+  const script = document.createElement('script');
+  script.src = 'https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js';
+  script.async = true;
+  script.onload = start;
+  document.head.append(script);
 }
 
 function setupMobileHeroLayout() {
@@ -1139,10 +1176,12 @@ function setupCityRecommendations() {
 
 setupSectionObserver();
 setupMobileHeroLayout();
-setupGravityField();
+setupGravityPreview();
 setupAppNavigationBridge();
 setupPrimaryAuthAction();
 document.querySelector('.styles-screen')?.classList.add('is-static-grid');
 upgradeWeekendGuideCards();
 setupScrollStory();
 setupCityRecommendations();
+if ('requestIdleCallback' in window) window.requestIdleCallback(loadGravityPhysics, { timeout: 1200 });
+else window.setTimeout(loadGravityPhysics, 300);

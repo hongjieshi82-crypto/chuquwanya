@@ -1,4 +1,4 @@
-import { usePathname, useRouter } from 'expo-router';
+import { usePathname } from 'expo-router';
 
 const items = [
   { href: '/pc', label: '周末灵感', short: '首页', icon: 'home' },
@@ -18,15 +18,14 @@ function NavigationIcon({ name }: { name: typeof items[number]['icon'] }) {
 
 export function MobileNavigation() {
   const pathname = usePathname();
-  const router = useRouter();
   if (pathname === '/pc-login') return null;
   return <nav className="mobile-bottom-nav" aria-label="主导航">
     {items.map((item) => {
       const active = pathname === item.href || (item.href === '/box/config' && pathname.startsWith('/box/')) || (item.href === '/trips' && pathname.startsWith('/activity/'));
-      return <button key={item.href} type="button" aria-label={item.label} title={item.label} aria-current={active ? 'page' : undefined} onClick={() => router.navigate(item.href)}>
+      return <a key={item.href} href={item.href} aria-label={item.label} title={item.label} aria-current={active ? 'page' : undefined}>
         <span className="mobile-nav-icon-wrap"><NavigationIcon name={item.icon} /></span>
         <span className="mobile-nav-label">{item.short}</span>
-      </button>;
+      </a>;
     })}
   </nav>;
 }
