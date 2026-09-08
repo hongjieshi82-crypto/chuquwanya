@@ -3,6 +3,7 @@ export type DepartureMode = 'idea' | 'now' | 'plan';
 export type DeparturePreferences = { departureMode?: DepartureMode; departureDate?: string | null };
 export function chinaDate(now = new Date()) { return new Date(now.getTime() + 8 * 3600000).toISOString().slice(0, 10); }
 export function chinaMinutes(now = new Date()) { const date = new Date(now.getTime() + 8 * 3600000); return date.getUTCHours() * 60 + date.getUTCMinutes(); }
+export function needsImmediateDepartureWarning(now = new Date()) { const minutes = chinaMinutes(now); return minutes >= 20 * 60 || minutes < 6 * 60; }
 export function addDays(date: string, days: number) { return new Date(Date.parse(date + 'T00:00:00Z') + days * 86400000).toISOString().slice(0, 10); }
 export function nextWeekend(now = new Date()) { const today = chinaDate(now); const weekday = new Date(today + 'T00:00:00Z').getUTCDay(); return addDays(today, (6 - weekday + 7) % 7); }
 export function validDepartureDate(value: string, now = new Date()) {
@@ -43,6 +44,9 @@ export function departureFailure(activity: Schedulable, preferences: DeparturePr
   }
   if (preferences.departureMode !== 'now') return null;
   if ((activity.itinerary?.daysCount ?? 1) > 1) return '多日计划需要先安排出发日期';
+  return null;
+}
+export function immediateDepartureConcern(activity: Schedulable, now = new Date()): string | null {
   const night = isNightActivity(activity);
   const start = immediateStart(activity, now);
   const windows = openingWindows(activity);
@@ -59,13 +63,16 @@ export function departureFailure(activity: Schedulable, preferences: DeparturePr
   if (/晚餐/.test(text) && start < 16 * 60) return '尚未到晚餐时段';
   return null;
 }
-export function departureAdvisory(activity: Schedulable, preferences: DeparturePreferences): string | null {
+export function departureAdvisory(activity: Schedulable, preferences: DeparturePreferences, now = new Date()): string | null {
   if (preferences.departureMode !== 'now') return null;
+  const concerns: string[] = [];
+  const timingConcern = immediateDepartureConcern(activity, now);
+  if (timingConcern) concerns.push(`${timingConcern}。如果你仍想现在出发，可以继续，但请先确认实时营业状态、返程交通和个人安全`);
   const text = activity.title + activity.steps.join(' ') + (activity.itinerary?.reservation ?? '');
   if (activity.reservationRequired === 'yes' || /预约|实名|票种|有效门票|购票|门票/.test(text)) {
-    return '这条玩法可能需要购票、预约或实名核验。系统不知道你是否已有票；你可以继续出发，但请先在官方渠道确认当日余票、入园要求和现场售票情况。';
+    concerns.push('这条玩法可能需要购票、预约或实名核验。系统不知道你是否已有票；请先在官方渠道确认当日余票、入园要求和现场售票情况');
   }
-  return null;
+  return concerns.length ? `${concerns.join('。\n')}。` : null;
 }
 export function withDeparture<T extends Schedulable>(activity: T, preferences: DeparturePreferences, now = new Date()) {
   const mode = preferences.departureMode ?? 'idea';

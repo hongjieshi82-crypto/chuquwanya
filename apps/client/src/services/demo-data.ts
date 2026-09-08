@@ -1,7 +1,7 @@
 import { Image as NativeImage } from 'react-native';
 
 import { practicalActivities, cityRouteCategories, preferenceFailure } from '../../../api/src/itinerary-policy';
-import { departureFailure, withDeparture } from '../../../api/src/departure-policy';
+import { departureFailure, immediateDepartureConcern, withDeparture } from '../../../api/src/departure-policy';
 
 import type {
   Activity,
@@ -861,9 +861,13 @@ export function createDemoDraw(
   now = new Date(),
 ): DrawResult {
   const cityCandidates = demoActivities.filter((activity) => activity.cityId === input.cityId);
-  const candidates = cityCandidates.filter((activity) => !departureFailure(activity, input.preferences, now) && !preferenceFailure(input.preferences, {
+  const matchingCandidates = cityCandidates.filter((activity) => !departureFailure(activity, input.preferences, now) && !preferenceFailure(input.preferences, {
     ...activity, sourceType: activity.sourceType ?? '',
   }));
+  const timelyCandidates = input.preferences.departureMode === 'now'
+    ? matchingCandidates.filter((activity) => !immediateDepartureConcern(activity, now))
+    : matchingCandidates;
+  const candidates = timelyCandidates.length ? timelyCandidates : matchingCandidates;
   if (!candidates.length) {
     const selectedCity = demoCities.find((city) => city.id === input.cityId)?.name ?? '当前城市';
     throw new Error(`${selectedCity}暂时没有同时符合分类、人数、天数和预算的已整理玩法，请调整条件。本次未扣次数。`);

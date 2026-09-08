@@ -3,7 +3,7 @@ import EnvironmentOutlinedSvg from '@ant-design/icons-svg/es/asn/EnvironmentOutl
 import GiftOutlinedSvg from '@ant-design/icons-svg/es/asn/GiftOutlined';
 import type { AbstractNode, IconDefinition } from '@ant-design/icons-svg/es/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Button, Card, ConfigProvider, Layout, Select, Space, Tag, Typography } from 'antd';
+import { Button, Card, ConfigProvider, Layout, Modal, Select, Space, Tag, Typography } from 'antd';
 import 'antd/dist/reset.css';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -11,7 +11,7 @@ import type { SVGProps } from 'react';
 import { useApp } from '@/contexts/app-context';
 import { readPendingPcBoxDraw, savePendingPcBoxDraw } from '@/lib/pc-box-open-state';
 import { DeparturePicker } from '@/components/departure-picker';
-import { chinaDate, validDepartureDate, type DepartureMode } from '@/lib/departure-policy';
+import { chinaDate, needsImmediateDepartureWarning, validDepartureDate, type DepartureMode } from '@/lib/departure-policy';
 import { getPcTravelBudgetRange } from '@/constants/pc-travel-budget-tiers';
 import { palette, radii } from '@/theme';
 import type { City, Preferences } from '@/types';
@@ -253,10 +253,24 @@ export default function PcBoxConfigScreen() {
     return () => { cancelled = true; };
   }, [cities, setSelectedCityId]);
 
-  const goStart = useCallback((target: '/box/open' | '/box/slot-preview' = '/box/slot-preview') => {
+  const goStart = useCallback(async (target: '/box/open' | '/box/slot-preview' = '/box/slot-preview') => {
     if (isBooting || isStartingDraw) return;
     if (departureMode === 'plan' && !validDepartureDate(departureDate)) { setDrawError('请选择今天起一年内的出发日期'); return; }
     if (matchSelections.category !== '不限' && matchSelections.travelDuration === '小长假') { setDrawError('这个主题暂不支持完整小长假，请选择当天、周末游或不限分类。'); return; }
+    if (departureMode === 'now' && needsImmediateDepartureWarning()) {
+      const continueNow = await new Promise<boolean>((resolve) => {
+        Modal.confirm({
+          title: '现在出发前提醒',
+          content: '现在已经较晚，部分地点可能已经停止入场或营业，返程交通也可能受限。我们更建议改选日期，但你仍然可以继续抽取并现在出发。',
+          okText: '仍然现在出发',
+          cancelText: '改选日期',
+          centered: true,
+          onOk: () => resolve(true),
+          onCancel: () => { setDepartureMode('plan'); resolve(false); },
+        });
+      });
+      if (!continueNow) return;
+    }
 
     const partySize = partySizeValues[matchSelections.partySize] ?? 1;
     const budgetRange = getPcTravelBudgetRange(matchSelections.travelDuration, matchSelections.budget);
@@ -348,7 +362,7 @@ export default function PcBoxConfigScreen() {
   ]);
 
   useEffect(() => {
-    const handleShellStart = () => goStart('/box/slot-preview');
+    const handleShellStart = () => { void goStart('/box/slot-preview'); };
     window.addEventListener('pc-box-start-draw', handleShellStart);
     return () => window.removeEventListener('pc-box-start-draw', handleShellStart);
   }, [goStart]);
@@ -566,7 +580,7 @@ export default function PcBoxConfigScreen() {
                   icon={<GiftOutlined />}
                   disabled={isBooting}
                   loading={isStartingDraw}
-                  onClick={() => goStart('/box/slot-preview')}>
+                  onClick={() => { void goStart('/box/slot-preview'); }}>
                   {isStartingDraw ? '正在抽取…' : '立即抽取'}
                 </Button>
               </Space>

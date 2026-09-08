@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { getPcTravelBudgetRange } from '@/constants/pc-travel-budget-tiers';
 import type { Preferences } from '@/types';
 import { DeparturePicker } from '@/components/departure-picker';
-import { chinaDate, validDepartureDate, type DepartureMode } from '@/lib/departure-policy';
+import { chinaDate, needsImmediateDepartureWarning, validDepartureDate, type DepartureMode } from '@/lib/departure-policy';
 
 const { Text, Title } = Typography;
 
@@ -55,8 +55,20 @@ export function PcQuickDrawModal({
     return lock.categoryLabel ? `抽一个${lock.categoryLabel}盲盒` : `抽一条${lock.cityName}玩法`;
   }, [lock]);
 
-  const submit = () => {
+  const submit = (lateWarningAccepted = false) => {
     if (!lock) return;
+    if (departureMode === 'now' && needsImmediateDepartureWarning() && !lateWarningAccepted) {
+      Modal.confirm({
+        title: '现在出发前提醒',
+        content: '现在已经较晚，部分地点可能已经停止入场或营业，返程交通也可能受限。我们更建议改选日期，但你仍然可以继续抽取并现在出发。',
+        okText: '仍然现在出发',
+        cancelText: '改选日期',
+        centered: true,
+        onOk: () => submit(true),
+        onCancel: () => setDepartureMode('plan'),
+      });
+      return;
+    }
     const partyValue = isRomance ? 2 : partySize === '多人' ? 4 : Number.parseInt(partySize, 10) || 1;
     const normalizedCategory = lock.categoryLabel === '浪漫约会' ? '约会' : lock.categoryLabel ?? '不限';
     const budgetRange = getPcTravelBudgetRange(duration, budget);
@@ -134,7 +146,7 @@ export function PcQuickDrawModal({
         {lock?.categoryLabel ? <small style={{ color: '#96a68a', display: 'block', marginTop: 8 }}>当前主题支持单日或周末双日；小长假可在通用设置中选择综合路线。</small> : null}
         {optionGroup('预算方式', ['划算出行', '舒服躺玩', '品质享受'], budget, setBudget)}
         <DeparturePicker mode={departureMode} date={departureDate} period={duration} onChange={(mode, date) => { setDepartureMode(mode); setDepartureDate(date); }} />
-        <Button className="pc-quick-draw-submit" size="large" type="primary" disabled={departureMode === 'plan' && !validDepartureDate(departureDate)} onClick={submit}>开始抽选　→</Button>
+        <Button className="pc-quick-draw-submit" size="large" type="primary" disabled={departureMode === 'plan' && !validDepartureDate(departureDate)} onClick={() => submit()}>开始抽选　→</Button>
       </div>
     </Modal>
   );

@@ -1,35 +1,25 @@
 import { type Href, useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { PcQuickDrawModal, type QuickDrawSubmission } from '@/components/pc-quick-draw-modal';
 import { useApp } from '@/contexts/app-context';
 import { savePendingPcBoxDraw } from '@/lib/pc-box-open-state';
 import { getRecommendedActivities } from '@/services/api';
 
-// Match the owner's built-in Retina display's current logical resolution.
-const DESKTOP_CANVAS_WIDTH = 1280;
-const DESKTOP_CANVAS_HEIGHT = 800;
 const MOBILE_BREAKPOINT = 760;
 
-function useDesktopCanvas() {
-  const [viewport, setViewport] = useState(() => ({
-    width: typeof window === 'undefined' ? DESKTOP_CANVAS_WIDTH : window.innerWidth,
-    height: typeof window === 'undefined' ? DESKTOP_CANVAS_HEIGHT : window.innerHeight,
-  }));
+function useMobileViewport() {
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth <= MOBILE_BREAKPOINT);
 
   useEffect(() => {
-    const updateViewport = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
-    window.addEventListener('resize', updateViewport, { passive: true });
-    return () => window.removeEventListener('resize', updateViewport);
+    const media = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`);
+    const update = () => setIsMobile(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
   }, []);
 
-  return useMemo(() => {
-    const isDesktop = viewport.width > MOBILE_BREAKPOINT;
-    const scale = isDesktop
-      ? Math.min(1, viewport.width / DESKTOP_CANVAS_WIDTH, viewport.height / DESKTOP_CANVAS_HEIGHT)
-      : 1;
-    return { isDesktop, scale };
-  }, [viewport]);
+  return isMobile;
 }
 
 export default function PcLandingScreen() {
@@ -37,7 +27,7 @@ export default function PcLandingScreen() {
   const { isRegistered, user, setSelectedCityId } = useApp();
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [quickDrawLock, setQuickDrawLock] = useState<{ cityId: number; cityName: string; categoryLabel?: string } | null>(null);
-  const { isDesktop, scale } = useDesktopCanvas();
+  const isMobile = useMobileViewport();
 
   useEffect(() => {
     const previousOverflow = document.documentElement.style.overflow;
@@ -144,20 +134,21 @@ export default function PcLandingScreen() {
         ref={iframeRef}
         allow="geolocation"
         aria-label="粗去玩鸭周末灵感首页"
-        src={`/gravity-home/index.html?v=desktop-canvas-1280x800-v3&auth=${isRegistered ? 'registered' : 'guest'}`}
-        style={isDesktop ? {
-          position: 'absolute',
-          left: `calc(50% - ${(DESKTOP_CANVAS_WIDTH * scale) / 2}px)`,
-          top: `calc(50% - ${(DESKTOP_CANVAS_HEIGHT * scale) / 2}px)`,
-          width: DESKTOP_CANVAS_WIDTH,
-          height: DESKTOP_CANVAS_HEIGHT,
+        src={`/gravity-home/index.html?v=${isMobile ? 'mobile-layout-v4' : 'desktop-full-viewport-v2'}&auth=${isRegistered ? 'registered' : 'guest'}`}
+        style={isMobile ? {
+          width: '100%',
+          height: '100dvh',
           display: 'block',
           border: 0,
           background: '#0d0d13',
-          transform: `scale(${scale})`,
-          transformOrigin: 'top left',
         } : {
-          width: '100%', height: '100dvh', display: 'block', border: 0, background: '#0d0d13',
+          position: 'absolute',
+          inset: 0,
+          width: '100dvw',
+          height: '100dvh',
+          display: 'block',
+          border: 0,
+          background: '#0d0d13',
         }}
         title="粗去玩鸭周末灵感首页"
       />

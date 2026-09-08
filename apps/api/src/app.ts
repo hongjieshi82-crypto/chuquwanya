@@ -28,7 +28,7 @@ import { AppError } from "./errors.js";
 import { registerPaymentRoutes } from "./payments.js";
 import { parseJsonArray, type ActivityRow, toActivityDto } from "./types.js";
 import { cityRouteCategories, hardBudgetMinimum, practicalReplacement, requestedTravelDays } from './itinerary-policy.js';
-import { chinaDate, departureFailure, withDeparture } from './departure-policy.js';
+import { chinaDate, departureFailure, immediateDepartureConcern, withDeparture } from './departure-policy.js';
 import { buildWeekWindow, registerTodoRoutes } from "./todos.js";
 import { registerTravelRoutes } from "./travel/routes.js";
 import { getCityWeather } from "./weather.service.js";
@@ -1062,7 +1062,12 @@ async function findActivityForDraw(
   const seenPlaces = new Set<string>();
   const [sessionPlaces] = await connection.execute(`SELECT a.id, a.city_id, c.name AS city_name, a.title, a.address FROM draw_results dr JOIN activities a ON a.id = dr.activity_id JOIN cities c ON c.id = a.city_id WHERE dr.draw_session_id = ?`, [drawSessionId]);
   for (const key of (sessionPlaces as ActivityRow[]).flatMap(placeKeys)) seenPlaces.add(key);
-  const unseenRows = (rows: ActivityRow[]) => rows.filter((row) => placeKeys(row).every((key) => !seenPlaces.has(key)) && !departureFailure(toActivityDto(row), input.preferences));
+  const unseenRows = (rows: ActivityRow[]) => {
+    const unseen = rows.filter((row) => placeKeys(row).every((key) => !seenPlaces.has(key)) && !departureFailure(toActivityDto(row), input.preferences));
+    if (input.preferences.departureMode !== 'now') return unseen;
+    const timely = unseen.filter((row) => !immediateDepartureConcern(toActivityDto(row)));
+    return timely.length ? timely : unseen;
+  };
   let cityWeather: Awaited<ReturnType<typeof getCityWeather>> = null;
   try {
     const [cityRows] = await connection.execute("SELECT name FROM cities WHERE id = ? AND is_active = TRUE LIMIT 1", [input.cityId]);
