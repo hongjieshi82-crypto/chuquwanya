@@ -144,7 +144,7 @@ export default function PcLandingScreen() {
         ref={iframeRef}
         allow="geolocation"
         aria-label="粗去玩鸭周末灵感首页"
-        src={`/gravity-home/index.html?v=desktop-canvas-1280x800&auth=${isRegistered ? 'registered' : 'guest'}`}
+        src={`/gravity-home/index.html?v=desktop-canvas-1280x800-v2&auth=${isRegistered ? 'registered' : 'guest'}`}
         style={isDesktop ? {
           position: 'absolute',
           left: '50%',

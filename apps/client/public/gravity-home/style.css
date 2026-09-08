@@ -1514,3 +1514,12 @@ button { font: inherit; }
   .topbar .city-switcher label { display: none; }
   .topbar .nav-cta { width: 108px; min-width: 108px; }
 }
+
+/* 1280×800 desktop canvas: keep the nav and the six-card grid inside the visible area. */
+@media (min-width: 761px) {
+  .topbar > * { position: relative; top: 14px; }
+  .styles-screen .play-category-grid { transform: translateY(32px); }
+  .styles-screen .play-category-card:nth-child(-n+3) { transform: none; }
+  .styles-screen .play-category-card:nth-child(-n+3):hover,
+  .styles-screen .play-category-card:nth-child(-n+3):focus-visible { transform: translateY(-5px) scale(1.012); }
+}
