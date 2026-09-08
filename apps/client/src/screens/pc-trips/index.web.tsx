@@ -122,6 +122,9 @@ const tripsCss = `
 .pc-trip-delete.ant-btn { height: 40px; padding-inline: 18px; border-radius: 999px; font-size: 14px; font-weight: 800; }
 .pc-trips-empty.ant-empty { margin: 0; padding: 72px 24px; border: 1px dashed rgba(201,255,98,.24); border-radius: 22px; background: rgba(255,255,255,.035); }.pc-trips-empty .ant-empty-description { color: rgba(255,255,255,.58); font-size: 17px; }.pc-trips-empty .ant-empty-image { height: 190px; margin-bottom: 20px; }.pc-trips-empty .ant-empty-image img { width: 190px; height: 190px; object-fit: contain; }.pc-trips-empty .ant-btn { height: 52px; padding-inline: 26px; border-radius: 999px; font-size: 16px; font-weight: 850; }
 .pc-trips-loading { display: grid; min-height: 280px; place-items: center; border: 1px solid rgba(255,255,255,.1); border-radius: 22px; background: rgba(255,255,255,.035); }.pc-trips-loading .ant-spin-text { color: rgba(255,255,255,.6); }
+.pc-trips-notice{margin-bottom:16px;padding:18px 20px;border:1px solid rgba(255,255,255,.12);border-radius:18px;display:flex;align-items:center;justify-content:space-between;gap:18px;color:#f4f7ef;background:linear-gradient(135deg,rgba(255,255,255,.055),rgba(201,255,98,.025));box-shadow:0 14px 36px rgba(0,0,0,.18)}
+.pc-trips-notice-copy{min-width:0;display:flex;align-items:center;gap:14px}.pc-trips-notice-icon{width:38px;height:38px;flex:none;border:1px solid rgba(244,139,125,.34);border-radius:12px;display:grid;place-items:center;color:#ff9b8c;background:rgba(244,106,89,.09);font-size:18px;font-weight:900}.pc-trips-notice-copy strong{display:block;font-size:16px}.pc-trips-notice-copy p{margin:5px 0 0;color:rgba(255,255,255,.5);font-size:13px;line-height:1.55}.pc-trips-notice-action.ant-btn{height:42px;flex:none;padding-inline:18px;border:0;border-radius:999px;color:#11150d;background:#c9ff62;font-weight:900}.pc-trips-notice-action.ant-btn:hover{color:#11150d!important;background:#dcff9b!important}.pc-trips-notice-dismiss{flex:none;border:0;color:rgba(255,255,255,.46);background:none;font-size:20px;cursor:pointer}
+@media(max-width:680px){.pc-trips-notice{align-items:flex-start;padding:16px}.pc-trips-notice-copy{align-items:flex-start}.pc-trips-notice-icon{width:34px;height:34px}.pc-trips-notice-action.ant-btn{height:38px;padding-inline:13px;font-size:12px}}
 @keyframes trip-card-in { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
 @media (max-width: 1100px) { .pc-trips-page { padding-inline: 28px; } .pc-trips-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 680px) { .pc-trips-page { padding: 30px 16px 48px; } .pc-trips-heading, .pc-trips-toolbar { align-items: flex-start; flex-direction: column; } .pc-trips-create { width: 100%; } .pc-trips-segmented { width: 100%; overflow-x: auto; } .pc-trips-grid { grid-template-columns: 1fr; } .pc-trips-title.ant-typography { font-size: 26px; } }
@@ -328,6 +331,10 @@ const tripsCss = `
 
 function getErrorMessage(reason: unknown) {
   return reason instanceof Error ? reason.message : '行程暂时加载失败，请稍后重试。';
+}
+
+function isLoginError(message: string | null) {
+  return Boolean(message && /请先登录|未登录|登录已过期|unauthorized/i.test(message));
 }
 
 function dateParts(value: string) {
@@ -721,7 +728,10 @@ export default function PcTripsScreen() {
           </div>
 
           <div className="pc-trips-scroll-region" key={filter} role="region" aria-label="行程卡片列表" tabIndex={0}>
-          {error ? <Alert closable description={error} title="加载失败" showIcon style={{ marginBottom: 16 }} type="error" /> : null}
+          {error ? <section className="pc-trips-notice" role="status">
+            <div className="pc-trips-notice-copy"><span className="pc-trips-notice-icon">!</span><div><strong>{isLoginError(error) ? '登录后查看你的行程' : '暂时没有加载成功'}</strong><p>{isLoginError(error) ? '登录后即可在不同设备同步收藏、待出发和进行中的行程。' : error}</p></div></div>
+            {isLoginError(error) ? <Button className="pc-trips-notice-action" onClick={() => router.push('/pc-login?returnTo=%2Ftrips')}>立即登录</Button> : <button className="pc-trips-notice-dismiss" type="button" aria-label="关闭提示" onClick={() => setError(null)}>×</button>}
+          </section> : null}
           {loading ? <div className="pc-trips-loading"><Spin description="正在加载你的行程…" /></div> : null}
           {!loading && filter !== 'saved' && visibleItems.length > 0 ? <div className="pc-trips-grid">{visibleItems.map((item) => <TripCard activity={activities[item.activityId]} coverImageUri={activities[item.activityId]?.coverImageUri} isCompleting={completingId === item.id} isDeleting={deletingId === item.id} isEditing={isEditing} isStarting={startingId === item.id} item={item} key={item.id} onReschedule={(todo) => { setScheduleItem(todo); setNewDate(todo.scheduledDate >= chinaDate() ? todo.scheduledDate : chinaDate()); setError(null); }} onComplete={handleComplete} onDelete={(todo) => { void handleDelete(todo); }} onStart={(todo) => { void handleStart(todo); }} />)}</div> : null}
           {!loading && filter === 'saved' && savedItems.length ? <div className="pc-trips-grid">{savedItems.map((activity) => <article className="pc-saved-card" key={activity.id}>
