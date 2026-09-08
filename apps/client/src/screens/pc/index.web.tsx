@@ -1,16 +1,42 @@
 import { type Href, useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { PcQuickDrawModal, type QuickDrawSubmission } from '@/components/pc-quick-draw-modal';
 import { useApp } from '@/contexts/app-context';
 import { savePendingPcBoxDraw } from '@/lib/pc-box-open-state';
 import { getRecommendedActivities } from '@/services/api';
 
+const DESKTOP_CANVAS_WIDTH = 1440;
+const DESKTOP_CANVAS_HEIGHT = 900;
+const MOBILE_BREAKPOINT = 760;
+
+function useDesktopCanvas() {
+  const [viewport, setViewport] = useState(() => ({
+    width: typeof window === 'undefined' ? DESKTOP_CANVAS_WIDTH : window.innerWidth,
+    height: typeof window === 'undefined' ? DESKTOP_CANVAS_HEIGHT : window.innerHeight,
+  }));
+
+  useEffect(() => {
+    const updateViewport = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener('resize', updateViewport, { passive: true });
+    return () => window.removeEventListener('resize', updateViewport);
+  }, []);
+
+  return useMemo(() => {
+    const isDesktop = viewport.width > MOBILE_BREAKPOINT;
+    const scale = isDesktop
+      ? Math.min(1, viewport.width / DESKTOP_CANVAS_WIDTH, viewport.height / DESKTOP_CANVAS_HEIGHT)
+      : 1;
+    return { isDesktop, scale };
+  }, [viewport]);
+}
+
 export default function PcLandingScreen() {
   const router = useRouter();
   const { isRegistered, user, setSelectedCityId } = useApp();
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [quickDrawLock, setQuickDrawLock] = useState<{ cityId: number; cityName: string; categoryLabel?: string } | null>(null);
+  const { isDesktop, scale } = useDesktopCanvas();
 
   useEffect(() => {
     const handleMessage = async (event: MessageEvent) => {
@@ -99,21 +125,30 @@ export default function PcLandingScreen() {
   };
 
   return <>
-    <iframe
-      className="mobile-home-frame"
-      ref={iframeRef}
-      allow="geolocation"
-      aria-label="粗去玩鸭周末灵感首页"
-      src={`/gravity-home/index.html?v=visual-system-77&auth=${isRegistered ? 'registered' : 'guest'}`}
-      style={{
-        width: '100%',
-        height: '100dvh',
-        display: 'block',
-        border: 0,
-        background: '#0d0d13',
-      }}
-      title="粗去玩鸭周末灵感首页"
-    />
+    <div style={{ position: 'relative', width: '100%', height: '100dvh', overflow: 'hidden', background: '#0d0d13' }}>
+      <iframe
+        className="mobile-home-frame"
+        ref={iframeRef}
+        allow="geolocation"
+        aria-label="粗去玩鸭周末灵感首页"
+        src={`/gravity-home/index.html?v=desktop-canvas-1&auth=${isRegistered ? 'registered' : 'guest'}`}
+        style={isDesktop ? {
+          position: 'absolute',
+          left: '50%',
+          top: '50%',
+          width: DESKTOP_CANVAS_WIDTH,
+          height: DESKTOP_CANVAS_HEIGHT,
+          display: 'block',
+          border: 0,
+          background: '#0d0d13',
+          transform: `translate(-50%, -50%) scale(${scale})`,
+          transformOrigin: 'center',
+        } : {
+          width: '100%', height: '100dvh', display: 'block', border: 0, background: '#0d0d13',
+        }}
+        title="粗去玩鸭周末灵感首页"
+      />
+    </div>
     <PcQuickDrawModal lock={quickDrawLock} open={Boolean(quickDrawLock)} onClose={() => setQuickDrawLock(null)} onSubmit={startQuickDraw} />
   </>;
 }

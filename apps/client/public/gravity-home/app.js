@@ -116,7 +116,10 @@ function setupGravityField() {
   // Keep a dense mobile pool while omitting every fourth body to leave enough
   // rendering headroom for smooth physics on phones.
   const isMobilePool = window.innerWidth <= 760;
-  const visibleIcons = isMobilePool ? allIcons.filter((_, index) => index % 4 !== 3) : allIcons;
+  // Keep the first screen lively without decoding all 36 icons during startup.
+  const visibleIcons = isMobilePool
+    ? allIcons.filter((_, index) => index % 4 !== 3).slice(0, 18)
+    : allIcons.slice(0, 24);
   visibleIcons.forEach((icon, index) => {
     const size = sizeFor(index);
     const button = document.createElement('button');
@@ -129,7 +132,7 @@ function setupGravityField() {
     image.src = icon.src;
     image.alt = '';
     image.draggable = false;
-    image.loading = 'eager';
+    image.loading = index < 8 ? 'eager' : 'lazy';
     image.decoding = 'async';
     if (isMobilePool && index < 8) image.fetchPriority = 'high';
     const markImageReady = () => button.classList.add('is-image-ready');
@@ -583,7 +586,7 @@ function upgradeWeekendGuideCards() {
     const cardTags = tags[index] || tags[0];
     card.innerHTML = `
       <div class="card-visual">
-        <img src="${images[0]?.src || ''}" alt="${images[0]?.alt || title}" />
+        <img src="${images[0]?.src || ''}" alt="${images[0]?.alt || title}" loading="lazy" decoding="async" />
         <div class="image-shade"></div>
         <div class="visual-top"><span>ROUTE <b>${order}</b></span><span>${city.toUpperCase()} · CITY ROUTE</span></div>
         <div class="visual-index">${order}</div>
@@ -602,7 +605,7 @@ function upgradeWeekendGuideCards() {
         <div class="card-actions"><span class="secondary place-open-detail" role="button" tabindex="0">看看完整路线</span><span class="primary place-add-trip" role="button" tabindex="0">加入我的行程</span></div>
         <div class="place-card-copy"><div class="place-card-label-row"><small>${category}</small><span class="place-card-facts">${facts}</span></div><h3>${title}</h3><p>${subtitles[index] || subtitles[0]}</p></div>
         <div class="guide-body"><ol class="guide-checklist">${steps.map((step) => `<li><span>${step}</span></li>`).join('')}</ol></div>
-        <div class="place-media">${images.map((image) => `<img src="${image.src}" alt="${image.alt}" />`).join('')}</div>
+        <div class="place-media">${images.map((image) => `<img src="${image.src}" alt="${image.alt}" loading="lazy" decoding="async" />`).join('')}</div>
       </div>`;
   });
 }
