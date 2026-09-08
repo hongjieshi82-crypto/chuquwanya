@@ -371,9 +371,10 @@ async function apiRequest<T>(
       });
     }
     const suggestion = body.error?.details?.suggestion;
+    const message = body.error?.message ?? '请求失败';
     throw new ApiHttpError(
       response.status,
-      [body.error?.message ?? '请求失败', suggestion].filter(Boolean).join('。'),
+      [message, suggestion && suggestion !== message ? suggestion : null].filter(Boolean).join('。'),
       body.error?.code,
       body.error?.details,
     );

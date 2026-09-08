@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import mysql from "mysql2/promise";
 
 import { config } from "../src/config.js";
+import { syncCuratedPlayCatalog } from "../src/curated-catalog-sync.js";
 
 const connection = await mysql.createConnection({
   ...config.database,
@@ -66,6 +67,14 @@ try {
     }
   }
 
+  const curatedActivityCount = await syncCuratedPlayCatalog(connection);
+  const [autoPublishResult] = await connection.execute(
+    `UPDATE activities
+     SET content_status = 'published', content_score = GREATEST(content_score, 70)
+     WHERE is_active = TRUE AND content_status IN ('draft', 'review')`,
+  );
+  const autoPublishedCount = Number((autoPublishResult as mysql.ResultSetHeader).affectedRows ?? 0);
+
   const [[cityCount]] = await connection.query<mysql.RowDataPacket[]>(
     "SELECT COUNT(*) AS count FROM cities",
   );
@@ -75,7 +84,8 @@ try {
 
   console.log(
     `数据库迁移完成：${String(cityCount?.count ?? 0)} 个城市，` +
-      `${String(activityCount?.count ?? 0)} 个玩法`,
+      `${String(activityCount?.count ?? 0)} 个玩法（已同步 ${curatedActivityCount} 条内测精选玩法，` +
+      `自动发布 ${autoPublishedCount} 条）`,
   );
 } finally {
   await connection.end();

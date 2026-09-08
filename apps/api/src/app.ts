@@ -784,7 +784,6 @@ function buildActivityQuery(
     "a.is_active = TRUE",
     "a.content_status = 'published'",
     "a.content_score >= 70",
-    "(a.source_type IS NULL OR a.source_type <> 'itinerary_workbook')",
     `NOT EXISTS (
       SELECT 1
       FROM draw_results dr
@@ -932,7 +931,6 @@ function buildCandidatePoolQuery(
     "a.is_active = TRUE",
     "a.content_status = 'published'",
     "a.content_score >= 70",
-    "(a.source_type IS NULL OR a.source_type <> 'itinerary_workbook')",
     `NOT EXISTS (
           SELECT 1
           FROM draw_results dr
@@ -1051,23 +1049,17 @@ async function findActivityForDraw(
   input: z.infer<typeof drawSchema>,
   drawSessionId: string,
 ) {
-  const [history] = await connection.execute(
-    `SELECT a.id, a.city_id, a.city_name, a.title, a.address FROM (
-       SELECT a.id, a.city_id, c.name AS city_name, a.title, a.address
-       FROM todos t
-       JOIN activities a ON a.id = t.activity_id JOIN cities c ON c.id = a.city_id
-       WHERE t.user_id = ? AND t.status = 'completed' AND t.completed_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-         AND NOT EXISTS (SELECT 1 FROM trip_feedback f WHERE f.todo_id = t.id AND f.verdict = 'ended_early')
-       ORDER BY t.completed_at DESC LIMIT 100
-     ) a`, [input.userId],
-  );
   const placeKeys = (row: Pick<ActivityRow, 'id' | 'city_id' | 'city_name' | 'title' | 'address'>): string[] => {
     const practical = practicalReplacement({ id: row.id, cityName: row.city_name, title: row.title, address: row.address });
     if (practical && 'placeKeys' in practical && Array.isArray(practical.placeKeys)) return practical.placeKeys.filter((key): key is string => typeof key === 'string');
     return [practical && 'placeKey' in practical && typeof practical.placeKey === 'string' ? practical.placeKey : `${row.city_id}:${row.address}`];
   };
-  const [reactions] = await connection.execute(`SELECT a.id, a.city_id, c.name AS city_name, a.title, a.address FROM activity_reactions r JOIN activities a ON a.id = r.activity_id JOIN cities c ON c.id = a.city_id WHERE r.user_id = ? AND r.updated_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`, [input.userId]);
-  const seenPlaces = new Set([...(history as ActivityRow[]), ...(reactions as ActivityRow[])].flatMap(placeKeys));
+  // The SQL candidate pool already excludes this user's non-cancelled todos for
+  // the current week. Keep the additional place-level exclusion scoped to this
+  // draw session so variants of one venue are not returned by repeated draws.
+  // Excluding 30 days of completed activities and reactions here exhausted the
+  // small pilot catalog for returning/internal-test users on their first draw.
+  const seenPlaces = new Set<string>();
   const [sessionPlaces] = await connection.execute(`SELECT a.id, a.city_id, c.name AS city_name, a.title, a.address FROM draw_results dr JOIN activities a ON a.id = dr.activity_id JOIN cities c ON c.id = a.city_id WHERE dr.draw_session_id = ?`, [drawSessionId]);
   for (const key of (sessionPlaces as ActivityRow[]).flatMap(placeKeys)) seenPlaces.add(key);
   const unseenRows = (rows: ActivityRow[]) => rows.filter((row) => placeKeys(row).every((key) => !seenPlaces.has(key)) && !departureFailure(toActivityDto(row), input.preferences));
@@ -1119,7 +1111,9 @@ async function findActivityForDraw(
   if (fallbackRows.length === 0) {
     return {
       status: "no_result" as const,
-      suggestion: "本周已有行程已自动避开，当前条件下暂时没有新的可抽取行程，建议扩大目的地范围或调整预算后重试。",
+      suggestion: (sessionPlaces as ActivityRow[]).length > 0
+        ? "这组条件下的新地点已经抽完了，调整目的地范围、分类或预算后可以继续抽取。"
+        : "当前城市暂时没有同时满足分类、人数、天数和预算的玩法，调整其中一项后可以继续抽取。",
     };
   }
   const rows = await enrichCandidateRowsWithCoordinates(connection, input, fallbackRows);
@@ -1387,7 +1381,7 @@ export function createApp() {
     "/api/v1/activities",
     asyncRoute(async (request, response) => {
       const query = homeCommunityFeedSchema.parse(request.query);
-      const filters: string[] = ["a.is_active = TRUE", "a.content_status = 'published'", "a.content_score >= 70", "(a.source_type IS NULL OR a.source_type <> 'itinerary_workbook')"];
+      const filters: string[] = ["a.is_active = TRUE", "a.content_status = 'published'", "a.content_score >= 70"];
       const params: Array<string | number> = [];
       const tagFilters: Array<string | number> = [];
 

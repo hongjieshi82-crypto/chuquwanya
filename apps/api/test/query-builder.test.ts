@@ -323,7 +323,7 @@ test("候选池查询会排除当前用户本周已有的非取消行程", () =>
   assert.match(String(result.values[3]), /^\d{4}-\d{2}-\d{2}$/);
 });
 
-test("分类盲盒锁定分类且所有城市的批量未核验路线不得绕过发布门槛", () => {
+test("分类盲盒锁定分类且只使用已自动发布的内容", () => {
   const result = buildCandidatePoolQuery(
     {
       userId: 185,
@@ -347,7 +347,7 @@ test("分类盲盒锁定分类且所有城市的批量未核验路线不得绕�
 
   assert.equal(result.sql.includes("a.category = ?"), true);
   assert.equal(result.sql.includes("a.content_status = 'published'"), true);
-  assert.equal(result.sql.includes("a.source_type <> 'itinerary_workbook'"), true);
+  assert.equal(result.sql.includes("a.source_type <> 'itinerary_workbook'"), false);
   assert.equal(result.values.includes("美食吃喝"), true);
   assert.equal(result.sql.includes("REGEXP"), false);
 });

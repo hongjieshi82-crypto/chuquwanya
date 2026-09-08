@@ -36,6 +36,18 @@ for (let offset = 0; offset < pending.length; offset += 20) {
 }
 const photos = Object.entries(manifest).filter(([, v]) => (!v.uri || v.kind === 'illustration') && v.photoTitle);
 const clean = (s: string) => s.replace(/<[^>]*>/g, '').replace(/&[^;]+;/g, ' ').trim();
+async function findCommonsPhoto(query: string) {
+  const data = await request('https://commons.wikimedia.org/w/api.php', {
+    action: 'query', generator: 'search', gsrnamespace: '6', gsrlimit: '8',
+    gsrsearch: `${query} filetype:bitmap`, prop: 'imageinfo',
+    iiprop: 'url|size|extmetadata', iiurlwidth: '1280',
+  });
+  const pages = Object.values(data.query?.pages ?? {}) as any[];
+  return pages.map((page) => ({ page, info: page.imageinfo?.[0], meta: page.imageinfo?.[0]?.extmetadata }))
+    .filter(({ info, meta }) => info && meta && /CC BY|CC0|Public domain|PD/i.test(meta.LicenseShortName?.value ?? ''))
+    .filter(({ info }) => info.width >= 1000 && info.height >= 600 && info.width / info.height >= 1.2)
+    .sort((a, b) => (b.info.width * b.info.height) - (a.info.width * a.info.height))[0] ?? null;
+}
 for (let offset = 0; offset < photos.length; offset += 4) {
   const chunk = photos.slice(offset, offset + 4);
   try {
@@ -61,6 +73,33 @@ for (let offset = 0; offset < photos.length; offset += 4) {
     for (let i = 0; i < tasks.length; i += 4) await Promise.all(tasks.slice(i, i + 4).map((run) => run()));
     console.log('PHOTO', Math.min(offset + 4, photos.length), '/', photos.length);
   } catch (e) { console.log('LICENSE BATCH FAILED', offset, (e as {stderr?: string}).stderr?.slice(-200) ?? String(e).slice(0, 80)); }
+  await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
+}
+const entryByKey = new Map(entries.map((entry) => [entry.key, entry]));
+const remaining = Object.entries(manifest).filter(([, photo]) => photo.kind === 'illustration' || !photo.uri);
+for (let offset = 0; offset < remaining.length; offset += 4) {
+  const chunk = remaining.slice(offset, offset + 4);
+  await Promise.all(chunk.map(async ([key, photo]) => {
+    const entry = entryByKey.get(key);
+    if (!entry) return;
+    try {
+      const found = await findCommonsPhoto(`${entry.city.name} ${entry.play.place}`);
+      if (!found) return;
+      const { page, info, meta } = found;
+      const url = info.thumburl || info.url;
+      const extension = /\.png(?:\?|$)/i.test(url) ? 'png' : 'jpg';
+      const file = `${key}.${extension}`;
+      await exec('curl', ['-fsSL', '--http1.1', '--max-filesize', '8000000', '--max-time', '35', url, '-o', resolve(folder, file)]);
+      Object.assign(photo, {
+        kind: 'photo', uri: `/media/city-plays/${file}`, source: info.descriptionurl,
+        page: info.descriptionurl, photoTitle: page.title.replace(/^File:/, ''),
+        author: clean(meta.Artist?.value ?? ''), license: meta.LicenseShortName.value,
+        licenseUrl: meta.LicenseUrl?.value ?? '', width: info.thumbwidth || info.width,
+        height: info.thumbheight || info.height,
+      });
+    } catch { console.log('SEARCH/DOWNLOAD FAILED', key); }
+  }));
+  console.log('SEARCH PHOTO', Math.min(offset + 4, remaining.length), '/', remaining.length);
   await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
 }
 for (const p of Object.values(manifest)) delete (p as any).download;
