@@ -116,10 +116,7 @@ function setupGravityField() {
   // Keep a dense mobile pool while omitting every fourth body to leave enough
   // rendering headroom for smooth physics on phones.
   const isMobilePool = window.innerWidth <= 760;
-  // Keep the first screen lively without decoding all 36 icons during startup.
-  const visibleIcons = isMobilePool
-    ? allIcons.filter((_, index) => index % 4 !== 3).slice(0, 18)
-    : allIcons.slice(0, 24);
+  const visibleIcons = isMobilePool ? allIcons.filter((_, index) => index % 4 !== 3) : allIcons;
   visibleIcons.forEach((icon, index) => {
     const size = sizeFor(index);
     const button = document.createElement('button');
@@ -132,7 +129,7 @@ function setupGravityField() {
     image.src = icon.src;
     image.alt = '';
     image.draggable = false;
-    image.loading = index < 8 ? 'eager' : 'lazy';
+    image.loading = 'eager';
     image.decoding = 'async';
     if (isMobilePool && index < 8) image.fetchPriority = 'high';
     const markImageReady = () => button.classList.add('is-image-ready');

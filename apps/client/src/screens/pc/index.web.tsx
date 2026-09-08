@@ -6,8 +6,9 @@ import { useApp } from '@/contexts/app-context';
 import { savePendingPcBoxDraw } from '@/lib/pc-box-open-state';
 import { getRecommendedActivities } from '@/services/api';
 
-const DESKTOP_CANVAS_WIDTH = 1440;
-const DESKTOP_CANVAS_HEIGHT = 900;
+// Match the owner's built-in Retina display's current logical resolution.
+const DESKTOP_CANVAS_WIDTH = 1280;
+const DESKTOP_CANVAS_HEIGHT = 800;
 const MOBILE_BREAKPOINT = 760;
 
 function useDesktopCanvas() {
@@ -131,7 +132,7 @@ export default function PcLandingScreen() {
         ref={iframeRef}
         allow="geolocation"
         aria-label="粗去玩鸭周末灵感首页"
-        src={`/gravity-home/index.html?v=desktop-canvas-1&auth=${isRegistered ? 'registered' : 'guest'}`}
+        src={`/gravity-home/index.html?v=desktop-canvas-1280x800&auth=${isRegistered ? 'registered' : 'guest'}`}
         style={isDesktop ? {
           position: 'absolute',
           left: '50%',
