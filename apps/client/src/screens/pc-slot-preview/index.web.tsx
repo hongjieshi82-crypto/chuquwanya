@@ -637,9 +637,10 @@ export default function PcSlotPreviewScreen() {
 }
 
 const travelSlotCss = String.raw`
-html, body { width: 100%; min-height: 100%; margin: 0; background: #f47b22; }
+html, body { width: 100%; min-height: 100%; margin: 0; overflow-x: hidden; background: #f47b22; }
 .travel-slot-page {
-  width: 100vw;
+  width: 100%;
+  max-width: 100%;
   height: 100dvh;
   overflow: hidden;
   color: #3b2418;
@@ -1047,7 +1048,7 @@ html, body { overflow: hidden; background: #171b12; }
   inset: 0;
   z-index: 12;
   display: grid;
-  grid-template-rows: auto minmax(0,1fr) auto;
+  grid-template-rows: auto minmax(0,1fr) auto auto;
   padding: clamp(18px,1.7vw,28px) clamp(20px,2vw,34px) clamp(16px,1.5vw,24px);
   color: #f8fff0;
   background:
@@ -1074,6 +1075,7 @@ html, body { overflow: hidden; background: #171b12; }
   z-index: 2;
   min-height: 0;
   display: grid;
+  overflow: hidden;
   grid-template-columns: minmax(220px,1.08fr) minmax(0,.92fr);
   gap: clamp(20px,2.4vw,40px);
   padding-bottom: clamp(15px,1.8vh,26px);
@@ -1103,6 +1105,8 @@ html, body { overflow: hidden; background: #171b12; }
   position: relative;
   z-index: 2;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -1124,6 +1128,7 @@ html, body { overflow: hidden; background: #171b12; }
   white-space: nowrap;
 }
 .travel-slot-result h1 {
+  display: -webkit-box;
   max-width: 100%;
   margin: 0 0 clamp(13px,1.5vh,20px);
   overflow: hidden;
@@ -1134,6 +1139,8 @@ html, body { overflow: hidden; background: #171b12; }
   letter-spacing: -.03em;
   text-wrap: balance;
   text-shadow: 0 3px 16px rgba(0,0,0,.35);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 .travel-slot-result p {
   display: -webkit-box;
@@ -1179,6 +1186,23 @@ html, body { overflow: hidden; background: #171b12; }
 .travel-slot-result-actions button:first-child:not(:disabled):hover { border-color: #d9ff68; color: #d9ff68; background: rgba(201,255,98,.15); box-shadow: 0 0 18px rgba(201,255,98,.1); }
 .travel-slot-result-actions button:last-child { min-width: clamp(168px,14vw,220px); min-height: 50px; padding-inline: 24px; color: #263816; border-color: #d9ff68; background: #d9ff68; box-shadow: 0 8px 28px rgba(201,255,98,.24); font-size: clamp(16px,1.18vw,19px); }
 .travel-slot-result-actions button:disabled { opacity: .48; cursor: default; }
+@media (min-aspect-ratio: 4/3) and (max-height: 900px) {
+  .travel-slot-result { padding: 13px 20px 12px; }
+  .travel-slot-result-header { padding-bottom: 8px; font-size: 12px; }
+  .travel-slot-result-body { gap: 16px; padding-bottom: 8px; }
+  .travel-slot-result-copy { justify-content: flex-start; }
+  .travel-slot-result-badge { margin-bottom: 7px; padding: 3px 9px; font-size: 10px; }
+  .travel-slot-result h1 { margin-bottom: 6px; font-size: clamp(24px,2.25vw,38px); line-height: 1.05; }
+  .travel-slot-result p { margin-bottom: 7px; font-size: 12px; line-height: 1.35; -webkit-line-clamp: 2; }
+  .travel-slot-result-meta { gap: 5px; }
+  .travel-slot-result-meta span { padding: 3px 7px; font-size: 9px; }
+  .travel-slot-result-choices { gap: 6px; margin-top: 6px; }
+  .travel-slot-result-choices button { min-height: 28px; padding: 0 9px; font-size: 9px; }
+  .travel-slot-feedback-icon { width: 13px; height: 13px; }
+  .travel-slot-result-actions { gap: 8px; padding-top: 7px; }
+  .travel-slot-result-actions button:first-child { min-width: 112px; min-height: 36px; font-size: 13px; }
+  .travel-slot-result-actions button:last-child { min-width: 168px; min-height: 40px; font-size: 15px; }
+}
 .travel-slot-lever {
   position: absolute;
   right: 5.1%;
