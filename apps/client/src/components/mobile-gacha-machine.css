@@ -4,7 +4,7 @@
   .travel-slot-page:has(.mobile-world-machine){height:calc(100dvh - 70px - env(safe-area-inset-bottom,0px))!important;min-height:0!important;overflow:hidden!important;padding:0!important;background:#0d1012}
   .travel-slot-page.stage-revealed:has(.mobile-world-machine){overflow-y:auto!important;overflow-x:hidden!important;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain}
   .travel-slot-page>.travel-slot-stage{display:none!important}
-  .mobile-world-machine{box-sizing:border-box;display:flex;flex-direction:column;align-items:center;height:100%;min-height:0;justify-content:center;overflow:hidden;color:#eff4e9;background:radial-gradient(ellipse at 50% 45%,#35332b 0%,#191b1b 48%,#0d1012 85%);font-family:Inter,"PingFang SC",sans-serif}
+  .mobile-world-machine{box-sizing:border-box;display:flex;flex-direction:column;align-items:center;height:100%;min-height:0;justify-content:flex-end;overflow:hidden;color:#eff4e9;background:radial-gradient(ellipse at 50% 45%,#35332b 0%,#191b1b 48%,#0d1012 85%);font-family:Inter,"PingFang SC",sans-serif}
   .stage-revealed .mobile-world-machine{height:auto;min-height:100%;justify-content:flex-start;overflow:visible;padding-bottom:24px}
   .mobile-world-machine>header{position:absolute;z-index:12;top:12px;left:0;box-sizing:border-box;width:100%;min-height:38px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;pointer-events:none}.stage-revealed .mobile-world-machine>header{position:sticky;z-index:10;top:0;padding:10px 16px;background:rgba(13,16,18,.9);backdrop-filter:blur(16px);pointer-events:auto}
   .mobile-world-machine>header button{display:grid;place-items:center;width:38px;height:38px;padding:0;border:1px solid rgba(255,255,255,.18);border-radius:50%;background:linear-gradient(145deg,rgba(43,48,44,.9),rgba(12,15,13,.78));color:#eef4e9;box-shadow:inset 0 1px 0 rgba(255,255,255,.13),0 6px 18px rgba(0,0,0,.28);cursor:pointer;pointer-events:auto;backdrop-filter:blur(14px);-webkit-tap-highlight-color:transparent}
@@ -12,7 +12,8 @@
   .mobile-world-machine>header button:active{transform:scale(.94);background:rgba(31,37,31,.94)}.mobile-world-machine>header button:focus-visible{outline:2px solid #c9ff62;outline-offset:3px}
   .mobile-world-machine>header span{visibility:hidden;font-size:12px;color:#a4b28f;font-weight:750}.stage-revealed .mobile-world-machine>header span{visibility:visible}
   /* iPhone 14 Pro Max baseline: 430 × 932 CSS px, a 430 × 645 machine. */
-  .gacha-machine{position:relative;flex:none;width:min(100%,calc((100dvh - 70px - env(safe-area-inset-bottom,0px)) * 2 / 3));min-width:0;aspect-ratio:2/3;margin:0 auto;isolation:isolate}
+  /* The source artwork is 860 x 1290. Fit it like `contain`: never stretch it. */
+  .gacha-machine{position:relative;flex:none;width:min(100%,calc((100dvh - 70px - env(safe-area-inset-bottom,0px)) * 2 / 3));min-width:0;max-width:100%;max-height:100%;aspect-ratio:2/3;margin:0 auto;overflow:hidden;isolation:isolate}
   .gacha-machine::before{content:"";position:absolute;z-index:-1;inset:8% 2% 10%;border-radius:28%;opacity:0;background:radial-gradient(ellipse at 50% 38%,rgba(116,205,255,.2),transparent 54%),radial-gradient(ellipse at 50% 68%,rgba(201,255,98,.16),transparent 58%);transform:scale(.9);pointer-events:none;will-change:transform,opacity}
   .gacha-shell{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none;user-select:none}
   .gacha-display{position:absolute;z-index:6;left:30%;top:8.2%;width:40%;height:4.4%;display:grid;place-items:center;overflow:hidden;color:#dff7ff;font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;font-size:clamp(9px,2.55vw,13px);font-weight:700;letter-spacing:.16em;line-height:1;text-indent:.16em;text-shadow:0 0 3px #dff7ff,0 0 8px #70cfff;white-space:nowrap}
@@ -48,14 +49,14 @@
   .mobile-world-result>img{flex:none;width:100%;height:clamp(200px,34dvh,350px);object-fit:cover;display:block}
   .mobile-world-result>div{flex:1;display:flex;flex-direction:column;padding:24px 20px 20px}
   .mobile-world-result small{color:#b5ce8f;font-size:12px;font-weight:800;letter-spacing:.03em}
-  .mobile-world-result h1{font-size:clamp(26px,7vw,34px);line-height:1.25;margin:12px 0;color:#f6f8f1;letter-spacing:-.03em}
-  .mobile-world-result p{margin:0;color:#a8b3a0;line-height:1.75;font-size:14px}
+  .mobile-world-result h1{max-width:100%;font-size:clamp(24px,7vw,34px);line-height:1.25;margin:12px 0;color:#f6f8f1;letter-spacing:-.03em;overflow-wrap:anywhere}
+  .mobile-world-result p{max-width:100%;margin:0;color:#a8b3a0;line-height:1.75;font-size:14px;overflow-wrap:anywhere}
   .mobile-result-metrics{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:22px 0}
   .mobile-result-metrics>span{display:grid;gap:8px;padding:14px;border:1px solid #ffffff12;border-radius:16px;background:#ffffff04}
   .mobile-result-metrics small{font-size:11px;font-weight:500;color:#87967e}.mobile-result-metrics b{font-size:19px;color:#e6efda}
   .mobile-result-actions{margin-top:auto;display:grid;gap:10px;padding-top:10px}
   .mobile-world-result .travel-slot-result-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:2px 0 10px}.mobile-world-result .travel-slot-result-choices button{min-height:56px;padding:0 12px;border:1px solid #ffffff1f;border-radius:16px;justify-content:center;color:#e7eee1;background:#1a211b;font-size:14px}.mobile-world-result .travel-slot-result-choices button.is-save{border-color:#c9ff6266;color:#e8ffc1;background:#c9ff6210}.mobile-world-result .travel-slot-result-choices button:nth-child(3){grid-column:1/-1}.mobile-world-result .travel-slot-feedback-icon{width:21px;height:21px;flex:none}
-  .mobile-world-result button{display:block;min-height:52px;width:100%;border:0;border-radius:16px;background:#c9ff62;color:#19230c;font-size:16px;font-weight:850;cursor:pointer}
+  .mobile-world-result button{display:block;min-height:52px;width:100%;padding:10px 14px;border:0;border-radius:16px;background:#c9ff62;color:#19230c;font-size:16px;font-weight:850;line-height:1.35;white-space:normal;overflow-wrap:anywhere;cursor:pointer}
   .mobile-world-result .mobile-world-secondary{background:transparent;border:1px solid #ffffff20;color:#b3c1a3;font-size:14px;min-height:44px}
   .mobile-world-result button:disabled{opacity:.45}
   .travel-slot-page .travel-slot-error{position:relative!important;inset:auto!important;transform:none!important;width:auto!important;margin:0 20px 24px!important}
@@ -80,4 +81,5 @@
   @keyframes gacha-bulb-chase{0%,49%{opacity:.28;filter:saturate(.6)}50%,100%{opacity:1;filter:saturate(1.3) brightness(1.2)}}
   @keyframes gacha-card-in{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
   @media(prefers-reduced-motion:reduce){.gacha-machine,.gacha-machine::before,.gacha-display,.gacha-shell,.gacha-pool,.gacha-glass::after,.gacha-knob-face,.gacha-prize,.gacha-output,.gacha-marquee-lights i,.gacha-console-lights i,.mobile-world-result{animation:none!important}.gacha-settling .gacha-prize{opacity:1;transform:translate3d(0,0,0)}}
+  @media(max-width:360px){.mobile-world-result>div{padding:20px 16px 18px}.mobile-result-metrics{grid-template-columns:1fr}.mobile-world-result .travel-slot-result-choices{grid-template-columns:1fr}.mobile-world-result .travel-slot-result-choices button:nth-child(3){grid-column:auto}}
 }
