@@ -798,7 +798,11 @@ export async function getRecommendedActivities(input: {
   );
   return {
     ...response,
-    items: response.items.map((item) => ({ ...item, title: formatActivityTitle(item.title) })),
+    items: response.items.map((item) => ({
+      ...item,
+      title: formatActivityTitle(item.title),
+      coverImageUri: resolveApiMediaUrl(item.coverImageUri),
+    })),
   };
 }
 

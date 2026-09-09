@@ -452,6 +452,52 @@ function setupMobileHeroLayout() {
   update();
 }
 
+function setupDesktopGuideCarousel() {
+  if (window.innerWidth <= 760) return;
+  const section = document.querySelector('.places-screen');
+  const grid = section?.querySelector('.place-grid');
+  const cards = [...(grid?.querySelectorAll('.place-card') || [])];
+  const headingRow = section?.querySelector('.heading-title-row');
+  if (!section || !grid || !headingRow || !cards.length) return;
+
+  section.classList.add('is-desktop-carousel');
+  section.style.removeProperty('height');
+  section.style.removeProperty('min-height');
+  const controls = document.createElement('div');
+  controls.className = 'places-carousel-controls';
+  controls.innerHTML = `<button type="button" data-carousel-prev aria-label="上一条攻略">←</button><span><b>01</b> / ${String(cards.length).padStart(2, '0')}</span><button type="button" data-carousel-next aria-label="下一条攻略">→</button>`;
+  headingRow.append(controls);
+  const currentLabel = controls.querySelector('b');
+  const previousButton = controls.querySelector('[data-carousel-prev]');
+  const nextButton = controls.querySelector('[data-carousel-next]');
+
+  const activeIndex = () => Math.max(0, Math.min(cards.length - 1, Math.round(grid.scrollLeft / Math.max(grid.clientWidth, 1))));
+  const update = () => {
+    const index = activeIndex();
+    controls.style.setProperty('--carousel-progress', `${((index + 1) / cards.length) * 100}%`);
+    if (currentLabel) currentLabel.textContent = String(index + 1).padStart(2, '0');
+    cards.forEach((card, cardIndex) => card.classList.toggle('is-active', cardIndex === index));
+    previousButton.disabled = index === 0;
+    nextButton.disabled = index === cards.length - 1;
+  };
+  const goTo = (index) => grid.scrollTo({ left: Math.max(0, Math.min(cards.length - 1, index)) * grid.clientWidth, behavior: 'smooth' });
+  previousButton.addEventListener('click', () => goTo(activeIndex() - 1));
+  nextButton.addEventListener('click', () => goTo(activeIndex() + 1));
+  grid.addEventListener('scroll', () => requestAnimationFrame(update), { passive: true });
+  grid.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowLeft') { event.preventDefault(); goTo(activeIndex() - 1); }
+    if (event.key === 'ArrowRight') { event.preventDefault(); goTo(activeIndex() + 1); }
+  });
+  grid.tabIndex = 0;
+  grid.setAttribute('aria-label', '本周精选攻略，可左右滑动');
+  cards.forEach((card) => {
+    card.style.removeProperty('height');
+    card.style.removeProperty('transform');
+    card.style.removeProperty('z-index');
+  });
+  update();
+}
+
 function setupScrollStory() {
   const stage = document.querySelector('.snap-stage');
   const stylesSection = document.querySelector('.styles-screen');
@@ -494,6 +540,7 @@ function setupScrollStory() {
     });
 
     if (placesSection && placeGrid && cards.length) {
+      if (placesSection.classList.contains('is-desktop-carousel')) return;
       const rawStackProgress = sectionProgress(placesSection);
       const stackProgress = clamp((rawStackProgress - .04) / .7);
       const placesScrollDistance = Math.max(placesSection.offsetHeight - stage.clientHeight, 1);
@@ -646,6 +693,9 @@ function upgradeWeekendGuideCards() {
         <div class="guide-body"><ol class="guide-checklist">${steps.map((step) => `<li><span>${step}</span></li>`).join('')}</ol></div>
         <div class="place-media">${images.map((image) => `<img src="${image.src}" alt="${image.alt}" loading="lazy" decoding="async" />`).join('')}</div>
       </div>`;
+    const coverImage = card.querySelector('.card-visual > img');
+    coverImage?.addEventListener('error', () => card.classList.add('is-image-missing'));
+    coverImage?.addEventListener('load', () => card.classList.remove('is-image-missing'));
   });
 }
 
@@ -1079,7 +1129,9 @@ function setupCityRecommendations() {
       cities.forEach((city) => {
         if (typeof city?.name === 'string' && Number.isInteger(city?.id)) cityIds[city.name] = city.id;
       });
-      requestRealGuides();
+      const selectedCityName = typeof event.data.selectedCityName === 'string' ? event.data.selectedCityName : '';
+      if (selectedCityName && cityProfiles[selectedCityName]) applyCity(selectedCityName, false, 'external');
+      else requestRealGuides();
       return;
     }
     if (event.data?.type === 'gravity-home:guides') {
@@ -1207,6 +1259,7 @@ setupAppNavigationBridge();
 setupPrimaryAuthAction();
 document.querySelector('.styles-screen')?.classList.add('is-static-grid');
 upgradeWeekendGuideCards();
+setupDesktopGuideCarousel();
 setupScrollStory();
 setupCityRecommendations();
 if ('requestIdleCallback' in window) window.requestIdleCallback(loadGravityPhysics, { timeout: 1200 });

@@ -1503,6 +1503,11 @@ const pcBoxCss = `
 
 /* Surprise is optional in the main flow: show the default first, edit on demand. */
 .pc-box-surprise-section .ant-card-body { padding-block: 24px; }
+
+/* Align the first configurator card with the trip toolbar. */
+@media (min-width: 761px) {
+  .pc-box-content { padding-top: 18px; padding-bottom: 24px; }
+}
 .pc-box-surprise-heading { margin: 0; align-items: center; }
 .pc-box-surprise-summary { min-width: 0; display: flex; flex: 1; flex-direction: column; gap: 7px; }
 .pc-box-surprise-summary > span:last-child { color: rgba(255,255,255,.45); font-size: 13px; line-height: 1.5; }

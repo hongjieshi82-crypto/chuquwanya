@@ -327,6 +327,24 @@ const tripsCss = `
 /* Unified interactive-card hover. */
 .pc-trip-card.ant-card { transition: transform .34s cubic-bezier(.2,.8,.2,1),border-color .28s ease,box-shadow .34s ease; }
 .pc-trip-card.ant-card:hover,.pc-trip-card.ant-card:focus-within { transform: translateY(-6px) scale(1.01); border: 2px solid #c9ff62; box-shadow: 0 0 0 1px rgba(201,255,98,.18),0 26px 64px rgba(0,0,0,.42),0 0 30px rgba(201,255,98,.13); }
+
+/* Desktop one-screen trip workspace with a separate, compact legal footer. */
+@media (min-width: 761px) {
+  body:has(.pc-trips-page) .pc-experience-shell { height: calc(100dvh - 30px); min-height: calc(100dvh - 30px); overflow: hidden; }
+  body:has(.pc-trips-page) .pc-experience-shell-content { height: calc(100% - clamp(84px,5.2vw,104px)); min-height: 0; overflow: hidden; }
+  .pc-experience-shell-content .pc-trips-page { box-sizing: border-box; width: 100%; height: 100%; min-height: 0; padding: 18px 7.4vw 12px; overflow: hidden; }
+  .pc-trips-container { height: 100%; min-height: 0; display: flex; flex-direction: column; }
+  .pc-trips-toolbar { flex: 0 0 auto; margin-bottom: 12px; }
+  .pc-trips-segmented .ant-segmented-group { grid-template-columns: repeat(5,minmax(0,1fr)); }
+  .pc-trips-scroll-region { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow-x: hidden; overflow-y: auto; }
+  .pc-trips-empty.ant-empty { box-sizing: border-box; flex: 1 1 auto; min-height: 0; margin: 0; padding: 20px 24px; display: flex; flex-direction: column; justify-content: center; }
+  .pc-trips-empty .ant-empty-image { height: clamp(110px,17vh,155px); margin-bottom: 12px; }
+  .pc-trips-empty .ant-empty-image img { width: auto; height: 100%; max-width: 155px; }
+  .pc-trips-empty .ant-empty-description { font-size: 15px; }
+  .pc-trips-empty .ant-btn { height: 48px; margin-top: 4px; }
+  body:has(.pc-trips-page) .site-footer { box-sizing: border-box; height: 30px; min-height: 30px; padding: 5px 12px; gap: 6px; background: #0b0d10; color: rgba(168,176,165,.44); font-size: 9px; line-height: 1; }
+  body:has(.pc-trips-page) .site-footer img { width: 11px; height: 11px; }
+}
 `;
 
 function getErrorMessage(reason: unknown) {

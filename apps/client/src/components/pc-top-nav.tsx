@@ -136,6 +136,7 @@ const pcTopNavCss = `
 }
 
 .pc-top-nav-mobile-trigger { display: none; }
+.pc-top-nav-end { display: flex; align-items: center; gap: 12px; }
 .pc-top-nav-mobile-drawer .ant-drawer-body { padding: 18px; }
 .pc-top-nav-mobile-drawer .ant-menu { border-inline-end: 0; }
 .pc-top-nav-mobile-actions { display: flex; margin-top: 20px; }
@@ -335,7 +336,7 @@ export function PcTopNav({
           items={menuItems}
         />
 
-        {extra ?? defaultActions}
+        <div className="pc-top-nav-end">{extra}{defaultActions}</div>
         <Button
           aria-label="打开导航菜单"
           className="pc-top-nav-mobile-trigger"
@@ -355,7 +356,7 @@ export function PcTopNav({
             items={menuItems}
             onClick={() => setIsMobileMenuOpen(false)}
           />
-          <div className="pc-top-nav-mobile-actions">{extra ?? defaultActions}</div>
+          <div className="pc-top-nav-mobile-actions">{extra}{defaultActions}</div>
         </Drawer>
       </Header>
     </>

@@ -7,34 +7,54 @@ import { savePendingPcBoxDraw } from '@/lib/pc-box-open-state';
 import { getRecommendedActivities } from '@/services/api';
 
 const MOBILE_BREAKPOINT = 760;
+const DESKTOP_CANVAS_WIDTH = 1280;
+const DESKTOP_CONTENT_HEIGHT = 636;
 
-function useMobileViewport() {
-  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth <= MOBILE_BREAKPOINT);
+function useViewportLayout() {
+  const [layout, setLayout] = useState(() => {
+    const width = typeof window === 'undefined' ? DESKTOP_CANVAS_WIDTH : window.innerWidth;
+    const height = typeof window === 'undefined' ? 720 : window.innerHeight;
+    const isMobile = width <= MOBILE_BREAKPOINT;
+    const headerHeight = isMobile ? 0 : Math.min(104, Math.max(84, width * .052));
+    return {
+      isMobile,
+      headerHeight,
+      scale: isMobile ? 1 : Math.min(width / DESKTOP_CANVAS_WIDTH, (height - headerHeight) / DESKTOP_CONTENT_HEIGHT),
+    };
+  });
 
   useEffect(() => {
-    const media = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`);
-    const update = () => setIsMobile(media.matches);
+    const update = () => {
+      const isMobile = window.innerWidth <= MOBILE_BREAKPOINT;
+      const headerHeight = isMobile ? 0 : Math.min(104, Math.max(84, window.innerWidth * .052));
+      setLayout({
+        isMobile,
+        headerHeight,
+        scale: isMobile ? 1 : Math.min(window.innerWidth / DESKTOP_CANVAS_WIDTH, (window.innerHeight - headerHeight) / DESKTOP_CONTENT_HEIGHT),
+      });
+    };
     update();
-    media.addEventListener('change', update);
-    return () => media.removeEventListener('change', update);
+    window.addEventListener('resize', update, { passive: true });
+    return () => window.removeEventListener('resize', update);
   }, []);
 
-  return isMobile;
+  return layout;
 }
 
 export default function PcLandingScreen() {
   const router = useRouter();
-  const { cities, isRegistered, user, setSelectedCityId } = useApp();
+  const { cities, isRegistered, selectedCityId, user, setSelectedCityId } = useApp();
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [quickDrawLock, setQuickDrawLock] = useState<{ cityId: number; cityName: string; categoryLabel?: string } | null>(null);
-  const isMobile = useMobileViewport();
+  const { headerHeight, isMobile, scale } = useViewportLayout();
 
   const syncCitiesToHome = useCallback(() => {
     iframeRef.current?.contentWindow?.postMessage({
       type: 'gravity-home:cities',
       cities: cities.map(({ id, name }) => ({ id, name })),
+      selectedCityName: cities.find((city) => city.id === selectedCityId)?.name,
     }, window.location.origin);
-  }, [cities]);
+  }, [cities, selectedCityId]);
 
   useEffect(() => {
     syncCitiesToHome();
@@ -139,14 +159,14 @@ export default function PcLandingScreen() {
   };
 
   return <>
-    <div style={{ position: 'fixed', inset: 0, width: '100dvw', height: '100dvh', overflow: 'hidden', background: '#0d0d13' }}>
+    <div style={isMobile ? { position: 'fixed', inset: 0, width: '100dvw', height: '100dvh', overflow: 'hidden', background: '#0d0d13' } : { position: 'relative', width: '100%', height: `calc(100dvh - ${headerHeight}px)`, overflow: 'hidden', background: '#0d0d13' }}>
       <iframe
         className="mobile-home-frame"
         ref={iframeRef}
         onLoad={syncCitiesToHome}
         allow="geolocation"
         aria-label="粗去玩鸭周末灵感首页"
-        src={`/gravity-home/index.html?v=${isMobile ? 'mobile-layout-v7' : 'desktop-full-viewport-v4'}&auth=${isRegistered ? 'registered' : 'guest'}`}
+        src={`/gravity-home/index.html?v=${isMobile ? 'mobile-layout-v8' : 'desktop-shared-nav-v1'}&auth=${isRegistered ? 'registered' : 'guest'}${isMobile ? '' : '&externalNav=1'}`}
         style={isMobile ? {
           width: '100%',
           height: '100dvh',
@@ -155,12 +175,15 @@ export default function PcLandingScreen() {
           background: '#0d0d13',
         } : {
           position: 'absolute',
-          inset: 0,
-          width: '100dvw',
-          height: '100dvh',
+          left: `calc(50% - ${(DESKTOP_CANVAS_WIDTH * scale) / 2}px)`,
+          top: 0,
+          width: DESKTOP_CANVAS_WIDTH,
+          height: DESKTOP_CONTENT_HEIGHT,
           display: 'block',
           border: 0,
           background: '#0d0d13',
+          transform: `scale(${scale})`,
+          transformOrigin: 'top left',
         }}
         title="粗去玩鸭周末灵感首页"
       />

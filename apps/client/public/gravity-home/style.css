@@ -1517,8 +1517,56 @@ button { font: inherit; }
 
 /* Center the complete six-card group in the desktop viewport. */
 @media (min-width: 761px) {
-  .styles-screen .play-category-grid { transform: translateY(-20px); }
+  html.external-desktop-nav { --nav-h: 0px; }
+  html.external-desktop-nav .topbar { display: none; }
+  .styles-screen .play-category-grid { transform: translateY(-10px); }
   .styles-screen .play-category-card:nth-child(-n+3) { transform: none; }
   .styles-screen .play-category-card:nth-child(-n+3):hover,
   .styles-screen .play-category-card:nth-child(-n+3):focus-visible { transform: translateY(-5px) scale(1.012); }
+}
+
+/* Desktop weekend picks: one complete card per viewport, horizontally paged. */
+@media (min-width: 761px) {
+  .places-screen.is-desktop-carousel { height: 100svh !important; min-height: 100svh !important; padding: 0; scroll-snap-align: start; }
+  .places-screen.is-desktop-carousel .places-sticky { position: relative; height: 100svh; padding: calc(var(--nav-h) + 22px) 7.4vw 24px; display: flex; flex-direction: column; overflow: hidden; }
+  .places-screen.is-desktop-carousel .places-heading { flex: 0 0 auto; }
+  .places-screen.is-desktop-carousel .places-eyebrow { gap: 8px; }
+  .places-screen.is-desktop-carousel .places-eyebrow strong { font-size: clamp(34px,2.6vw,50px); }
+  .places-screen.is-desktop-carousel .places-heading .heading-title-row::after { margin-left: auto; font-size: clamp(12px,.82vw,15px); line-height: 1.55; }
+  .places-carousel-controls { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; margin-left: 28px; }
+  .places-carousel-controls button { width: 44px; height: 44px; padding: 0; border: 1px solid rgba(255,255,255,.18); border-radius: 50%; display: grid; place-items: center; color: #f5f6ef; background: rgba(255,255,255,.045); font-size: 20px; cursor: pointer; transition: color .2s ease,border-color .2s ease,background .2s ease; }
+  .places-carousel-controls button:hover:not(:disabled),.places-carousel-controls button:focus-visible { border-color: var(--lime); color: #11150d; background: var(--lime); outline: none; }
+  .places-carousel-controls button:disabled { opacity: .25; cursor: default; }
+  .places-carousel-controls span { min-width: 58px; color: rgba(255,255,255,.4); font: 750 12px/1 ui-monospace,monospace; text-align: center; }
+  .places-carousel-controls b { color: var(--lime); font-size: 17px; }
+  .places-screen.is-desktop-carousel .place-grid { flex: 1 1 auto; min-height: 0; width: 100%; height: auto; margin: 18px 0 0; padding: 0; display: flex; gap: 22px; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scroll-behavior: smooth; scrollbar-width: none; overscroll-behavior-x: contain; }
+  .places-screen.is-desktop-carousel .place-grid::-webkit-scrollbar { display: none; }
+  .places-screen.is-desktop-carousel .place-grid .place-card,.places-screen.is-desktop-carousel .place-grid .place-card:first-child { position: relative !important; inset: auto !important; flex: 0 0 100%; width: 100%; height: 100% !important; min-height: 0; transform: none !important; scroll-snap-align: start; scroll-snap-stop: always; }
+  .places-screen.is-desktop-carousel .card-content { padding: clamp(22px,1.8vw,34px); }
+  .places-screen.is-desktop-carousel .card-content > .tags { margin: 15px 0 18px; }
+  .places-screen.is-desktop-carousel .mini-stop { min-height: clamp(58px,7vh,76px); }
+  .places-screen.is-desktop-carousel .why { padding-top: 13px; }
+  .places-screen.is-desktop-carousel .card-actions { margin-top: 15px; }
+  .places-screen.is-desktop-carousel .visual-copy h2 { font-size: clamp(34px,3vw,54px); }
+  .places-screen.is-desktop-carousel .cover-caption { display: block; padding-top: 14px; }
+  .places-screen.is-desktop-carousel .cover-caption .status { display: none; }
+  .places-screen.is-desktop-carousel .cover-caption p { display: block; overflow: hidden; color: rgba(255,255,255,.72); font-size: clamp(12px,.84vw,15px); line-height: 1.5; text-overflow: ellipsis; white-space: nowrap; }
+  .places-screen.is-desktop-carousel .photo-note { display: none; }
+  .places-screen.is-desktop-carousel .card-content { display: grid; grid-template-rows: auto auto minmax(0,1fr) auto auto; }
+  .places-screen.is-desktop-carousel .plan-meta { padding-bottom: 18px; }
+  .places-screen.is-desktop-carousel .plan-meta span { flex: 1 1 0; padding: 0 24px; }
+  .places-screen.is-desktop-carousel .card-content > .tags { align-self: start; }
+  .places-screen.is-desktop-carousel .mini-route { min-height: 0; display: flex; flex-direction: column; justify-content: space-evenly; padding: 6px 0; }
+  .places-screen.is-desktop-carousel .mini-stop { flex: 0 0 auto; min-height: 0; padding: 7px 0; }
+  .places-screen.is-desktop-carousel .mini-stop b { font-size: clamp(16px,1.12vw,20px); }
+  .places-screen.is-desktop-carousel .mini-stop small { margin-top: 7px; font-size: clamp(12px,.82vw,14px); }
+  .places-screen.is-desktop-carousel .mini-stop.hot > div { margin-block: 0; }
+  .places-screen.is-desktop-carousel .why { min-height: 62px; align-items: center; }
+  .places-screen.is-desktop-carousel .card-actions { grid-template-columns: .92fr 1.45fr; gap: 16px; }
+  .places-screen.is-desktop-carousel .card-actions .primary,.places-screen.is-desktop-carousel .card-actions .secondary { height: 64px; min-height: 64px; border-radius: 17px; font-size: clamp(15px,1vw,18px); }
+  .places-carousel-controls { position: relative; min-width: 238px; padding: 8px 12px 16px; border: 1px solid rgba(255,255,255,.13); border-radius: 999px; background: rgba(255,255,255,.035); }
+  .places-carousel-controls::before,.places-carousel-controls::after { content: ''; position: absolute; left: 22px; right: 22px; bottom: 8px; height: 2px; border-radius: 99px; background: rgba(255,255,255,.12); }
+  .places-carousel-controls::after { right: auto; width: calc((100% - 44px) * var(--carousel-progress,25) / 100); background: var(--lime); box-shadow: 0 0 10px rgba(201,255,98,.45); transition: width .32s ease; }
+  .places-carousel-controls button { width: 38px; height: 38px; }
+  .places-carousel-controls span { flex: 1; }
 }

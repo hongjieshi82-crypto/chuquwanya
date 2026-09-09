@@ -1,5 +1,6 @@
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
+import { request as createHttpsRequest } from 'node:https';
 import { extname, join, normalize, resolve } from 'node:path';
 import { createGzip } from 'node:zlib';
 
@@ -8,6 +9,7 @@ const portArgument = process.argv.find((value) => /^\d+$/.test(value));
 const port = Number(portArgument ?? 8092);
 const hostArgument = process.argv.find((value) => value.startsWith('--host='));
 const host = hostArgument?.slice('--host='.length) || '127.0.0.1';
+const apiHost = 'api.chuquwanya.fun';
 
 const mimeTypes = {
   '.css': 'text/css; charset=utf-8',
@@ -42,7 +44,25 @@ function cacheControl(filePath) {
 }
 
 const server = createServer((request, response) => {
-  const filePath = resolveRequestPath(request.url ?? '/');
+  const requestPath = request.url ?? '/';
+  if (requestPath.startsWith('/api/v1/') || requestPath.startsWith('/assets/activity-covers/')) {
+    const upstream = createHttpsRequest({
+      hostname: apiHost,
+      method: request.method,
+      path: requestPath,
+      headers: { ...request.headers, host: apiHost },
+    }, (upstreamResponse) => {
+      response.writeHead(upstreamResponse.statusCode ?? 502, upstreamResponse.headers);
+      upstreamResponse.pipe(response);
+    });
+    upstream.on('error', () => {
+      if (!response.headersSent) response.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
+      response.end(JSON.stringify({ error: { code: 'LOCAL_PREVIEW_PROXY_ERROR', message: '本地预览暂时无法连接正式 API' } }));
+    });
+    request.pipe(upstream);
+    return;
+  }
+  const filePath = resolveRequestPath(requestPath);
   if (!filePath) {
     response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
     response.end('Not found');

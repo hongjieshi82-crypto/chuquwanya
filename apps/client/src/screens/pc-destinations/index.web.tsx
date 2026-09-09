@@ -518,6 +518,12 @@ const pcDestinationsCss = `
 .pc-destinations-card.ant-card { transition: transform .34s cubic-bezier(.2,.8,.2,1),border-color .28s ease,box-shadow .34s ease; }
 .pc-destinations-card.ant-card:hover { transform: translateY(-6px) scale(1.012); border: 2px solid #c9ff62; box-shadow: 0 0 0 1px rgba(201,255,98,.18),0 26px 62px rgba(0,0,0,.42),0 0 30px rgba(201,255,98,.13); }
 
+/* Align the search bar with the trip toolbar and configurator card. */
+@media (min-width: 761px) {
+  .pc-destinations-page { padding-top: 18px; padding-bottom: 24px; }
+  .pc-destinations-search { margin-bottom: 22px; }
+}
+
 /* Editorial city-card family: three repeatable layouts for the 18-city collection. */
 .pc-destinations-grid { gap: 22px; }
 .pc-destinations-card.ant-card {
