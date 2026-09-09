@@ -163,14 +163,18 @@ export function normalizeActivity(item: Activity): Activity {
   const isIllustrationCover = item.coverCredit?.kind === 'illustration' || (
     suppliedCover?.includes('/media/city-plays/') === true && suppliedCover.endsWith('.svg')
   );
-  const replaceSuppliedCover = isLowResolutionWorkbookCover || isIllustrationCover;
+  // These API assets are generic illustrated placeholders (including the
+  // purple cat), not photographs of the recommended place. Never present
+  // them as a real activity cover when a curated city/place photo is known.
+  const isGenericActivityCover = suppliedCover?.includes('/assets/activity-covers/') === true;
+  const replaceSuppliedCover = isLowResolutionWorkbookCover || isIllustrationCover || isGenericActivityCover;
   return {
     ...item,
     title: formatActivityTitle(item.title),
     // Workbook thumbnails are only 320x180 and become visibly blurred in the
     // large result hero. Prefer the high-resolution place/city cover for UI.
     coverImageUri: replaceSuppliedCover ? curatedCover ?? suppliedCover : suppliedCover ?? curatedCover,
-    coverCredit: isIllustrationCover && curatedCover ? undefined : item.coverCredit,
+    coverCredit: (isIllustrationCover || isGenericActivityCover) && curatedCover ? undefined : item.coverCredit,
   };
 }
 
@@ -798,11 +802,21 @@ export async function getRecommendedActivities(input: {
   );
   return {
     ...response,
-    items: response.items.map((item) => ({
-      ...item,
-      title: formatActivityTitle(item.title),
-      coverImageUri: resolveApiMediaUrl(item.coverImageUri),
-    })),
+    items: response.items.map((item) => {
+      const suppliedCover = resolveApiMediaUrl(item.coverImageUri);
+      const genericPlaceholder = suppliedCover?.includes('/assets/activity-covers/') === true;
+      const curatedCover = resolveCuratedActivityCover({
+        title: item.title,
+        address: '',
+        cityName: item.cityName,
+      });
+      return {
+        ...item,
+        title: formatActivityTitle(item.title),
+        coverImageUri: genericPlaceholder ? curatedCover : suppliedCover ?? curatedCover,
+        coverCredit: genericPlaceholder && curatedCover ? undefined : item.coverCredit,
+      };
+    }),
   };
 }
 

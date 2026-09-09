@@ -120,10 +120,11 @@ function setupGravityField() {
     return Math.round((base + ((index * 23) % Math.round(base * 0.34))) * displayScale);
   };
 
-  // Keep a dense mobile pool while omitting every fourth body to leave enough
-  // rendering headroom for smooth physics on phones.
+  // Keep all 36 inspiration balls on every viewport. Their AVIF artwork is
+  // decoded asynchronously, so mobile performance does not require removing
+  // any choices from the pool.
   const isMobilePool = window.innerWidth <= 760;
-  const visibleIcons = isMobilePool ? allIcons.filter((_, index) => index % 4 !== 3) : allIcons;
+  const visibleIcons = allIcons;
   visibleIcons.forEach((icon, index) => {
     const size = sizeFor(index);
     const button = document.createElement('button');
@@ -431,7 +432,9 @@ function loadGravityPhysics() {
   const start = () => setupGravityField();
   if (window.Matter) { start(); return; }
   const script = document.createElement('script');
-  script.src = 'https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js';
+  // Serve the physics runtime from our own origin. The previous overseas CDN
+  // dependency was the main reason the ball pool appeared very late in China.
+  script.src = './vendor/matter.min.js?v=0.20.0';
   script.async = true;
   script.onload = start;
   document.head.append(script);
