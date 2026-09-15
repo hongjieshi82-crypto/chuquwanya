@@ -423,7 +423,7 @@ export default function PcBoxConfigScreen() {
     void storePcLocatedCity(nextLocatedCity);
   };
 
-  const discoverNearby = async (coords: { latitude: number; longitude: number }) => {
+  const discoverNearby = async (coords: { latitude: number; longitude: number }, radiusKm = 5) => {
     const apiUrl = process.env.EXPO_PUBLIC_API_URL;
     if (!apiUrl) { setNearbyError('附近地点服务暂不可用。'); return; }
     setIsDiscoveringNearby(true);
@@ -434,7 +434,7 @@ export default function PcBoxConfigScreen() {
       const response = await fetch(`${apiUrl.replace(/\/$/, '')}/nearby/suggestions`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          latitude: coords.latitude, longitude: coords.longitude, radiusKm: 5,
+          latitude: coords.latitude, longitude: coords.longitude, radiusKm,
           partySize, budgetPerPersonYuan: budget.max, mood: matchSelections.mood,
         }),
       });
@@ -574,11 +574,14 @@ export default function PcBoxConfigScreen() {
                       <div className="pc-box-nearby-panel">
                         <strong>附近现在可以考虑</strong>
                         <small>{nearbySuggestions.liveAvailable ? '已查询实时地点' : '实时地点暂不可用，以下来自已收录玩法'} · 当前位置 {nearbySuggestions.radiusKm} 公里内</small>
-                        {nearbySuggestions.suggestions.length === 0 ? <p>这个范围和预算下暂时没有可核实的玩法，可以调整预算或稍后再试。</p> : null}
+                        {nearbySuggestions.suggestions.length === 0 ? <>
+                          <p>这个范围和预算下暂时没有可核实的玩法，可以调整预算或扩大附近范围。</p>
+                          {nearbySuggestions.radiusKm < 10 ? <Button onClick={() => void discoverNearby({ latitude: locatedCity.latitude!, longitude: locatedCity.longitude! }, 10)}>扩大到 10 公里</Button> : null}
+                        </> : null}
                         {nearbySuggestions.suggestions.map((suggestion) => (
                           <div className="pc-box-nearby-item" key={suggestion.id}>
                             <b>{suggestion.title}</b>
-                            <span>{suggestion.distanceKm} 公里 · {suggestion.costYuan === null ? '费用待核实' : `参考 ${suggestion.costYuan} 元/人`}</span>
+                            <span>{suggestion.source === 'live' ? '实时地点' : '已收录玩法'} · {suggestion.distanceKm} 公里 · {suggestion.costYuan === null ? '费用待核实，需确认是否符合预算' : `参考 ${suggestion.costYuan} 元/人`}</span>
                             <p>{suggestion.summary}</p>
                             <ol>{suggestion.steps.map((step) => <li key={step}>{step}</li>)}</ol>
                             <a href={suggestion.navigationUrl} target="_blank" rel="noopener noreferrer">打开地图查看地点</a>

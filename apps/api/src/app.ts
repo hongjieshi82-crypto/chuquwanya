@@ -1347,11 +1347,18 @@ export function createApp() {
     if (!city) throw new AppError(422, 'CITY_UNSUPPORTED', `当前位置在${cityName}，暂时没有当地玩法。`);
 
     const livePlaces = await searchAmapNearbyPlaces({ ...input, cityName: city.name });
+    const liveTypeGroups = new Set<string>();
     const liveSuggestions = (livePlaces ?? [])
       .map((place) => ({ place, distanceKm: calculateDistanceKm({ latitude: input.latitude, longitude: input.longitude }, place) }))
-      .filter(({ place, distanceKm }) => distanceKm <= input.radiusKm && (input.budgetPerPersonYuan === null || (place.costYuan !== null && place.costYuan <= input.budgetPerPersonYuan)))
-      .sort((a, b) => a.distanceKm - b.distanceKm)
-      .slice(0, 3)
+      .filter(({ place, distanceKm }) => distanceKm <= input.radiusKm && (input.budgetPerPersonYuan === null || place.costYuan === null || place.costYuan <= input.budgetPerPersonYuan))
+      .sort((a, b) => (a.place.costYuan === null ? 1 : 0) - (b.place.costYuan === null ? 1 : 0) || a.distanceKm - b.distanceKm)
+      .filter(({ place }) => {
+        const group = place.type.split(/[;|]/)[0] || place.type;
+        if (liveTypeGroups.has(group)) return false;
+        liveTypeGroups.add(group);
+        return true;
+      })
+      .slice(0, 2)
       .map(({ place, distanceKm }) => ({
         id: `amap:${place.id}`, title: place.name, address: place.address,
         distanceKm: Number(distanceKm.toFixed(1)), costYuan: place.costYuan,
@@ -1387,7 +1394,7 @@ export function createApp() {
     response.json({ data: {
       cityName: city.name,
       liveAvailable: livePlaces !== null,
-      suggestions: liveSuggestions.length > 0 ? liveSuggestions : curatedSuggestions,
+      suggestions: [...liveSuggestions, ...curatedSuggestions].slice(0, 3),
       radiusKm: input.radiusKm,
     } });
   }));
