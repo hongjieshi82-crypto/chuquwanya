@@ -15,7 +15,7 @@ import { AppIcon } from '@/components/app-icon';
 import { BottomSheet } from '@/components/bottom-sheet';
 import { useApp } from '@/contexts/app-context';
 import { requestDeviceCurrentPosition } from '@/lib/device-location';
-import { resolveCoordinatesAddress } from '@/lib/reverse-geocode';
+import { resolveCoordinatesCity } from '@/lib/reverse-geocode';
 import { components, palette } from '@/theme';
 import type { City } from '@/types';
 
@@ -85,15 +85,15 @@ export function HomeTopBar() {
 
     setIsLocatingCity(true);
     try {
-      const coords = await requestDeviceCurrentPosition({ accuracy: 'balanced' });
-      const address = await resolveCoordinatesAddress({
+      const coords = await requestDeviceCurrentPosition({ accuracy: 'high' });
+      const cityName = await resolveCoordinatesCity({
         latitude: coords.latitude,
         longitude: coords.longitude,
       });
-      const cityId = findCityIdFromAddress(address, cities);
+      const cityId = findCityIdFromAddress(cityName, cities);
 
       if (cityId === null) {
-        showMessage('未找到支持的城市', `当前定位城市：${address}，请手动选择。`);
+        showMessage('未找到支持的城市', `当前定位城市：${cityName}，请手动选择。`);
         return;
       }
 

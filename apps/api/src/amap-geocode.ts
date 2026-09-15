@@ -18,6 +18,7 @@ type AmapGeocodeResponse = {
 };
 
 const AMAP_GEOCODE_URL = "https://restapi.amap.com/v3/geocode/geo";
+const AMAP_REVERSE_GEOCODE_URL = "https://restapi.amap.com/v3/geocode/regeo";
 const AMAP_GEOCODE_TIMEOUT_MS = 4_000;
 const geocodeCache = new Map<string, AmapGeocodedLocation | null>();
 
@@ -36,6 +37,32 @@ function parseAmapLocation(value: string | undefined) {
 
 export function isAmapGeocodeConfigured() {
   return Boolean(config.amap.webServiceKey);
+}
+
+export async function reverseGeocodeCityWithAmap(latitude: number, longitude: number): Promise<string | null> {
+  if (!isAmapGeocodeConfigured()) return null;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), AMAP_GEOCODE_TIMEOUT_MS);
+  try {
+    const url = new URL(AMAP_REVERSE_GEOCODE_URL);
+    url.searchParams.set("key", config.amap.webServiceKey);
+    url.searchParams.set("location", `${longitude},${latitude}`);
+    url.searchParams.set("output", "JSON");
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) return null;
+    const body = await response.json() as {
+      status?: string;
+      regeocode?: { addressComponent?: { city?: string | string[]; province?: string } };
+    };
+    if (body.status !== "1") return null;
+    const component = body.regeocode?.addressComponent;
+    const city = Array.isArray(component?.city) ? component.city[0] : component?.city;
+    return (city || component?.province)?.trim() || null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function geocodeAddressWithAmap(

@@ -23,7 +23,7 @@ import { ErrorCard } from '@/components/error-card';
 import { useApp } from '@/contexts/app-context';
 import { useLayoutInsets } from '@/hooks/use-layout-insets';
 import { requestDeviceCurrentPosition } from '@/lib/device-location';
-import { resolveAddressLocation, resolveCoordinatesAddress } from '@/lib/reverse-geocode';
+import { resolveAddressLocation, resolveCoordinatesAddress, resolveCoordinatesCity } from '@/lib/reverse-geocode';
 import { backOrReplace } from '@/lib/safe-return-to';
 import { palette, radii, shadows, spacing, typography } from '@/theme';
 import type { City, Preferences } from '@/types';
@@ -286,10 +286,22 @@ export default function PreferencesScreen() {
     setIsLocating(true);
 
     try {
-      const coords = await requestDeviceCurrentPosition({ accuracy: 'balanced' });
+      const coords = await requestDeviceCurrentPosition({ accuracy: 'high' });
       if (requestId !== originResolveRequestRef.current) return;
 
       const { latitude, longitude, accuracy } = coords;
+      if (accuracy !== null && accuracy > 2_000) {
+        setOriginError(`当前定位误差约 ${Math.round(accuracy)} 米，无法可靠推荐附近玩法。请检查手机定位权限后重试，或手动输入具体位置。`);
+        return;
+      }
+      const cityName = await resolveCoordinatesCity({ latitude, longitude });
+      if (requestId !== originResolveRequestRef.current) return;
+      const deviceCityId = findCityIdForOriginName(cityName, cities);
+      if (deviceCityId === null) {
+        setOriginError(`定位在${cityName}，当前尚无该城市的玩法。请手动选择其他目的地。`);
+        return;
+      }
+      setSelectedCityId(deviceCityId);
       const currentOrigin: OriginLocationCandidate = {
         name: DEVICE_ORIGIN_LABEL,
         latitude,
@@ -420,6 +432,7 @@ export default function PreferencesScreen() {
       originLongitude: nextLocatedOrigin.longitude,
       originAccuracyMeters: nextLocatedOrigin.accuracyMeters,
       originSource: nextLocatedOrigin.source,
+      radiusKm: value.destinationScope === 'nearby' ? (value.radiusKm ?? 10) : value.radiusKm,
     }));
     setLocatedOrigin(null);
     setIsOriginSheetVisible(false);
@@ -443,6 +456,11 @@ export default function PreferencesScreen() {
   }
 
   function handleRevealPress() {
+    if (!originName || preferences.originLatitude == null || preferences.originLongitude == null) {
+      handleOriginOpen();
+      setOriginError('请先定位当前位置，或输入具体出发地并保存，才能推荐附近玩法。');
+      return;
+    }
     const drawCityId = findCityIdForOriginName(originName, cities) ?? selectedCityId;
     if (!drawCityId || isDrawing || isRevealVideoVisible) return;
 

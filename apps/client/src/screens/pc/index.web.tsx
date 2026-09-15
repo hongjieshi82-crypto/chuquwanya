@@ -87,6 +87,11 @@ export default function PcLandingScreen() {
         return;
       }
       if (event.data?.type === 'gravity-home:open-quick-draw') {
+        if (isMobile) {
+          const categoryLabel = typeof event.data.categoryLabel === 'string' ? event.data.categoryLabel : '';
+          router.push(categoryLabel ? `/box/config?category=${encodeURIComponent(categoryLabel)}` : '/box/config');
+          return;
+        }
         const cityId = Number(event.data.cityId);
         const cityName = typeof event.data.cityName === 'string' ? event.data.cityName : '北京';
         const categoryLabel = typeof event.data.categoryLabel === 'string' ? event.data.categoryLabel : undefined;
@@ -149,7 +154,7 @@ export default function PcLandingScreen() {
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [router, user?.id, setSelectedCityId]);
+  }, [router, user?.id, setSelectedCityId, isMobile]);
 
   const startQuickDraw = ({ preferences, summary }: QuickDrawSubmission) => {
     if (!quickDrawLock) return;

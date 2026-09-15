@@ -10,7 +10,7 @@ import { z, ZodError } from "zod";
 
 import type { PoolConnection } from "mysql2/promise";
 
-import { geocodeAddressWithAmap } from "./amap-geocode.js";
+import { geocodeAddressWithAmap, reverseGeocodeCityWithAmap } from "./amap-geocode.js";
 import { activityVectorService } from "./activityVector.service.js";
 import { config } from "./config.js";
 import { registerCheckinRoutes } from "./checkins.js";
@@ -647,7 +647,32 @@ async function resolveDrawCityId(
      ORDER BY CHAR_LENGTH(name) DESC, id ASC`,
   );
 
-  return resolveCityFromOriginName(input, cityRows as CityLookupRow[]);
+  const cities = cityRows as CityLookupRow[];
+  const requested = resolveCityFromOriginName(input, cities);
+  if (input.preferences.destinationScope !== "nearby" || !hasOriginCoordinates(input.preferences)) return requested;
+  const detectedCityName = await reverseGeocodeCityWithAmap(
+    input.preferences.originLatitude,
+    input.preferences.originLongitude,
+  );
+  if (!detectedCityName) {
+    throw new AppError(422, "LOCATION_UNVERIFIED", "无法核实当前位置所在城市，请重新定位或输入具体出发地后再试。");
+  }
+  const detectedCityId = findCityIdFromOriginNameStrict(detectedCityName, cities);
+  if (detectedCityId === null) {
+    throw new AppError(422, "CITY_UNSUPPORTED", `当前位置在${detectedCityName}，暂时没有当地玩法。`);
+  }
+  if (detectedCityId !== input.cityId) {
+    return {
+      cityId: input.cityId,
+      cityMismatchHint: {
+        requestCityId: input.cityId,
+        requestCityName: getCityDisplayName(cities.find((city) => city.id === input.cityId), input.cityId),
+        detectedCityId,
+        detectedCityName: getCityDisplayName(cities.find((city) => city.id === detectedCityId), detectedCityId),
+      },
+    };
+  }
+  return requested;
 }
 
 function buildDestinationGeocodeAddress(row: ActivityRow) {

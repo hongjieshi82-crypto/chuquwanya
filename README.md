@@ -117,6 +117,9 @@ GitHub 仓库 Settings → Secrets and variables → Actions → Variables 中�
 - `EXPO_PUBLIC_API_URL`：正式 HTTPS API 地址，包含 `/api/v1`；GitHub Pages 不运行后端。
 - `EXPO_PUBLIC_SUPABASE_URL`：登录项目的公开 URL。
 - `EXPO_PUBLIC_SUPABASE_ANON_KEY`：仅允许浏览器公开匿名密钥，不能填写 service role 密钥。
+- `EXPO_PUBLIC_AMAP_JS_KEY`，以及 `EXPO_PUBLIC_AMAP_SERVICE_HOST` 或 `EXPO_PUBLIC_AMAP_SECURITY_JS_CODE`：手机 Web 端将坐标核实为城市、地址以及手动地点解析所需的高德 JS 配置。
+
+正式后端还需配置 `AMAP_WEB_SERVICE_KEY`，用于独立核实“周边”抽取请求的坐标所在城市；核实失败时会拒绝生成行程，避免错误跨城推荐。
 
 这些变量在构建时写入前端，修改后需要重新运行部署工作流。生产构建禁用本地 `.env`
 自动加载，避免把开发机局域网地址带入部署。

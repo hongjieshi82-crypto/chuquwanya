@@ -47,7 +47,7 @@ function getWebPosition(options: DeviceLocationOptions): Promise<DeviceLocationC
       {
         enableHighAccuracy: options.accuracy === 'high',
         timeout: 12_000,
-        maximumAge: 30_000,
+        maximumAge: options.accuracy === 'high' ? 0 : 30_000,
       },
     );
   });

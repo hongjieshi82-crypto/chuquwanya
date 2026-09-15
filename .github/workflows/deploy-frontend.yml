@@ -42,6 +42,9 @@ jobs:
           EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL }}
           EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          EXPO_PUBLIC_AMAP_JS_KEY: ${{ vars.EXPO_PUBLIC_AMAP_JS_KEY }}
+          EXPO_PUBLIC_AMAP_SERVICE_HOST: ${{ vars.EXPO_PUBLIC_AMAP_SERVICE_HOST }}
+          EXPO_PUBLIC_AMAP_SECURITY_JS_CODE: ${{ vars.EXPO_PUBLIC_AMAP_SECURITY_JS_CODE }}
 
       - name: Verify production artifact
         working-directory: apps/client

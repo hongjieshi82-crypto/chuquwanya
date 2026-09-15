@@ -13,6 +13,8 @@ import { readPendingPcBoxDraw, savePendingPcBoxDraw } from '@/lib/pc-box-open-st
 import { DeparturePicker } from '@/components/departure-picker';
 import { chinaDate, needsImmediateDepartureWarning, validDepartureDate, type DepartureMode } from '@/lib/departure-policy';
 import { getPcTravelBudgetRange } from '@/constants/pc-travel-budget-tiers';
+import { requestDeviceCurrentPosition } from '@/lib/device-location';
+import { resolveCoordinatesCity, resolveCoordinatesAddress } from '@/lib/reverse-geocode';
 import { palette, radii } from '@/theme';
 import type { City, Preferences } from '@/types';
 
@@ -189,7 +191,7 @@ const GiftOutlined = createPcIcon(GiftOutlinedSvg);
 
 export default function PcBoxConfigScreen() {
   const router = useRouter();
-  const { preset } = useLocalSearchParams<{ preset?: string }>();
+  const { preset, category } = useLocalSearchParams<{ preset?: string; category?: string }>();
   const {
     cities,
     selectedCityId,
@@ -207,6 +209,7 @@ export default function PcBoxConfigScreen() {
   const [departureDate, setDepartureDate] = useState(restoredDraw?.preferences.departureDate ?? '');
   const [locatedCity, setLocatedCity] = useState<PcLocatedCity>(defaultPcLocatedCity);
   const [locationNotice, setLocationNotice] = useState<string | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
   const [isStartingDraw, setIsStartingDraw] = useState(false);
   const [drawError, setDrawError] = useState<string | null>(null);
   const [isSurpriseEditorOpen, setIsSurpriseEditorOpen] = useState(false);
@@ -226,6 +229,13 @@ export default function PcBoxConfigScreen() {
       return next;
     });
   }, [preset]);
+
+  useEffect(() => {
+    if (typeof category !== 'string') return;
+    const categoryMap: Record<string, string> = { '浪漫约会': '约会', '休闲躺平': '休闲躺平', '娱乐玩乐': '娱乐玩乐', '探险猎奇': '探险猎奇', '美食吃喝': '美食吃喝', '城市散步': '城市散步' };
+    const matched = categoryMap[category];
+    if (matched) setMatchSelections((current) => ({ ...current, category: matched }));
+  }, [category]);
 
   useEffect(() => {
     let cancelled = false;
@@ -284,6 +294,16 @@ export default function PcBoxConfigScreen() {
       return;
     }
 
+    if (typeof window !== 'undefined' && window.innerWidth <= 760 && matchSelections.destinationScope === '周边' && locatedCity.source !== 'device') {
+      setDrawError('推荐附近玩法前，请先点击“定位当前位置”；定位失败时可切换为探索整座城市。');
+      return;
+    }
+
+    if (matchSelections.destinationScope === '周边' && originCity && originCity.id !== drawCityId) {
+      setDrawError(`出发地是${originCity.name}，目的地却选了${destinationCity?.name}。请先切换到${originCity.name}，或改选跨城出游。`);
+      return;
+    }
+
     const preferences: Preferences = {
       departureMode: matchSelections.travelDuration !== '当天' && departureMode === 'now' ? 'idea' : departureMode,
       departureDate: departureMode === 'now' ? chinaDate() : departureMode === 'plan' ? departureDate : null,
@@ -295,7 +315,7 @@ export default function PcBoxConfigScreen() {
       randomLevel,
       category: matchSelections.category ?? '不限',
       environment: 'either',
-      radiusKm: null,
+      radiusKm: matchSelections.destinationScope === '周边' && locatedCity.latitude !== null && locatedCity.longitude !== null ? 10 : null,
       originName: locatedCity.name,
       originLatitude: locatedCity.latitude,
       originLongitude: locatedCity.longitude,
@@ -393,6 +413,38 @@ export default function PcBoxConfigScreen() {
     void storePcLocatedCity(nextLocatedCity);
   };
 
+  const handleLocateCurrentCity = async () => {
+    if (isLocating) return;
+    setIsLocating(true);
+    setDrawError(null);
+    setLocationNotice('正在获取当前位置…');
+    try {
+      const coords = await requestDeviceCurrentPosition({ accuracy: 'high' });
+      if (coords.accuracy !== null && coords.accuracy > 2_000) {
+        throw new Error(`定位误差约 ${Math.round(coords.accuracy)} 米，请检查手机精确定位权限后重试。`);
+      }
+      const cityName = await resolveCoordinatesCity(coords);
+      const city = findMatchingCity(cities, cityName);
+      if (!city) throw new Error(`当前位置在${cityName}，该城市暂时没有玩法。`);
+      const address = await resolveCoordinatesAddress(coords).catch(() => cityName);
+      const nextLocatedCity: PcLocatedCity = {
+        name: city.name,
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        accuracyMeters: coords.accuracy,
+        source: 'device',
+      };
+      setLocatedCity(nextLocatedCity);
+      setSelectedCityId(city.id);
+      setLocationNotice(`已定位在${address}；周边推荐将从当前位置 10 公里内筛选。`);
+      await storePcLocatedCity(nextLocatedCity);
+    } catch (reason) {
+      setLocationNotice(reason instanceof Error ? reason.message : '定位失败，请重试。');
+    } finally {
+      setIsLocating(false);
+    }
+  };
+
   const locatedCityOption = findMatchingCity(cities, locatedCity.name);
   const destinationCityOption = cities.find((city) => city.id === selectedCityId) ?? locatedCityOption ?? cities[0];
   const destinationName = destinationCityOption?.name ?? '请选择目的地';
@@ -473,6 +525,7 @@ export default function PcBoxConfigScreen() {
                         value={locatedCityOption?.id}
                         onChange={handleManualCitySelect}
                       />
+                      <Button loading={isLocating} onClick={() => void handleLocateCurrentCity()}>定位当前位置</Button>
                     </div>
                     {locationNotice ? (
                       <Text className="pc-box-location-notice">{locationNotice}</Text>

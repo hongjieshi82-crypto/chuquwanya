@@ -1244,6 +1244,7 @@ function setupCityRecommendations() {
     if (!navigator.geolocation) { if (notice) notice.textContent = '请手动选择城市'; return; }
     if (notice) notice.textContent = '定位中…';
     navigator.geolocation.getCurrentPosition(({ coords }) => {
+      if (coords.accuracy > 2000) { if (notice) notice.textContent = '定位误差较大，请开启手机精确定位后重试'; return; }
       let nearestCity = ''; let nearestDistance = Infinity;
       Object.entries(cityCoordinates).forEach(([city, [lat, lon]]) => {
         const distance = Math.hypot(coords.latitude - lat, (coords.longitude - lon) * Math.cos(coords.latitude * Math.PI / 180));
@@ -1251,7 +1252,7 @@ function setupCityRecommendations() {
       });
       if (nearestDistance < 1) { applyCity(nearestCity, true, 'device'); if (notice) notice.textContent = '可手动更改'; }
       else if (notice) notice.textContent = '附近城市未覆盖，请手动选';
-    }, () => { if (notice) notice.textContent = '定位未开启，可手动选择'; }, { maximumAge: 300000, timeout: 8000 });
+    }, () => { if (notice) notice.textContent = '定位未开启，可手动选择'; }, { enableHighAccuracy: true, maximumAge: 0, timeout: 12000 });
   });
 }
 
