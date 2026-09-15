@@ -171,7 +171,7 @@ export default function PcLandingScreen() {
         onLoad={syncCitiesToHome}
         allow="geolocation"
         aria-label="粗去玩鸭周末灵感首页"
-        src={`/gravity-home/index.html?v=${isMobile ? 'mobile-layout-v8' : 'desktop-shared-nav-v1'}&auth=${isRegistered ? 'registered' : 'guest'}${isMobile ? '' : '&externalNav=1'}`}
+        src={`/gravity-home/index.html?v=${isMobile ? 'mobile-layout-v9' : 'desktop-shared-nav-v2'}&auth=${isRegistered ? 'registered' : 'guest'}${isMobile ? '' : '&externalNav=1'}`}
         style={isMobile ? {
           width: '100%',
           height: '100dvh',
