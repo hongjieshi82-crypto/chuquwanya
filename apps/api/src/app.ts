@@ -11,6 +11,7 @@ import { z, ZodError } from "zod";
 import type { PoolConnection } from "mysql2/promise";
 
 import { geocodeAddressWithAmap, reverseGeocodeCityWithAmap, reverseGeocodeLocationWithAmap } from "./amap-geocode.js";
+import { inferSupportedCityFromCoordinates } from './city-from-coordinates.js';
 import { activityVectorService } from "./activityVector.service.js";
 import { config } from "./config.js";
 import { registerCheckinRoutes } from "./checkins.js";
@@ -653,7 +654,7 @@ async function resolveDrawCityId(
   const detectedCityName = await reverseGeocodeCityWithAmap(
     input.preferences.originLatitude,
     input.preferences.originLongitude,
-  );
+  ) ?? inferSupportedCityFromCoordinates(input.preferences.originLatitude, input.preferences.originLongitude);
   if (!detectedCityName) {
     throw new AppError(422, "LOCATION_UNVERIFIED", "无法核实当前位置所在城市，请重新定位或输入具体出发地后再试。");
   }
@@ -1320,7 +1321,10 @@ export function createApp() {
       latitude: z.coerce.number().min(-90).max(90),
       longitude: z.coerce.number().min(-180).max(180),
     }).parse(request.body);
-    const location = await reverseGeocodeLocationWithAmap(coordinates.latitude, coordinates.longitude);
+    const location = await reverseGeocodeLocationWithAmap(coordinates.latitude, coordinates.longitude) ?? (() => {
+      const city = inferSupportedCityFromCoordinates(coordinates.latitude, coordinates.longitude);
+      return city ? { city, address: city, verification: 'approximate' } : null;
+    })();
     if (!location) throw new AppError(503, "LOCATION_UNAVAILABLE", "暂时无法核实当前位置，请稍后重试。");
     response.json({ data: location });
   }));
