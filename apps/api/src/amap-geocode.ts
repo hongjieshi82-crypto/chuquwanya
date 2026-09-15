@@ -39,7 +39,7 @@ export function isAmapGeocodeConfigured() {
   return Boolean(config.amap.webServiceKey);
 }
 
-export async function reverseGeocodeCityWithAmap(latitude: number, longitude: number): Promise<string | null> {
+export async function reverseGeocodeLocationWithAmap(latitude: number, longitude: number): Promise<{ city: string; address: string } | null> {
   if (!isAmapGeocodeConfigured()) return null;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), AMAP_GEOCODE_TIMEOUT_MS);
@@ -52,17 +52,23 @@ export async function reverseGeocodeCityWithAmap(latitude: number, longitude: nu
     if (!response.ok) return null;
     const body = await response.json() as {
       status?: string;
-      regeocode?: { addressComponent?: { city?: string | string[]; province?: string } };
+      regeocode?: { formatted_address?: string; addressComponent?: { city?: string | string[]; province?: string } };
     };
     if (body.status !== "1") return null;
     const component = body.regeocode?.addressComponent;
     const city = Array.isArray(component?.city) ? component.city[0] : component?.city;
-    return (city || component?.province)?.trim() || null;
+    const cityName = (city || component?.province)?.trim();
+    if (!cityName) return null;
+    return { city: cityName, address: body.regeocode?.formatted_address?.trim() || cityName };
   } catch {
     return null;
   } finally {
     clearTimeout(timeout);
   }
+}
+
+export async function reverseGeocodeCityWithAmap(latitude: number, longitude: number): Promise<string | null> {
+  return (await reverseGeocodeLocationWithAmap(latitude, longitude))?.city ?? null;
 }
 
 export async function geocodeAddressWithAmap(

@@ -10,7 +10,7 @@ import { z, ZodError } from "zod";
 
 import type { PoolConnection } from "mysql2/promise";
 
-import { geocodeAddressWithAmap, reverseGeocodeCityWithAmap } from "./amap-geocode.js";
+import { geocodeAddressWithAmap, reverseGeocodeCityWithAmap, reverseGeocodeLocationWithAmap } from "./amap-geocode.js";
 import { activityVectorService } from "./activityVector.service.js";
 import { config } from "./config.js";
 import { registerCheckinRoutes } from "./checkins.js";
@@ -1314,6 +1314,16 @@ export function createApp() {
       });
     }),
   );
+
+  app.post("/api/v1/location/reverse", asyncRoute(async (request, response) => {
+    const coordinates = z.object({
+      latitude: z.coerce.number().min(-90).max(90),
+      longitude: z.coerce.number().min(-180).max(180),
+    }).parse(request.body);
+    const location = await reverseGeocodeLocationWithAmap(coordinates.latitude, coordinates.longitude);
+    if (!location) throw new AppError(503, "LOCATION_UNAVAILABLE", "暂时无法核实当前位置，请稍后重试。");
+    response.json({ data: location });
+  }));
 
   app.get(
     "/api/v1/cities",

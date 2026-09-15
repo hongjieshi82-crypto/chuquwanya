@@ -176,6 +176,23 @@ function normalizeCityLabel(value: string | undefined) {
   return value?.trim().replace(/市$/, '') ?? '';
 }
 
+async function resolveCoordinatesViaApi({ latitude, longitude }: LocationCoordinates) {
+  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (!apiUrl) return null;
+  try {
+    const response = await fetch(`${apiUrl.replace(/\/$/, '')}/location/reverse`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ latitude, longitude }),
+    });
+    if (!response.ok) return null;
+    const body = await response.json() as { data?: { city?: string; address?: string } };
+    return body.data?.city ? { city: body.data.city, address: body.data.address || body.data.city } : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function resolveAddressLocation(address: string): Promise<ResolvedAddressLocation> {
   const nextAddress = address.trim();
   if (!nextAddress) {
@@ -220,6 +237,8 @@ export async function resolveCoordinatesAddress({
   latitude,
   longitude,
 }: LocationCoordinates): Promise<string> {
+  const viaApi = await resolveCoordinatesViaApi({ latitude, longitude });
+  if (viaApi) return viaApi.address;
   const AMap = await loadAmap();
 
   return new Promise<string>((resolve, reject) => {
@@ -271,6 +290,8 @@ export async function resolveCoordinatesCity({
   latitude,
   longitude,
 }: LocationCoordinates): Promise<string> {
+  const viaApi = await resolveCoordinatesViaApi({ latitude, longitude });
+  if (viaApi) return normalizeCityLabel(viaApi.city);
   const AMap = await loadAmap();
 
   return new Promise<string>((resolve, reject) => {
