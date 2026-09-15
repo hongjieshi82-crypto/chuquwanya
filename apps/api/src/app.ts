@@ -12,6 +12,7 @@ import type { PoolConnection } from "mysql2/promise";
 
 import { geocodeAddressWithAmap, reverseGeocodeCityWithAmap, reverseGeocodeLocationWithAmap } from "./amap-geocode.js";
 import { inferSupportedCityFromCoordinates } from './city-from-coordinates.js';
+import { searchAmapNearbyPlaces } from './nearby-live-places.js';
 import { activityVectorService } from "./activityVector.service.js";
 import { config } from "./config.js";
 import { registerCheckinRoutes } from "./checkins.js";
@@ -1327,6 +1328,68 @@ export function createApp() {
     })();
     if (!location) throw new AppError(503, "LOCATION_UNAVAILABLE", "暂时无法核实当前位置，请稍后重试。");
     response.json({ data: location });
+  }));
+
+  app.post('/api/v1/nearby/suggestions', asyncRoute(async (request, response) => {
+    const input = z.object({
+      latitude: z.number().min(-90).max(90),
+      longitude: z.number().min(-180).max(180),
+      radiusKm: z.number().min(1).max(10).default(5),
+      partySize: z.number().int().min(1).max(20).default(2),
+      budgetPerPersonYuan: z.number().int().min(0).max(10_000).nullable().default(null),
+      mood: z.enum(['放松', '探索', '热闹']).default('放松'),
+    }).parse(request.body);
+    const location = await reverseGeocodeLocationWithAmap(input.latitude, input.longitude);
+    const cityName = location?.city ?? inferSupportedCityFromCoordinates(input.latitude, input.longitude);
+    if (!cityName) throw new AppError(422, 'LOCATION_UNVERIFIED', '当前位置所在城市无法确认，请重新定位。');
+    const [cityRows] = await pool.execute('SELECT id, name FROM cities WHERE is_active = TRUE');
+    const city = (cityRows as Array<{ id: number; name: string }>).find((row) => row.name.replace(/市$/, '') === cityName.replace(/市$/, ''));
+    if (!city) throw new AppError(422, 'CITY_UNSUPPORTED', `当前位置在${cityName}，暂时没有当地玩法。`);
+
+    const livePlaces = await searchAmapNearbyPlaces({ ...input, cityName: city.name });
+    const liveSuggestions = (livePlaces ?? [])
+      .map((place) => ({ place, distanceKm: calculateDistanceKm({ latitude: input.latitude, longitude: input.longitude }, place) }))
+      .filter(({ place, distanceKm }) => distanceKm <= input.radiusKm && (input.budgetPerPersonYuan === null || (place.costYuan !== null && place.costYuan <= input.budgetPerPersonYuan)))
+      .sort((a, b) => a.distanceKm - b.distanceKm)
+      .slice(0, 3)
+      .map(({ place, distanceKm }) => ({
+        id: `amap:${place.id}`, title: place.name, address: place.address,
+        distanceKm: Number(distanceKm.toFixed(1)), costYuan: place.costYuan,
+        category: place.type, summary: `在${place.name}完成一段${input.mood === '热闹' ? '和朋友一起玩' : input.mood === '探索' ? '发现新鲜事物' : '轻松散心'}的附近体验。`,
+        steps: ['出发前核实营业、预约与实际费用', `导航到${place.name}，按现场情况选择一项体验`, '留出返程时间，就近结束'],
+        navigationUrl: place.navigationUrl, source: 'live' as const,
+      }));
+
+    const [activityRows] = await pool.execute(
+      `SELECT id, title, summary, category, budget_yuan, latitude, longitude, address, navigation_url, steps, min_party_size, max_party_size
+       FROM activities WHERE city_id = ? AND is_active = TRUE AND content_status = 'published'
+       AND content_score >= 70 AND latitude IS NOT NULL AND longitude IS NOT NULL LIMIT 200`,
+      [city.id],
+    );
+    const curatedSuggestions = (activityRows as Array<{
+      id: number; title: string; summary: string; category: string; budget_yuan: number;
+      latitude: number; longitude: number; address: string; navigation_url: string | null;
+      steps: unknown; min_party_size: number; max_party_size: number;
+    }>)
+      .map((activity) => ({ activity, distanceKm: calculateDistanceKm({ latitude: input.latitude, longitude: input.longitude }, activity) }))
+      .filter(({ activity, distanceKm }) => distanceKm <= input.radiusKm && activity.min_party_size <= input.partySize && activity.max_party_size >= input.partySize && (input.budgetPerPersonYuan === null || activity.budget_yuan <= input.budgetPerPersonYuan))
+      .sort((a, b) => a.distanceKm - b.distanceKm)
+      .slice(0, 3)
+      .map(({ activity, distanceKm }) => ({
+        id: `curated:${activity.id}`, title: activity.title, address: activity.address,
+        distanceKm: Number(distanceKm.toFixed(1)), costYuan: Number(activity.budget_yuan),
+        category: activity.category, summary: activity.summary,
+        steps: parseJsonArray(activity.steps).slice(0, 3),
+        navigationUrl: activity.navigation_url || `https://uri.amap.com/search?keyword=${encodeURIComponent(city.name + ' ' + activity.title)}`,
+        source: 'curated' as const,
+      }));
+
+    response.json({ data: {
+      cityName: city.name,
+      liveAvailable: livePlaces !== null,
+      suggestions: liveSuggestions.length > 0 ? liveSuggestions : curatedSuggestions,
+      radiusKm: input.radiusKm,
+    } });
   }));
 
   app.get(

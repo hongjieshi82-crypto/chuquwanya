@@ -51,6 +51,12 @@ type PcLocatedCity = {
 
 type StoredPcLocatedCity = PcLocatedCity & { savedAt: number };
 
+type NearbySuggestion = {
+  id: string; title: string; address: string; distanceKm: number; costYuan: number | null;
+  category: string; summary: string; steps: string[]; navigationUrl: string; source: 'live' | 'curated';
+};
+type NearbySuggestionsResponse = { cityName: string; liveAvailable: boolean; suggestions: NearbySuggestion[]; radiusKm: number };
+
 const boxToken = {
   canvas: palette.canvas,
   surface: palette.surface,
@@ -210,6 +216,9 @@ export default function PcBoxConfigScreen() {
   const [locatedCity, setLocatedCity] = useState<PcLocatedCity>(defaultPcLocatedCity);
   const [locationNotice, setLocationNotice] = useState<string | null>(null);
   const [isLocating, setIsLocating] = useState(false);
+  const [isDiscoveringNearby, setIsDiscoveringNearby] = useState(false);
+  const [nearbySuggestions, setNearbySuggestions] = useState<NearbySuggestionsResponse | null>(null);
+  const [nearbyError, setNearbyError] = useState<string | null>(null);
   const [isStartingDraw, setIsStartingDraw] = useState(false);
   const [drawError, setDrawError] = useState<string | null>(null);
   const [isSurpriseEditorOpen, setIsSurpriseEditorOpen] = useState(false);
@@ -407,10 +416,36 @@ export default function PcBoxConfigScreen() {
       source: 'manual',
     };
     setLocatedCity(nextLocatedCity);
+    setNearbySuggestions(null);
     setSelectedCityId(city.id);
     setDrawError(null);
     setLocationNotice(`已切换到${city.name}，将优先生成当地玩法。`);
     void storePcLocatedCity(nextLocatedCity);
+  };
+
+  const discoverNearby = async (coords: { latitude: number; longitude: number }) => {
+    const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+    if (!apiUrl) { setNearbyError('附近地点服务暂不可用。'); return; }
+    setIsDiscoveringNearby(true);
+    setNearbyError(null);
+    try {
+      const partySize = partySizeValues[matchSelections.partySize] ?? 2;
+      const budget = getPcTravelBudgetRange('当天', matchSelections.budget);
+      const response = await fetch(`${apiUrl.replace(/\/$/, '')}/nearby/suggestions`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          latitude: coords.latitude, longitude: coords.longitude, radiusKm: 5,
+          partySize, budgetPerPersonYuan: budget.max, mood: matchSelections.mood,
+        }),
+      });
+      const body = await response.json() as { data?: NearbySuggestionsResponse; error?: { message?: string } };
+      if (!response.ok || !body.data) throw new Error(body.error?.message || '附近地点加载失败，请稍后重试。');
+      setNearbySuggestions(body.data);
+    } catch (reason) {
+      setNearbyError(reason instanceof Error ? reason.message : '附近地点加载失败。');
+    } finally {
+      setIsDiscoveringNearby(false);
+    }
   };
 
   const handleLocateCurrentCity = async () => {
@@ -438,6 +473,7 @@ export default function PcBoxConfigScreen() {
       setSelectedCityId(city.id);
       setLocationNotice(`已定位在${address}；周边推荐将从当前位置 10 公里内筛选。`);
       await storePcLocatedCity(nextLocatedCity);
+      void discoverNearby(coords);
     } catch (reason) {
       setLocationNotice(reason instanceof Error ? reason.message : '定位失败，请重试。');
     } finally {
@@ -529,6 +565,26 @@ export default function PcBoxConfigScreen() {
                     </div>
                     {locationNotice ? (
                       <Text className="pc-box-location-notice">{locationNotice}</Text>
+                    ) : null}
+                    {locatedCity.source === 'device' ? (
+                      <Button loading={isDiscoveringNearby} onClick={() => void discoverNearby({ latitude: locatedCity.latitude!, longitude: locatedCity.longitude! })}>按当前预算和心情刷新附近玩法</Button>
+                    ) : null}
+                    {nearbyError ? <Text className="pc-box-location-notice">{nearbyError}</Text> : null}
+                    {nearbySuggestions ? (
+                      <div className="pc-box-nearby-panel">
+                        <strong>附近现在可以考虑</strong>
+                        <small>{nearbySuggestions.liveAvailable ? '已查询实时地点' : '实时地点暂不可用，以下来自已收录玩法'} · 当前位置 {nearbySuggestions.radiusKm} 公里内</small>
+                        {nearbySuggestions.suggestions.length === 0 ? <p>这个范围和预算下暂时没有可核实的玩法，可以调整预算或稍后再试。</p> : null}
+                        {nearbySuggestions.suggestions.map((suggestion) => (
+                          <div className="pc-box-nearby-item" key={suggestion.id}>
+                            <b>{suggestion.title}</b>
+                            <span>{suggestion.distanceKm} 公里 · {suggestion.costYuan === null ? '费用待核实' : `参考 ${suggestion.costYuan} 元/人`}</span>
+                            <p>{suggestion.summary}</p>
+                            <ol>{suggestion.steps.map((step) => <li key={step}>{step}</li>)}</ol>
+                            <a href={suggestion.navigationUrl} target="_blank" rel="noopener noreferrer">打开地图查看地点</a>
+                          </div>
+                        ))}
+                      </div>
                     ) : null}
                   </div>
                 </div>
@@ -1074,6 +1130,17 @@ const pcBoxCss = `
   font-weight: 700;
   line-height: 1.55;
 }
+
+.pc-box-nearby-panel { margin-top: 16px; padding: 16px; border: 1px solid rgba(201,255,98,.28); border-radius: 18px; background: #111416; color: #f5f7f1; display: grid; gap: 10px; }
+.pc-box-nearby-panel > strong { font-size: 17px; }
+.pc-box-nearby-panel > small { color: #aeb5aa; line-height: 1.5; }
+.pc-box-nearby-panel > p { color: #cbd6b9; margin: 0; }
+.pc-box-nearby-item { padding: 12px; border: 1px solid rgba(255,255,255,.12); border-radius: 12px; background: #1a1e1c; display: grid; gap: 6px; }
+.pc-box-nearby-item b { color: #f5f7f1; }
+.pc-box-nearby-item span, .pc-box-nearby-item p, .pc-box-nearby-item li { color: #cbd2c7; font-size: 13px; line-height: 1.5; }
+.pc-box-nearby-item p, .pc-box-nearby-item ol { margin: 0; }
+.pc-box-nearby-item ol { padding-left: 20px; }
+.pc-box-nearby-item a { color: #c9ff62; font-weight: 700; }
 
 .pc-box-destination-hint {
   color: ${boxToken.muted};
