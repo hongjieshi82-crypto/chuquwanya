@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { requestDeviceCurrentPosition } from '@/lib/device-location';
+import { nearbyCategoryPreset } from '@/lib/web-draw-flow';
 
 type Preferences = { availableMinutes: number; partySize: number; budget: number; mood: string; kind: string; maxWalkMinutes: number; allowUnverified: boolean };
 type Result = {
@@ -16,15 +17,14 @@ type Result = {
   };
 };
 const initialPreferences: Preferences = { availableMinutes: 120, partySize: 2, budget: 100, mood: '放松', kind: 'any', maxWalkMinutes: 20, allowUnverified: false };
-const storageKey = 'chuquwanya-nearby-short-plan';
 const clockLabel = (iso: string) => new Date(iso).toLocaleTimeString('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', hour12: false });
 const timelineClock = (iso: string, reference: string) => {
   const day = (value: string) => Math.floor((Date.parse(value) + 8 * 3600_000) / 86400_000);
   return `${day(iso) > day(reference) ? '次日 ' : ''}${clockLabel(iso)}`;
 };
 
-export function NearbyPlanPanel() {
-  const [preferences, setPreferences] = useState(initialPreferences);
+export function NearbyPlanPanel({ initialCategory }: { initialCategory?: string } = {}) {
+  const [preferences, setPreferences] = useState(() => ({ ...initialPreferences, ...nearbyCategoryPreset(initialCategory) }));
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [phase, setPhase] = useState<'idle' | 'locating' | 'planning'>('idle');
@@ -36,13 +36,6 @@ export function NearbyPlanPanel() {
   const seen = useRef<string[]>([]);
 
   useEffect(() => {
-    try {
-      const saved = JSON.parse(sessionStorage.getItem(storageKey) || 'null');
-      if (saved?.result?.expiresAt && Date.parse(saved.result.expiresAt) > Date.now()) {
-        setResult(saved.result); setPreferences(saved.preferences || initialPreferences);
-        if (saved.result.plan?.place?.id) seen.current = [saved.result.plan.place.id];
-      }
-    } catch { /* Storage is optional; generation works without it. */ }
     const timer = window.setInterval(() => setNow(Date.now()), 30_000);
     return () => { clearInterval(timer); sequence.current += 1; request.current?.abort(); };
   }, []);
@@ -52,7 +45,6 @@ export function NearbyPlanPanel() {
     request.current?.abort();
     setPhase('idle'); setResult(null); setError(null); seen.current = [];
     setPreferences(current => ({ ...current, [key]: value }));
-    try { sessionStorage.removeItem(storageKey); } catch { /* Optional storage. */ }
   };
 
   async function generate(another = false) {
@@ -63,7 +55,6 @@ export function NearbyPlanPanel() {
     const id = ++sequence.current;
     request.current?.abort();
     setError(null); setResult(null); setCopied(false); setPhotoFailed(false); setPhase('locating');
-    try { sessionStorage.removeItem(storageKey); } catch { /* Optional storage. */ }
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       const coords = await requestDeviceCurrentPosition({ accuracy: 'high' });
@@ -82,7 +73,6 @@ export function NearbyPlanPanel() {
       setResult(body.data); setNow(Date.now());
       if (body.data.plan) {
         seen.current = [...seen.current, body.data.plan.place.id].slice(-20);
-        try { sessionStorage.setItem(storageKey, JSON.stringify({ result: body.data, preferences })); } catch { /* Optional storage. */ }
       }
     } catch (reason) {
       if (id === sequence.current) setError(reason instanceof Error && reason.name === 'AbortError' ? '查询超时，请重试；没有展示未经核实的攻略。' : reason instanceof Error ? reason.message : '生成失败，请重试。');
@@ -98,7 +88,7 @@ export function NearbyPlanPanel() {
 
   return <section className="nearby-short-plan" aria-label="现在出发的附近攻略">
     <style>{styles}</style>
-    <header><small>现在出发 · 附近玩一会儿</small><h2>给你们安排接下来的一小段时光</h2><p>从当前位置找一个真实地点，核算往返步行、游玩时间和参考预算。</p></header>
+    <header><small>{initialCategory ? `${initialCategory} · ` : ''}现在出发 · 附近玩一会儿</small><h2>给你们安排接下来的一小段时光</h2><p>每次抽取先定位，再找附近真实地点。首页浏览的城市不会代替你的位置。</p></header>
     {choices('能玩多久（含往返）', 'availableMinutes', [['1 小时', 60], ['2 小时', 120], ['3 小时', 180]])}
     <div className="nearby-plan-numbers">
       <label>一起几个人<select aria-label="附近攻略人数" value={preferences.partySize} onChange={e => change('partySize', Number(e.target.value))}>{[1,2,3,4,5,6,7,8].map(n => <option key={n} value={n}>{n} 人</option>)}</select></label>

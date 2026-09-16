@@ -85,12 +85,12 @@ export function PcQuickDrawModal({
       category: normalizedCategory,
       environment: 'either',
       radiusKm: null,
-      originName: lock.cityName,
+      originName: null,
       originLatitude: null,
       originLongitude: null,
       originAccuracyMeters: null,
-      originSource: 'manual',
-      destinationScope: 'nearby',
+      originSource: null,
+      destinationScope: 'nationwide',
       travelDuration,
       clientSource: 'pc',
       destinationScopeLabel: `${lock.cityName}本地`,
@@ -140,7 +140,7 @@ export function PcQuickDrawModal({
       <div className="pc-quick-draw-content">
         <small>QUICK BLIND BOX</small>
         <Title level={2}>{title}</Title>
-        <p>已锁定 <b>{lock?.cityName}</b>{lock?.categoryLabel ? <> · <b>{lock.categoryLabel}</b></> : null}</p>
+        <p>手动选择的城市：<b>{lock?.cityName}</b>{lock?.categoryLabel ? <> · <b>{lock.categoryLabel}</b></> : null}（全城玩法）</p>
         {isRomance ? <div className="pc-quick-draw-fixed"><span>同行人数</span><b>固定 2 人</b></div> : optionGroup('同行人数', ['1 人', '2 人', '多人'], partySize, setPartySize)}
         {optionGroup('出游时长', lock?.categoryLabel ? ['当天', '周末游'] : ['当天', '周末游', '小长假'], duration, (value) => { setDuration(value); if (value !== '当天' && departureMode === 'now') setDepartureMode('idea'); })}
         {lock?.categoryLabel ? <small style={{ color: '#96a68a', display: 'block', marginTop: 8 }}>当前主题支持单日或周末双日；小长假可在通用设置中选择综合路线。</small> : null}

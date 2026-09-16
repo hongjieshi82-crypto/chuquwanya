@@ -1,9 +1,11 @@
 import type { Preferences } from '@/types';
+import { isExplicitCityDraw } from './web-draw-flow';
 
 const PENDING_PC_BOX_DRAW_KEY = 'lazyde:pc-box:pending-draw';
 const PENDING_PC_BOX_DRAW_TTL_MS = 30 * 60 * 1_000;
 
 export type PendingPcBoxDraw = {
+  intent: 'city';
   cityId: number;
   preferences: Preferences;
   summary: string;
@@ -46,7 +48,7 @@ export function readPendingPcBoxDraw(): PendingPcBoxDraw | null {
       parsed.preferences !== null &&
       typeof parsed.preferences === 'object';
 
-    if (!isValid || Date.now() - parsed.createdAt! > PENDING_PC_BOX_DRAW_TTL_MS) {
+    if (!isValid || !isExplicitCityDraw(parsed) || parsed.createdAt! > Date.now() + 60_000 || Date.now() - parsed.createdAt! > PENDING_PC_BOX_DRAW_TTL_MS) {
       clearPendingPcBoxDraw();
       return null;
     }

@@ -1,10 +1,12 @@
 import { type Href, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { PcQuickDrawModal, type QuickDrawSubmission } from '@/components/pc-quick-draw-modal';
 import { useApp } from '@/contexts/app-context';
-import { savePendingPcBoxDraw } from '@/lib/pc-box-open-state';
+import { clearPendingPcBoxDraw } from '@/lib/pc-box-open-state';
+import { nearbyConfigHref, resolveHomeCityId, routeHomeDrawHref } from '@/lib/web-draw-flow';
 import { getRecommendedActivities } from '@/services/api';
+import { requestDeviceCurrentPosition } from '@/lib/device-location';
+import { resolveCoordinatesCity } from '@/lib/reverse-geocode';
 
 const MOBILE_BREAKPOINT = 760;
 const DESKTOP_CANVAS_WIDTH = 1280;
@@ -45,7 +47,6 @@ export default function PcLandingScreen() {
   const router = useRouter();
   const { cities, isRegistered, selectedCityId, user, setSelectedCityId } = useApp();
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  const [quickDrawLock, setQuickDrawLock] = useState<{ cityId: number; cityName: string; categoryLabel?: string } | null>(null);
   const { headerHeight, isMobile, scale } = useViewportLayout();
 
   const syncCitiesToHome = useCallback(() => {
@@ -75,27 +76,37 @@ export default function PcLandingScreen() {
   useEffect(() => {
     const handleMessage = async (event: MessageEvent) => {
       if (event.origin !== window.location.origin || event.source !== iframeRef.current?.contentWindow) return;
+      if (event.data?.type === 'gravity-home:locate') {
+        try {
+          const coords = await requestDeviceCurrentPosition({ accuracy: 'high' });
+          if (coords.accuracy === null || coords.accuracy > 1000) throw new Error('定位精度不足，请开启精确定位后重试。');
+          const cityName = await resolveCoordinatesCity(coords);
+          const id = resolveHomeCityId({ cityName }, cities);
+          if (id === null) throw new Error(`定位在${cityName}，该城市未收录；请用附近攻略查询。`);
+          setSelectedCityId(id);
+          iframeRef.current?.contentWindow?.postMessage({ type: 'gravity-home:location-status', message: `已定位在${cityName}，抽附近玩法时会重新获取当前位置。` }, window.location.origin);
+        } catch (reason) {
+          iframeRef.current?.contentWindow?.postMessage({ type: 'gravity-home:location-status', message: reason instanceof Error ? reason.message : '定位失败，请重试。' }, window.location.origin);
+        }
+        return;
+      }
       if (event.data?.type === 'gravity-home:city-selected') {
-        const id = Number(event.data.cityId);
-        if (Number.isInteger(id) && id > 0) setSelectedCityId(id);
+        const id = resolveHomeCityId(event.data, cities);
+        if (id !== null) setSelectedCityId(id);
         return;
       }
       if (event.data?.type === 'gravity-home:navigate') {
         const href = event.data.href;
         if (typeof href !== 'string' || !href.startsWith('/') || href.startsWith('//')) return;
-        router.push(href as Href);
+        const nextHref = routeHomeDrawHref(href);
+        if (nextHref.startsWith('/box/config')) clearPendingPcBoxDraw();
+        router.push(nextHref as Href);
         return;
       }
       if (event.data?.type === 'gravity-home:open-quick-draw') {
-        if (isMobile) {
-          const categoryLabel = typeof event.data.categoryLabel === 'string' ? event.data.categoryLabel : '';
-          router.push(categoryLabel ? `/box/config?category=${encodeURIComponent(categoryLabel)}` : '/box/config');
-          return;
-        }
-        const cityId = Number(event.data.cityId);
-        const cityName = typeof event.data.cityName === 'string' ? event.data.cityName : '北京';
         const categoryLabel = typeof event.data.categoryLabel === 'string' ? event.data.categoryLabel : undefined;
-        if (Number.isFinite(cityId)) setQuickDrawLock({ cityId, cityName, categoryLabel });
+        clearPendingPcBoxDraw();
+        router.push(nearbyConfigHref(categoryLabel) as Href);
         return;
       }
       if (event.data?.type === 'gravity-home:request-guides') {
@@ -154,14 +165,7 @@ export default function PcLandingScreen() {
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [router, user?.id, setSelectedCityId, isMobile]);
-
-  const startQuickDraw = ({ preferences, summary }: QuickDrawSubmission) => {
-    if (!quickDrawLock) return;
-    if (!savePendingPcBoxDraw({ cityId: quickDrawLock.cityId, preferences, summary })) return;
-    setQuickDrawLock(null);
-    router.push('/box/slot-preview');
-  };
+  }, [router, user?.id, setSelectedCityId, cities]);
 
   return <>
     <div style={isMobile ? { position: 'fixed', inset: 0, width: '100dvw', height: '100dvh', overflow: 'hidden', background: '#0d0d13' } : { position: 'relative', width: '100%', height: `calc(100dvh - ${headerHeight}px)`, overflow: 'hidden', background: '#0d0d13' }}>
@@ -171,7 +175,7 @@ export default function PcLandingScreen() {
         onLoad={syncCitiesToHome}
         allow="geolocation"
         aria-label="粗去玩鸭周末灵感首页"
-        src={`/gravity-home/index.html?v=${isMobile ? 'mobile-layout-v9' : 'desktop-shared-nav-v2'}&auth=${isRegistered ? 'registered' : 'guest'}${isMobile ? '' : '&externalNav=1'}`}
+        src={`/gravity-home/index.html?v=unified-nearby-v1&auth=${isRegistered ? 'registered' : 'guest'}${isMobile ? '' : '&externalNav=1'}`}
         style={isMobile ? {
           width: '100%',
           height: '100dvh',
@@ -193,6 +197,5 @@ export default function PcLandingScreen() {
         title="粗去玩鸭周末灵感首页"
       />
     </div>
-    <PcQuickDrawModal lock={quickDrawLock} open={Boolean(quickDrawLock)} onClose={() => setQuickDrawLock(null)} onSubmit={startQuickDraw} />
   </>;
 }

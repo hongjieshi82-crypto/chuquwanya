@@ -207,9 +207,10 @@ export default function PcDestinationsScreen() {
 
   const startCityBlindBox = ({ preferences, summary }: QuickDrawSubmission) => {
     if (!quickDrawDestination) return;
-    const city = cities.find((item) => item.id === quickDrawDestination.cityId) ?? cities[0];
+    const city = cities.find((item) => item.id === quickDrawDestination.cityId);
     if (!city) return;
     savePendingPcBoxDraw({
+      intent: 'city',
       cityId: city.id,
       preferences,
       summary,
@@ -217,7 +218,7 @@ export default function PcDestinationsScreen() {
       destinationName: quickDrawDestination.name,
     });
     setQuickDrawDestination(null);
-    router.push('/box/slot-preview');
+    router.push('/box/slot-preview?mode=city');
   };
 
   return (

@@ -2,7 +2,6 @@ import CalendarOutlinedSvg from '@ant-design/icons-svg/es/asn/CalendarOutlined';
 import EnvironmentOutlinedSvg from '@ant-design/icons-svg/es/asn/EnvironmentOutlined';
 import GiftOutlinedSvg from '@ant-design/icons-svg/es/asn/GiftOutlined';
 import type { AbstractNode, IconDefinition } from '@ant-design/icons-svg/es/types';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Button, Card, ConfigProvider, Layout, Modal, Select, Space, Tag, Typography } from 'antd';
 import 'antd/dist/reset.css';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -13,16 +12,12 @@ import { readPendingPcBoxDraw, savePendingPcBoxDraw } from '@/lib/pc-box-open-st
 import { DeparturePicker } from '@/components/departure-picker';
 import { chinaDate, needsImmediateDepartureWarning, validDepartureDate, type DepartureMode } from '@/lib/departure-policy';
 import { getPcTravelBudgetRange } from '@/constants/pc-travel-budget-tiers';
-import { requestDeviceCurrentPosition } from '@/lib/device-location';
-import { resolveCoordinatesCity, resolveCoordinatesAddress } from '@/lib/reverse-geocode';
 import { palette, radii } from '@/theme';
 import type { City, Preferences } from '@/types';
 import { NearbyPlanPanel } from '@/components/nearby-plan-panel';
 
 const { Content } = Layout;
 const { Text } = Typography;
-const PC_LOCATED_CITY_KEY = '@weekend-oracle/pc-located-city';
-const PC_LOCATED_CITY_TTL_MS = 24 * 60 * 60 * 1_000;
 
 type PcIconProps = SVGProps<SVGSVGElement> & {
   size?: number;
@@ -31,7 +26,6 @@ type PcIconProps = SVGProps<SVGSVGElement> & {
 type MatchPreferenceGroup = {
   key:
     | 'partySize'
-    | 'destinationScope'
     | 'travelDuration'
     | 'budget'
     | 'mood'
@@ -41,22 +35,6 @@ type MatchPreferenceGroup = {
   options: string[];
   descriptions?: Record<string, string>;
 };
-
-type PcLocatedCity = {
-  name: string;
-  latitude: number | null;
-  longitude: number | null;
-  accuracyMeters: number | null;
-  source: 'default' | 'device' | 'manual';
-};
-
-type StoredPcLocatedCity = PcLocatedCity & { savedAt: number };
-
-type NearbySuggestion = {
-  id: string; title: string; address: string; distanceKm: number; costYuan: number | null;
-  category: string; summary: string; steps: string[]; navigationUrl: string; source: 'live' | 'curated';
-};
-type NearbySuggestionsResponse = { cityName: string; liveAvailable: boolean; suggestions: NearbySuggestion[]; radiusKm: number };
 
 const boxToken = {
   canvas: palette.canvas,
@@ -91,7 +69,6 @@ const matchPreferenceGroups: MatchPreferenceGroup[] = [
 const initialMatchSelections: Record<string, string> = {
   category: '不限',
   partySize: '1 人',
-  destinationScope: '周边',
   travelDuration: '当天',
   budget: '划算出行',
   mood: '放松',
@@ -99,18 +76,10 @@ const initialMatchSelections: Record<string, string> = {
 };
 
 const homepagePresetSelections: Record<string, Partial<Record<string, string>>> = {
-  scene: { destinationScope: '全国', mood: '放松', surpriseLevel: '给我一个灵感' },
-  theme: { destinationScope: '周边', mood: '探索', surpriseLevel: '刚刚好' },
+  scene: { mood: '放松', surpriseLevel: '给我一个灵感' },
+  theme: { mood: '探索', surpriseLevel: '刚刚好' },
   audience: { partySize: '2 人', mood: '放松', surpriseLevel: '刚刚好' },
-  food: { destinationScope: '周边', budget: '划算出行', mood: '热闹', surpriseLevel: '刚刚好' },
-};
-
-const defaultPcLocatedCity: PcLocatedCity = {
-  name: '北京',
-  latitude: null,
-  longitude: null,
-  accuracyMeters: null,
-  source: 'default',
+  food: { budget: '划算出行', mood: '热闹', surpriseLevel: '刚刚好' },
 };
 
 const cityPreviewImages: Record<string, string> = {
@@ -122,24 +91,10 @@ const cityPreviewImages: Record<string, string> = {
   '厦门': '/media/travel/xiamen.jpg', '济南': '/media/travel/jinan.jpg', '昆明': '/media/travel/kunming.jpg',
 };
 
-function findMatchingCity(cities: City[], locationName: string) {
-  const normalizedLocationName = locationName.trim().replace(/市$/, '');
-  return cities.find((city) => {
-    const cityName = city.name.trim().replace(/市$/, '');
-    const provinceName = city.province.trim().replace(/市$/, '');
-    return cityName === normalizedLocationName || provinceName === normalizedLocationName;
-  });
-}
-
 function getCityOptionLabel(city: City) {
   const cityName = city.name.trim().replace(/市$/, '');
   const provinceName = city.province.trim().replace(/市$/, '');
   return cityName === provinceName ? city.name : `${city.name} · ${city.province}`;
-}
-
-async function storePcLocatedCity(city: PcLocatedCity) {
-  const payload: StoredPcLocatedCity = { ...city, savedAt: Date.now() };
-  await AsyncStorage.setItem(PC_LOCATED_CITY_KEY, JSON.stringify(payload));
 }
 
 const partySizeValues: Record<string, number> = {
@@ -198,7 +153,8 @@ const GiftOutlined = createPcIcon(GiftOutlinedSvg);
 
 export default function PcBoxConfigScreen() {
   const router = useRouter();
-  const { preset, category } = useLocalSearchParams<{ preset?: string; category?: string }>();
+  const { preset, category, mode } = useLocalSearchParams<{ preset?: string; category?: string; mode?: string }>();
+  const isCityMode = mode === 'city';
   const {
     cities,
     selectedCityId,
@@ -214,12 +170,6 @@ export default function PcBoxConfigScreen() {
   });
   const [departureMode, setDepartureMode] = useState<DepartureMode>(restoredDraw?.preferences.departureMode ?? 'idea');
   const [departureDate, setDepartureDate] = useState(restoredDraw?.preferences.departureDate ?? '');
-  const [locatedCity, setLocatedCity] = useState<PcLocatedCity>(defaultPcLocatedCity);
-  const [locationNotice, setLocationNotice] = useState<string | null>(null);
-  const [isLocating, setIsLocating] = useState(false);
-  const [isDiscoveringNearby, setIsDiscoveringNearby] = useState(false);
-  const [nearbySuggestions, setNearbySuggestions] = useState<NearbySuggestionsResponse | null>(null);
-  const [nearbyError, setNearbyError] = useState<string | null>(null);
   const [isStartingDraw, setIsStartingDraw] = useState(false);
   const [drawError, setDrawError] = useState<string | null>(null);
   const [isSurpriseEditorOpen, setIsSurpriseEditorOpen] = useState(false);
@@ -247,34 +197,8 @@ export default function PcBoxConfigScreen() {
     if (matched) setMatchSelections((current) => ({ ...current, category: matched }));
   }, [category]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function restoreLocatedCity() {
-      const raw = await AsyncStorage.getItem(PC_LOCATED_CITY_KEY);
-      if (!raw || cancelled) return;
-      try {
-        const stored = JSON.parse(raw) as StoredPcLocatedCity;
-        if (
-          stored.source === 'default' ||
-          !stored.name ||
-          Date.now() - Number(stored.savedAt) > PC_LOCATED_CITY_TTL_MS
-        ) return;
-
-        setLocatedCity(stored);
-        const matchedCity = findMatchingCity(cities, stored.name);
-        if (matchedCity) setSelectedCityId(matchedCity.id);
-      } catch {
-        // Ignore stale local location data and keep the Beijing default.
-      }
-    }
-
-    void restoreLocatedCity();
-    return () => { cancelled = true; };
-  }, [cities, setSelectedCityId]);
-
   const goStart = useCallback(async (target: '/box/open' | '/box/slot-preview' = '/box/slot-preview') => {
-    if (isBooting || isStartingDraw) return;
+    if (!isCityMode || isBooting || isStartingDraw) return;
     if (departureMode === 'plan' && !validDepartureDate(departureDate)) { setDrawError('请选择今天起一年内的出发日期'); return; }
     if (matchSelections.category !== '不限' && matchSelections.travelDuration === '小长假') { setDrawError('这个主题暂不支持完整小长假，请选择当天、周末游或不限分类。'); return; }
     if (departureMode === 'now' && needsImmediateDepartureWarning()) {
@@ -295,22 +219,11 @@ export default function PcBoxConfigScreen() {
     const partySize = partySizeValues[matchSelections.partySize] ?? 1;
     const budgetRange = getPcTravelBudgetRange(matchSelections.travelDuration, matchSelections.budget);
     const randomLevel = surpriseLevelValues[matchSelections.surpriseLevel] ?? 60;
-    const originCity = findMatchingCity(cities, locatedCity.name);
-    const destinationCity = cities.find((city) => city.id === selectedCityId) ?? originCity ?? cities[0] ?? null;
+    const destinationCity = cities.find((city) => city.id === selectedCityId) ?? null;
     const drawCityId = destinationCity?.id ?? null;
 
     if (!drawCityId) {
       setDrawError('城市数据尚未加载完成，请稍后重试。');
-      return;
-    }
-
-    if (typeof window !== 'undefined' && window.innerWidth <= 760 && matchSelections.destinationScope === '周边' && locatedCity.source !== 'device') {
-      setDrawError('推荐附近玩法前，请先点击“定位当前位置”；定位失败时可切换为探索整座城市。');
-      return;
-    }
-
-    if (matchSelections.destinationScope === '周边' && originCity && originCity.id !== drawCityId) {
-      setDrawError(`出发地是${originCity.name}，目的地却选了${destinationCity?.name}。请先切换到${originCity.name}，或改选跨城出游。`);
       return;
     }
 
@@ -325,18 +238,13 @@ export default function PcBoxConfigScreen() {
       randomLevel,
       category: matchSelections.category ?? '不限',
       environment: 'either',
-      radiusKm: matchSelections.destinationScope === '周边' && locatedCity.latitude !== null && locatedCity.longitude !== null ? 10 : null,
-      originName: locatedCity.name,
-      originLatitude: locatedCity.latitude,
-      originLongitude: locatedCity.longitude,
-      originAccuracyMeters: locatedCity.accuracyMeters,
-      originSource:
-        locatedCity.source === 'device'
-          ? 'device'
-          : locatedCity.source === 'manual'
-            ? 'manual'
-            : null,
-      destinationScope: originCity?.id === drawCityId ? 'nearby' : 'nationwide',
+      radiusKm: null,
+      originName: null,
+      originLatitude: null,
+      originLongitude: null,
+      originAccuracyMeters: null,
+      originSource: null,
+      destinationScope: 'nationwide',
       travelDuration:
         matchSelections.travelDuration === '当天'
           ? 'same-day'
@@ -344,21 +252,18 @@ export default function PcBoxConfigScreen() {
             ? '2-3days'
             : '4-5days',
       clientSource: 'pc',
-      destinationScopeLabel: originCity?.id === drawCityId
-        ? `${destinationCity?.name ?? locatedCity.name}本地`
-        : `${locatedCity.name} → ${destinationCity?.name ?? '目的地'}`,
+      destinationScopeLabel: `${destinationCity?.name}全城`,
       travelDurationLabel: matchSelections.travelDuration,
       budgetLabel: matchSelections.budget,
       surpriseLevelLabel: matchSelections.surpriseLevel,
     };
 
     const summary = [
-      `${locatedCity.name}出发`,
       `目的地：${destinationCity?.name ?? '未选择'}`,
       ...matchPreferenceGroups.map((group) => matchSelections[group.key] ?? group.options[0]),
     ].join(' · ');
 
-    if (!savePendingPcBoxDraw({ cityId: drawCityId, preferences, summary })) {
+    if (!savePendingPcBoxDraw({ intent: 'city', cityId: drawCityId, destinationName: destinationCity?.name, preferences, summary })) {
       setDrawError('浏览器暂时无法保存本次偏好，请刷新页面后重试。');
       return;
     }
@@ -367,23 +272,20 @@ export default function PcBoxConfigScreen() {
     clearError();
     // Keep local development friction-free while preserving the production
     // login gate for account-bound draws.
+    const targetHref = `${target}?mode=city` as const;
     if (!isRegistered && !__DEV__) {
-      router.push(`/pc-login?reason=draw&returnTo=${encodeURIComponent(target)}`);
+      router.push(`/pc-login?reason=draw&returnTo=${encodeURIComponent(targetHref)}`);
       return;
     }
     setIsStartingDraw(true);
-    router.push(target);
+    router.push(targetHref);
   }, [
     cities,
     clearError,
     isBooting,
     isRegistered,
     isStartingDraw,
-    locatedCity.accuracyMeters,
-    locatedCity.latitude,
-    locatedCity.longitude,
-    locatedCity.name,
-    locatedCity.source,
+    isCityMode,
     matchSelections,
     departureMode,
     departureDate,
@@ -409,87 +311,12 @@ export default function PcBoxConfigScreen() {
   const handleManualCitySelect = (cityId: number) => {
     const city = cities.find((item) => item.id === cityId);
     if (!city) return;
-    const nextLocatedCity: PcLocatedCity = {
-      name: city.name,
-      latitude: null,
-      longitude: null,
-      accuracyMeters: null,
-      source: 'manual',
-    };
-    setLocatedCity(nextLocatedCity);
-    setNearbySuggestions(null);
     setSelectedCityId(city.id);
     setDrawError(null);
-    setLocationNotice(`已切换到${city.name}，将优先生成当地玩法。`);
-    void storePcLocatedCity(nextLocatedCity);
   };
 
-  const discoverNearby = async (coords: { latitude: number; longitude: number }, radiusKm = 5) => {
-    const apiUrl = process.env.EXPO_PUBLIC_API_URL;
-    if (!apiUrl) { setNearbyError('附近地点服务暂不可用。'); return; }
-    setIsDiscoveringNearby(true);
-    setNearbyError(null);
-    try {
-      const partySize = partySizeValues[matchSelections.partySize] ?? 2;
-      const budget = getPcTravelBudgetRange('当天', matchSelections.budget);
-      const response = await fetch(`${apiUrl.replace(/\/$/, '')}/nearby/suggestions`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          latitude: coords.latitude, longitude: coords.longitude, radiusKm,
-          partySize, budgetPerPersonYuan: budget.max, mood: matchSelections.mood,
-        }),
-      });
-      const body = await response.json() as { data?: NearbySuggestionsResponse; error?: { message?: string } };
-      if (!response.ok || !body.data) throw new Error(body.error?.message || '附近地点加载失败，请稍后重试。');
-      setNearbySuggestions(body.data);
-    } catch (reason) {
-      setNearbyError(reason instanceof Error ? reason.message : '附近地点加载失败。');
-    } finally {
-      setIsDiscoveringNearby(false);
-    }
-  };
-
-  const handleLocateCurrentCity = async () => {
-    if (isLocating) return;
-    setIsLocating(true);
-    setDrawError(null);
-    setLocationNotice('正在获取当前位置…');
-    try {
-      const coords = await requestDeviceCurrentPosition({ accuracy: 'high' });
-      if (coords.accuracy !== null && coords.accuracy > 2_000) {
-        throw new Error(`定位误差约 ${Math.round(coords.accuracy)} 米，请检查手机精确定位权限后重试。`);
-      }
-      const cityName = await resolveCoordinatesCity(coords);
-      const city = findMatchingCity(cities, cityName);
-      if (!city) throw new Error(`当前位置在${cityName}，该城市暂时没有玩法。`);
-      const address = await resolveCoordinatesAddress(coords).catch(() => cityName);
-      const nextLocatedCity: PcLocatedCity = {
-        name: city.name,
-        latitude: coords.latitude,
-        longitude: coords.longitude,
-        accuracyMeters: coords.accuracy,
-        source: 'device',
-      };
-      setLocatedCity(nextLocatedCity);
-      setSelectedCityId(city.id);
-      setLocationNotice(`已定位在${address}；周边推荐将从当前位置 10 公里内筛选。`);
-      await storePcLocatedCity(nextLocatedCity);
-      void discoverNearby(coords);
-    } catch (reason) {
-      setLocationNotice(reason instanceof Error ? reason.message : '定位失败，请重试。');
-    } finally {
-      setIsLocating(false);
-    }
-  };
-
-  const locatedCityOption = findMatchingCity(cities, locatedCity.name);
-  const destinationCityOption = cities.find((city) => city.id === selectedCityId) ?? locatedCityOption ?? cities[0];
-  const destinationName = destinationCityOption?.name ?? '请选择目的地';
-  const originName = locatedCity.name.trim().replace(/市$/, '');
-  const normalizedDestinationName = destinationName.trim().replace(/市$/, '');
-  const routeSummary = originName === normalizedDestinationName
-    ? locatedCity.name
-    : `${locatedCity.name} → ${destinationName}`;
+  const destinationCityOption = cities.find((city) => city.id === selectedCityId);
+  const routeSummary = destinationCityOption?.name ?? '请选择城市';
 
   return (
     <ConfigProvider
@@ -538,7 +365,12 @@ export default function PcBoxConfigScreen() {
         <style>{pcBoxCss}</style>
         <Layout className="pc-box-layout">
           <Content className="pc-box-content">
-            <NearbyPlanPanel />
+            <div className="pc-box-mode-picker" role="group" aria-label="选择出游范围">
+              <button type="button" aria-pressed={!isCityMode} onClick={() => router.replace(category ? `/box/config?mode=nearby&category=${encodeURIComponent(category)}` : '/box/config?mode=nearby')}>就在附近 · 实时定位</button>
+              <button type="button" aria-pressed={isCityMode} onClick={() => router.replace('/box/config?mode=city')}>指定城市 · 手动选择</button>
+            </div>
+            {isCityMode ? <>
+            <p className="pc-box-mode-help">按你手动选择的城市安排全城行程；想找当前位置附近的玩法，请切换“就在附近”。</p>
             <div className="pc-box-workbench">
             <div className="pc-box-sections">
               <Card className="pc-box-section" variant="borderless">
@@ -553,44 +385,16 @@ export default function PcBoxConfigScreen() {
                     <Text className="pc-box-label">探索城市</Text>
                     <div className="pc-box-location-controls">
                       <Select
-                        aria-label="选择探索城市"
-                        className={`pc-box-city-select${locatedCityOption ? ' is-selected' : ''}`}
+                        aria-label="手动选择目的城市"
+                        className={`pc-box-city-select${destinationCityOption ? ' is-selected' : ''}`}
                         options={cities.map((city) => ({ label: getCityOptionLabel(city), value: city.id }))}
-                        placeholder={locatedCity.name}
-                        showSearch
-                        optionFilterProp="label"
+                        placeholder="请选择目的城市"
+                        showSearch optionFilterProp="label"
                         classNames={{ popup: { root: 'pc-box-city-dropdown' } }}
-                        value={locatedCityOption?.id}
+                        value={selectedCityId ?? undefined}
                         onChange={handleManualCitySelect}
                       />
-                      <Button loading={isLocating} onClick={() => void handleLocateCurrentCity()}>定位当前位置</Button>
                     </div>
-                    {locationNotice ? (
-                      <Text className="pc-box-location-notice">{locationNotice}</Text>
-                    ) : null}
-                    {locatedCity.source === 'device' ? (
-                      <Button loading={isDiscoveringNearby} onClick={() => void discoverNearby({ latitude: locatedCity.latitude!, longitude: locatedCity.longitude! })}>按当前预算和心情刷新附近玩法</Button>
-                    ) : null}
-                    {nearbyError ? <Text className="pc-box-location-notice">{nearbyError}</Text> : null}
-                    {nearbySuggestions ? (
-                      <div className="pc-box-nearby-panel">
-                        <strong>附近现在可以考虑</strong>
-                        <small>{nearbySuggestions.liveAvailable ? '已查询实时地点' : '实时地点暂不可用，以下来自已收录玩法'} · 当前位置 {nearbySuggestions.radiusKm} 公里内</small>
-                        {nearbySuggestions.suggestions.length === 0 ? <>
-                          <p>这个范围和预算下暂时没有可核实的玩法，可以调整预算或扩大附近范围。</p>
-                          {nearbySuggestions.radiusKm < 10 ? <Button onClick={() => void discoverNearby({ latitude: locatedCity.latitude!, longitude: locatedCity.longitude! }, 10)}>扩大到 10 公里</Button> : null}
-                        </> : null}
-                        {nearbySuggestions.suggestions.map((suggestion) => (
-                          <div className="pc-box-nearby-item" key={suggestion.id}>
-                            <b>{suggestion.title}</b>
-                            <span>{suggestion.source === 'live' ? '实时地点' : '已收录玩法'} · {suggestion.distanceKm} 公里 · {suggestion.costYuan === null ? '费用待核实，需确认是否符合预算' : `参考 ${suggestion.costYuan} 元/人`}</span>
-                            <p>{suggestion.summary}</p>
-                            <ol>{suggestion.steps.map((step) => <li key={step}>{step}</li>)}</ol>
-                            <a href={suggestion.navigationUrl} target="_blank" rel="noopener noreferrer">打开地图查看地点</a>
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
                   </div>
                 </div>
               </Card>
@@ -654,7 +458,7 @@ export default function PcBoxConfigScreen() {
               <div className="pc-box-visual-image">
                 <img src={cityPreviewImages[destinationCityOption?.name ?? '北京'] ?? cityPreviewImages['北京']} alt={`${destinationCityOption?.name ?? '北京'}城市预览`} />
                 <div className="pc-box-visual-image-shade" />
-                <span>已锁定目的地</span>
+                <span>手动选择的城市</span>
                 <div className="pc-box-visual-city">
                   <small>DESTINATION</small>
                   <strong>{destinationCityOption?.name ?? '北京'}</strong>
@@ -695,10 +499,11 @@ export default function PcBoxConfigScreen() {
                   disabled={isBooting}
                   loading={isStartingDraw}
                   onClick={() => { void goStart('/box/slot-preview'); }}>
-                  {isStartingDraw ? '正在抽取…' : '立即抽取'}
+                  {isStartingDraw ? '正在抽取…' : '抽一条城市行程'}
                 </Button>
               </Space>
             </div>
+            </> : <NearbyPlanPanel key={category || 'nearby'} initialCategory={category} />}
           </Content>
         </Layout>
       </div>
@@ -745,6 +550,11 @@ function MatchOptionGroup({
 }
 
 const pcBoxCss = `
+.pc-box-mode-picker{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 20px}
+.pc-box-mode-picker button{min-height:46px;flex:1;padding:10px 14px;border-radius:14px;border:1px solid #46503f;background:#151a15;color:#d3dccd;font-weight:800;cursor:pointer}
+.pc-box-mode-picker button[aria-pressed=true]{border-color:#c9ff62;color:#c9ff62;background:#25301f}
+.pc-box-mode-help{color:#b9c2b2;line-height:1.65;font-size:14px;margin-bottom:18px}
+
 .pc-box-page {
   min-height: 100dvh;
   color: ${boxToken.ink};

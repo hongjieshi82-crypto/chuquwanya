@@ -29,7 +29,7 @@ import {
 } from 'antd';
 import 'antd/dist/reset.css';
 import { Asset } from 'expo-asset';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, SVGProps } from 'react';
 import { useApp } from '@/contexts/app-context';
@@ -45,6 +45,7 @@ import { createDemoDraw, demoCityImageUris } from '@/services/demo-data';
 import { savePcMultiDayTrip } from '@/lib/pc-multi-day-trip';
 import { palette, radii } from '@/theme';
 import type { Activity, DrawResult } from '@/types';
+import { isExplicitCityDraw } from '@/lib/web-draw-flow';
 
 const { Content } = Layout;
 const { Paragraph, Text, Title } = Typography;
@@ -335,6 +336,7 @@ async function createTripPoster(
 
 export default function PcBoxOpenScreen() {
   const router = useRouter();
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
   const { clearError, isBooting, startDraw } = useApp();
   const [pendingDraw] = useState<PendingPcBoxDraw | null>(() => readPendingPcBoxDraw());
   const [attempt, setAttempt] = useState(0);
@@ -427,6 +429,7 @@ export default function PcBoxOpenScreen() {
 
   const activateDraw = () => {
     if (
+      mode !== 'city' ||
       !pendingDraw ||
       isBooting ||
       isCharging ||
@@ -476,6 +479,8 @@ export default function PcBoxOpenScreen() {
       ? '正在锁定城市任务…'
       : '点击注入能量';
   const chargeStyle = { '--charge-progress': `${chargeProgress}%` } as CSSProperties;
+
+  if (mode !== 'city' || !isExplicitCityDraw(pendingDraw)) return <Redirect href="/box/config?mode=nearby" />;
 
   return (
     <ConfigProvider

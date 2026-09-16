@@ -4,7 +4,7 @@ import type { MouseEvent } from 'react';
 const items = [
   { href: '/pc', label: '周末灵感', short: '首页', icon: 'home' },
   { href: '/trips', label: '我的行程', short: '行程', icon: 'suitcase' },
-  { href: '/box/config', label: '旅行抽取', short: '扭蛋', icon: 'capsule' },
+  { href: '/box/config', label: '去哪玩', short: '去哪玩', icon: 'capsule' },
   { href: '/destinations', label: '可玩地点', short: '探索', icon: 'map' },
 ] as const;
 

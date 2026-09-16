@@ -3,7 +3,7 @@ import ReloadOutlinedSvg from '@ant-design/icons-svg/es/asn/ReloadOutlined';
 import type { AbstractNode, IconDefinition } from '@ant-design/icons-svg/es/types';
 import { Alert, Button, ConfigProvider, Typography } from 'antd';
 import 'antd/dist/reset.css';
-import { useRouter } from 'expo-router';
+import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, SVGProps } from 'react';
 import { Image as NativeImage, useWindowDimensions } from 'react-native';
@@ -18,7 +18,7 @@ import {
   savePendingPcBoxDraw,
   type PendingPcBoxDraw,
 } from '@/lib/pc-box-open-state';
-import type { Preferences } from '@/types';
+import { isExplicitCityDraw } from '@/lib/web-draw-flow';
 
 const { Text } = Typography;
 const LAUNCH_CHARGE_MS = 420;
@@ -268,7 +268,8 @@ export default function PcSlotPreviewScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isMobile = width <= 760;
-  const { cities, clearError, currentDraw, isBooting, reroll, selectedCityId, startDraw, user } = useApp();
+  const { clearError, currentDraw, isBooting, reroll, startDraw, user } = useApp();
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
   const [pendingDraw] = useState<PendingPcBoxDraw | null>(() => readPendingPcBoxDraw());
   const [stage, setStage] = useState<SlotStage>('idle');
   const [stoppedReels, setStoppedReels] = useState(0);
@@ -287,36 +288,6 @@ export default function PcSlotPreviewScreen() {
     return [seed % SYMBOL_COUNT, (seed * 3 + 4) % SYMBOL_COUNT, (seed * 7 + 9) % SYMBOL_COUNT];
   }, [currentDraw?.activity.id, pendingDraw?.cityId]);
 
-  const directDrawInput = useMemo(() => {
-    const city = cities.find((item) => item.id === selectedCityId) ?? cities[0] ?? null;
-    if (!city) return null;
-
-    const preferences: Preferences = {
-      partySize: 1,
-      durationMinutes: null,
-      budgetMax: 200,
-      mood: '放松',
-      randomLevel: 70,
-      category: '不限',
-      environment: 'either',
-      radiusKm: null,
-      originName: city.name,
-      originLatitude: null,
-      originLongitude: null,
-      originAccuracyMeters: null,
-      originSource: 'manual',
-      destinationScope: 'nearby',
-      travelDuration: 'same-day',
-      clientSource: 'pc',
-      destinationScopeLabel: `${city.name}本地`,
-      travelDurationLabel: '当天',
-      budgetLabel: '划算出行',
-      surpriseLevelLabel: '高惊喜',
-    };
-
-    return { cityId: city.id, preferences };
-  }, [cities, selectedCityId]);
-
   useEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -328,7 +299,7 @@ export default function PcSlotPreviewScreen() {
   }, []);
 
   const startSlotDraw = useCallback(async () => {
-    if (isBooting || drawBusyRef.current || stage === 'launching' || stage === 'spinning' || stage === 'settling') return;
+    if (mode !== 'city' || !isExplicitCityDraw(pendingDraw) || isBooting || drawBusyRef.current || stage === 'launching' || stage === 'spinning' || stage === 'settling') return;
 
     const isRepeatDraw = hasDrawnRef.current && currentDraw !== null;
     drawBusyRef.current = true;
@@ -351,9 +322,7 @@ export default function PcSlotPreviewScreen() {
       ? reroll()
       : pendingDraw
         ? startDraw(pendingDraw.cityId, pendingDraw.preferences)
-        : directDrawInput
-            ? startDraw(directDrawInput.cityId, directDrawInput.preferences)
-            : Promise.reject(new Error('城市数据尚未准备完成，请稍后重试。'));
+        : Promise.reject(new Error('请先明确选择目的城市。'));
     // Attach the rejection handler immediately, before the launch animation.
     const outcomePromise = Promise.allSettled([drawPromise, wait(LAUNCH_CHARGE_MS + (isMobile ? 2_000 : isRepeatDraw ? 500 : SPIN_MINIMUM_MS))]);
     await wait(LAUNCH_CHARGE_MS);
@@ -386,7 +355,7 @@ export default function PcSlotPreviewScreen() {
     drawBusyRef.current = false;
     setStage('revealed');
     if (pendingDraw && !isRepeatDraw) clearPendingPcBoxDraw();
-  }, [clearError, currentDraw, directDrawInput, isBooting, isMobile, pendingDraw, reroll, stage, startDraw]);
+  }, [clearError, currentDraw, mode, isBooting, isMobile, pendingDraw, reroll, stage, startDraw]);
 
   const resetPreview = () => {
     if (drawBusyRef.current) return;
@@ -402,8 +371,7 @@ export default function PcSlotPreviewScreen() {
   const isActive = stage === 'launching' || stage === 'spinning' || stage === 'settling';
   const adjustConditions = () => {
     if (pendingDraw) savePendingPcBoxDraw(pendingDraw);
-    else if (directDrawInput) savePendingPcBoxDraw({ ...directDrawInput, summary: '调整上次条件' });
-    router.push('/box/config');
+    router.push('/box/config?mode=city');
   };
   const noNewChoices = currentDraw?.alternativesRemaining === 0;
   const handleReaction = async (reaction: 'disliked' | 'visited') => {
@@ -434,7 +402,7 @@ export default function PcSlotPreviewScreen() {
       : stage === 'settling'
         ? `锁定滚轮 ${stoppedReels}/3`
         : stage === 'revealed'
-          ? currentDraw?.activity.title ?? '目的地已锁定'
+          ? currentDraw?.activity.title ?? '城市方案已生成'
           : '启动灵感机，发现周末方向';
   const compactDisplayTitle = isBooting
     ? '准备中'
@@ -445,10 +413,12 @@ export default function PcSlotPreviewScreen() {
         : stage === 'settling'
           ? `${stoppedReels}/3 锁定中`
           : stage === 'revealed'
-            ? '目的地锁定'
+            ? '城市方案已生成'
             : stage === 'error'
               ? '信号中断'
               : '下一站？';
+
+  if (mode !== 'city' || !isExplicitCityDraw(pendingDraw)) return <Redirect href="/box/config?mode=nearby" />;
 
   return (
     <ConfigProvider theme={{ token: { colorPrimary: '#ff7426', borderRadius: 18, fontFamily: 'Inter, PingFang SC, Microsoft YaHei, sans-serif' } }}>
@@ -456,10 +426,10 @@ export default function PcSlotPreviewScreen() {
         <style>{travelSlotCss}</style>
         {isMobile ? <section className="mobile-world-machine" aria-label="周末旅行扭蛋机">
           <header>
-            <button type="button" aria-label="返回上一步" onClick={() => router.replace('/box/config')}>
+            <button type="button" aria-label="返回上一步" onClick={() => router.replace('/box/config?mode=city')}>
               <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m14.5 6.5-5.5 5.5 5.5 5.5" /></svg>
             </button>
-            <span>{stage === 'revealed' ? '你的旅行方案' : '旅行扭蛋机'}</span>
+            <span>{stage === 'revealed' ? '你的城市行程' : `${pendingDraw?.destinationName || pendingDraw?.preferences.destinationScopeLabel || '指定城市'} · 城市行程`}</span>
           </header>
           {stage === 'revealed' && currentDraw ? (
             <article className="mobile-world-result">
@@ -506,7 +476,7 @@ export default function PcSlotPreviewScreen() {
               onClick={() => {
                 if (document.referrer) window.history.back();
                 else if (router.canGoBack()) router.back();
-                else router.replace('/box/config');
+                else router.replace('/box/config?mode=city');
               }}>
               返回
             </Button>

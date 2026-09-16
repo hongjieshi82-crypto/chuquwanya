@@ -8,8 +8,8 @@
     <script>if(new URLSearchParams(location.search).get('externalNav')==='1')document.documentElement.classList.add('external-desktop-nav')</script>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
     <!-- ECS caches CSS and JS as immutable for 30 days; change these versions whenever the files change. -->
-    <link rel="stylesheet" href="./style.css?v=web-responsive-20260916" />
-    <link rel="stylesheet" href="./mobile.css?v=web-responsive-20260916" />
+    <link rel="stylesheet" href="./style.css?v=unified-nearby-20260916" />
+    <link rel="stylesheet" href="./mobile.css?v=unified-nearby-20260916" />
   </head>
   <body>
     <header class="topbar">
@@ -25,7 +25,7 @@
       </nav>
       <div class="topbar-actions">
         <form class="city-switcher">
-          <label for="home-city-select">当前城市</label>
+          <label for="home-city-select">浏览城市</label>
           <select id="home-city-select" name="city" data-city-input aria-label="选择探索城市"></select>
           <button type="button" id="home-locate" aria-label="使用定位切换城市">定位</button>
         </form>
@@ -50,9 +50,9 @@
         <div class="hero-grid" aria-hidden="true"></div>
         <div class="hero-copy">
           <h1>周末别浪费 <em>粗去玩鸭</em></h1>
-          <p>选好城市、人数和预算，发现一条适合你的出游灵感。喜欢的先收藏，准备好了再出发。</p>
+          <p>先定位，再按人数、预算和心情，抽一个附近能玩的地方。也可以切换到指定城市安排旅程。</p>
           <div class="hero-actions">
-            <a class="primary-button" href="/box/slot-preview" target="_top">立即抽取</a>
+            <a class="primary-button" href="/box/config?mode=nearby" target="_top">抽个附近玩法</a>
             <button class="ghost-button" id="shuffle-button" type="button">重新撒一把</button>
           </div>
         </div>
@@ -166,7 +166,7 @@
             <article><b>02</b><strong>启动周末灵感机</strong><p>获得一个匹配方案</p></article>
             <article><b>03</b><strong>领取周末逃跑计划</strong><p>不合适就换一个</p></article>
           </div>
-          <a class="idea-machine-cta" href="/box/slot-preview" target="_top" aria-label="立即体验"></a>
+          <a class="idea-machine-cta" href="/box/config?mode=nearby" target="_top" aria-label="立即体验"></a>
         </div>
       </section>
     </main>
@@ -214,6 +214,6 @@
     <footer class="site-footer" style="position:relative;padding:24px 16px;text-align:center;background:#090b09;color:#a8b0a5;font:12px/1.6 system-ui,'PingFang SC','Microsoft YaHei',sans-serif;scroll-snap-align:end">
       <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:8px;color:inherit;text-decoration:none">京ICP备2026046201号-2</a>
     </footer>
-    <script src="./app.js?v=web-responsive-20260916"></script>
+    <script src="./app.js?v=unified-nearby-20260916"></script>
   </body>
 </html>

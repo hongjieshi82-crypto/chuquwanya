@@ -813,7 +813,7 @@ function setupCityRecommendations() {
   let pendingAddButton = null;
   let selectedCategory = null;
   const categorySelections = { partySize: '2 人', travelDuration: '当天', budget: '划算出行' };
-  const cityIds = Object.fromEntries(Object.keys(cityProfiles).map((city, index) => [city, index + 1]));
+  const cityIds = Object.create(null); // Filled only by the API city list; never infer IDs from order.
   const partySizeValues = { '1 人': 1, '2 人': 2, '多人': 4 };
   const travelDurationValues = { '当天': 'same-day', '周末游': '2-3days', '小长假': '4-5days' };
   const budgetRanges = {
@@ -831,18 +831,17 @@ function setupCityRecommendations() {
     if (window.parent !== window) {
       window.parent.postMessage({
         type: 'gravity-home:open-quick-draw',
-        cityId: cityIds[currentCity] || 1,
+        cityId: cityIds[currentCity],
         cityName: currentCity,
         categoryLabel: category,
       }, window.location.origin);
       return;
     }
-    selectedCategory = category;
-    if (categoryModal) categoryModal.hidden = false;
+    window.location.href = `/box/config?mode=nearby&category=${encodeURIComponent(category)}`;
   };
 
   const navigateToSlot = () => {
-    const href = '/box/slot-preview';
+    const href = '/box/config?mode=nearby';
     if (window.parent !== window) {
       window.parent.postMessage({ type: 'gravity-home:navigate', href }, window.location.origin);
     } else {
@@ -943,10 +942,10 @@ function setupCityRecommendations() {
   };
 
   const requestRealGuides = () => {
-    if (window.parent === window) return;
+    if (window.parent === window || !Number.isInteger(cityIds[currentCity])) return;
     window.parent.postMessage({
       type: 'gravity-home:request-guides',
-      cityId: cityIds[currentCity] || 1,
+      cityId: cityIds[currentCity],
       offset: recommendationOffset,
     }, window.location.origin);
   };
@@ -975,20 +974,13 @@ function setupCityRecommendations() {
     ).map((step) => step.trim()).filter(Boolean);
     return steps.length ? steps.slice(0, 3) : ['确认路线与开放时间', '完成攻略的核心体验', '记录今天最喜欢的瞬间'];
   };
-  const cityCoordinates = {
-    '北京': [39.9042, 116.4074], '上海': [31.2304, 121.4737], '杭州': [30.2741, 120.1551], '深圳': [22.5431, 114.0579],
-    '天津': [39.0842, 117.2009], '烟台': [37.4638, 121.4479], '青岛': [36.0671, 120.3826], '南京': [32.0603, 118.7969],
-    '武汉': [30.5928, 114.3055], '成都': [30.5728, 104.0668], '西安': [34.3416, 108.9398], '长沙': [28.2282, 112.9388],
-    '广州': [23.1291, 113.2644], '合肥': [31.8206, 117.2272], '重庆': [29.4316, 106.9123], '厦门': [24.4798, 118.0894],
-    '济南': [36.6512, 117.1201], '昆明': [25.0389, 102.7183],
-  };
   const normalizeCity = (value) => value.trim().replace(/[市区]$/, '');
 
   const applyCity = (requestedCity, persist = true, source = 'manual') => {
     const normalized = normalizeCity(requestedCity);
     const city = Object.keys(catalog).find((name) => normalizeCity(name) === normalized) || '北京';
     currentCity = city;
-    if (window.parent !== window) window.parent.postMessage({ type: 'gravity-home:city-selected', cityId: cityIds[city], cityName: city }, window.location.origin);
+    if (window.parent !== window && source !== 'external' && source !== 'default') window.parent.postMessage({ type: 'gravity-home:city-selected', cityName: city, source }, window.location.origin);
     recommendationOffset = 0;
     inputs.forEach((input) => { input.value = city; });
     if (cityLabel) cityLabel.textContent = city;
@@ -1020,40 +1012,7 @@ function setupCityRecommendations() {
   }));
   categorySubmit?.addEventListener('click', () => {
     if (!selectedCategory) return;
-    const partySize = selectedCategory === '浪漫约会' ? 2 : (partySizeValues[categorySelections.partySize] || 1);
-    const [budgetMin, budgetMax] = budgetRanges[categorySelections.travelDuration][categorySelections.budget];
-    const normalizedCategory = selectedCategory === '浪漫约会' ? '约会' : selectedCategory;
-    const preferences = {
-      partySize,
-      durationMinutes: null,
-      budgetMin,
-      budgetMax,
-      mood: normalizedCategory,
-      randomLevel: 70,
-      category: normalizedCategory,
-      environment: 'either',
-      radiusKm: null,
-      originName: currentCity,
-      originLatitude: null,
-      originLongitude: null,
-      originAccuracyMeters: null,
-      originSource: 'manual',
-      destinationScope: 'nearby',
-      travelDuration: travelDurationValues[categorySelections.travelDuration],
-      clientSource: 'pc',
-      destinationScopeLabel: `${currentCity}本地`,
-      travelDurationLabel: categorySelections.travelDuration,
-      budgetLabel: categorySelections.budget,
-      surpriseLevelLabel: `${selectedCategory}分类盲盒`,
-    };
-    sessionStorage.setItem('lazyde:pc-box:pending-draw', JSON.stringify({
-      cityId: cityIds[currentCity] || 1,
-      preferences,
-      summary: `${currentCity} · ${selectedCategory} · ${partySize} 人 · ${categorySelections.travelDuration} · ${categorySelections.budget}`,
-      createdAt: Date.now(),
-    }));
-    closeCategoryModal();
-    navigateToSlot();
+    window.location.href = `/box/config?mode=nearby&category=${encodeURIComponent(selectedCategory)}`;
   });
   refreshButton?.addEventListener('click', () => {
     recommendationOffset += 4;
@@ -1088,7 +1047,7 @@ function setupCityRecommendations() {
       return {
         type,
         activityId: Number(card.dataset.activityId) || undefined,
-        cityId: cityIds[currentCity] || 1,
+        cityId: cityIds[currentCity],
         channel: categoryChannels[category] || category,
         offset: recommendationOffset + index,
       };
@@ -1127,6 +1086,10 @@ function setupCityRecommendations() {
 
   window.addEventListener('message', (event) => {
     if (event.origin !== window.location.origin) return;
+    if (event.data?.type === 'gravity-home:location-status') {
+      if (notice) notice.textContent = event.data.message || '';
+      return;
+    }
     if (event.data?.type === 'gravity-home:cities') {
       const cities = Array.isArray(event.data.cities) ? event.data.cities : [];
       cities.forEach((city) => {
@@ -1237,22 +1200,13 @@ function setupCityRecommendations() {
   });
   let storedCity = null;
   try { storedCity = localStorage.getItem('@weekend-oracle/home-city'); } catch {}
-  applyCity(storedCity && cityProfiles[storedCity] ? storedCity : '北京', false, storedCity ? 'manual' : 'default');
+  applyCity(storedCity && cityProfiles[storedCity] ? storedCity : '北京', false, 'default');
   const notice = document.querySelector('#home-city-notice');
   if (notice && !storedCity) notice.textContent = '';
   document.querySelector('#home-locate')?.addEventListener('click', () => {
-    if (!navigator.geolocation) { if (notice) notice.textContent = '请手动选择城市'; return; }
     if (notice) notice.textContent = '定位中…';
-    navigator.geolocation.getCurrentPosition(({ coords }) => {
-      if (coords.accuracy > 2000) { if (notice) notice.textContent = '定位误差较大，请开启手机精确定位后重试'; return; }
-      let nearestCity = ''; let nearestDistance = Infinity;
-      Object.entries(cityCoordinates).forEach(([city, [lat, lon]]) => {
-        const distance = Math.hypot(coords.latitude - lat, (coords.longitude - lon) * Math.cos(coords.latitude * Math.PI / 180));
-        if (distance < nearestDistance) { nearestCity = city; nearestDistance = distance; }
-      });
-      if (nearestDistance < 1) { applyCity(nearestCity, true, 'device'); if (notice) notice.textContent = '可手动更改'; }
-      else if (notice) notice.textContent = '附近城市未覆盖，请手动选';
-    }, () => { if (notice) notice.textContent = '定位未开启，可手动选择'; }, { enableHighAccuracy: true, maximumAge: 0, timeout: 12000 });
+    if (window.parent !== window) window.parent.postMessage({ type: 'gravity-home:locate' }, window.location.origin);
+    else window.location.href = '/box/config?mode=nearby';
   });
 }
 

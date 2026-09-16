@@ -208,6 +208,8 @@ async function withDemoFallback<T>(
   request: () => Promise<T>,
   fallback: () => T | Promise<T>,
 ) {
+  // Production Web must never replace API city identities with demo catalogue IDs.
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && !['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)) return await request();
   // Signed-in accounts must use the shared server, never a device-local substitute.
   if (await getAuthToken()) return await request();
   if (localDemoModeEnabled) return await fallback();

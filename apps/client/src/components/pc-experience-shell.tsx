@@ -1,11 +1,14 @@
 import { ConfigProvider } from 'antd';
 import 'antd/dist/reset.css';
-import { usePathname } from 'expo-router';
+import { useLocalSearchParams, usePathname } from 'expo-router';
 import { useEffect, useState, type PropsWithChildren } from 'react';
 
 import { PC_TOP_NAV_KEYS, PcTopNav, getPcTopNavItems } from '@/components/pc-top-nav';
 import { useApp } from '@/contexts/app-context';
 import { palette, radii } from '@/theme';
+import { requestDeviceCurrentPosition } from '@/lib/device-location';
+import { resolveCoordinatesCity } from '@/lib/reverse-geocode';
+import { resolveHomeCityId } from '@/lib/web-draw-flow';
 
 const shellToken = {
   ink: palette.ink,
@@ -14,12 +17,6 @@ const shellToken = {
   primaryDark: palette.primaryDark,
   primarySoft: palette.primarySoft,
   border: palette.border,
-};
-
-const cityCoordinates: Record<string, [number, number]> = {
-  '北京': [39.9042, 116.4074], '上海': [31.2304, 121.4737], '杭州': [30.2741, 120.1551], '深圳': [22.5431, 114.0579],
-  '广州': [23.1291, 113.2644], '天津': [39.0842, 117.2009], '青岛': [36.0671, 120.3826], '南京': [32.0603, 118.7969],
-  '武汉': [30.5928, 114.3055], '成都': [30.5728, 104.0668], '西安': [34.3416, 108.9398], '长沙': [28.2282, 112.9388],
 };
 
 const pcExperienceShellCss = `
@@ -280,6 +277,7 @@ const pcExperienceShellCss = `
 
 export function PcExperienceShell({ children }: PropsWithChildren) {
   const pathname = usePathname();
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
   const { cities, isBooting, isRegistered, selectedCityId, setSelectedCityId } = useApp();
   const [hasScrolled, setHasScrolled] = useState(false);
   const isBlindBoxRoute =
@@ -312,25 +310,22 @@ export function PcExperienceShell({ children }: PropsWithChildren) {
     window.dispatchEvent(new Event('pc-box-start-draw'));
   };
 
-  const locateHomeCity = () => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(({ coords }) => {
-      const match = cities.reduce<{ id: number; distance: number } | null>((best, city) => {
-        const coordinate = cityCoordinates[city.name];
-        if (!coordinate) return best;
-        const distance = Math.hypot(coords.latitude - coordinate[0], (coords.longitude - coordinate[1]) * Math.cos(coords.latitude * Math.PI / 180));
-        return !best || distance < best.distance ? { id: city.id, distance } : best;
-      }, null);
-      if (match) setSelectedCityId(match.id);
-    });
+  const locateHomeCity = async () => {
+    try {
+      const coords = await requestDeviceCurrentPosition({ accuracy: 'high' });
+      const cityName = await resolveCoordinatesCity(coords);
+      const id = resolveHomeCityId({ cityName }, cities);
+      if (id === null) throw new Error(`当前城市${cityName}尚未收录；附近攻略仍可按定位查询。`);
+      setSelectedCityId(id);
+    } catch (reason) { window.alert(reason instanceof Error ? reason.message : '定位失败，请重试。'); }
   };
 
   const homeCityControl = isHomeRoute ? <div className="pc-home-city-control">
-    <label htmlFor="pc-home-city-select">当前城市</label>
-    <select id="pc-home-city-select" value={selectedCityId ?? ''} onChange={(event) => setSelectedCityId(Number(event.target.value))}>
+    <label htmlFor="pc-home-city-select">浏览城市</label>
+    <select aria-label="浏览城市，不代表当前位置" id="pc-home-city-select" value={selectedCityId ?? ''} onChange={(event) => setSelectedCityId(Number(event.target.value))}>
       {cities.map((city) => <option key={city.id} value={city.id}>{city.name}</option>)}
     </select>
-    <button type="button" onClick={locateHomeCity}>定位</button>
+    <button type="button" onClick={() => void locateHomeCity()}>定位</button>
   </div> : null;
 
   return (
@@ -387,15 +382,17 @@ export function PcExperienceShell({ children }: PropsWithChildren) {
           showLogin={false}
           extra={homeCityControl}
           primaryAction={
-            !isRegistered
+            pathname === '/box/config' && mode !== 'city'
+              ? undefined
+              : !isRegistered
               ? {
                   label: '立即登录',
                   href: '/pc-login',
                   className: 'pc-experience-shell-cta pc-header-cta',
                 }
               : {
-                  label: '立即抽取',
-                  href: pathname === '/box/config' ? undefined : '/box/config',
+                  label: pathname === '/box/config' ? '抽一条城市行程' : '附近怎么玩',
+                  href: pathname === '/box/config' ? undefined : '/box/config?mode=nearby',
                   className: 'pc-experience-shell-cta pc-header-cta',
                   disabled: pathname === '/box/config' ? isBooting : false,
                   onClick: pathname === '/box/config' ? startPcBoxDraw : undefined,

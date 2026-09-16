@@ -14,6 +14,7 @@ import { geocodeAddressWithAmap, reverseGeocodeCityWithAmap, reverseGeocodeLocat
 import { inferSupportedCityFromCoordinates } from './city-from-coordinates.js';
 import { searchAmapNearbyPlaces } from './nearby-live-places.js';
 import { registerNearbyPlanRoutes } from './nearby-plan-routes.js';
+import { requireNearbyCoordinates } from './draw-location-policy.js';
 import { activityVectorService } from "./activityVector.service.js";
 import { config } from "./config.js";
 import { registerCheckinRoutes } from "./checkins.js";
@@ -1860,6 +1861,7 @@ export function createApp() {
     "/api/v1/draws",
     asyncRoute(async (request, response) => {
       const parsedInput = normalizeRadiusWithoutPreciseOrigin(drawSchema.parse(request.body));
+      requireNearbyCoordinates(parsedInput.preferences);
       const authenticatedUserId = readAuthenticatedUserId(request);
       if (parsedInput.userId !== authenticatedUserId) {
         throw new AppError(403, "USER_MISMATCH", "不能为其他用户抽取行程");
