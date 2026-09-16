@@ -84,11 +84,11 @@ export function NearbyPlanPanel({ initialCategory }: { initialCategory?: string 
 
   const plan = result?.plan;
   const expired = Boolean(result?.expiresAt && Date.parse(result.expiresAt) <= now);
-  const choices = (label: string, key: 'availableMinutes' | 'mood' | 'kind' | 'maxWalkMinutes', options: Array<[string, string | number]>) => <fieldset className="nearby-plan-field"><legend>{label}</legend><div className="nearby-plan-options">{options.map(([title, value]) => <button type="button" key={value} aria-pressed={preferences[key] === value} onClick={() => change(key, value as never)}>{title}</button>)}</div></fieldset>;
+  const choices = (label: string, key: 'availableMinutes' | 'mood' | 'kind' | 'maxWalkMinutes', options: Array<[string, string | number]>) => <fieldset className={`nearby-plan-field nearby-plan-field-${key}`}><legend>{label}</legend><div className="nearby-plan-options">{options.map(([title, value]) => <button type="button" key={value} aria-pressed={preferences[key] === value} onClick={() => change(key, value as never)}>{title}</button>)}</div></fieldset>;
 
   return <section className="nearby-short-plan" aria-label="现在出发的附近攻略">
     <style>{styles}</style>
-    <header><small>{initialCategory ? `${initialCategory} · ` : ''}现在出发 · 附近玩一会儿</small><h2>给你们安排接下来的一小段时光</h2><p>每次抽取先定位，再找附近真实地点。首页浏览的城市不会代替你的位置。</p></header>
+    <header><small>{initialCategory ? `${initialCategory} · ` : ''}现在出发 · 附近玩一会儿</small><h2>接下来去哪玩？</h2><p>选好今天的状态，让我们从当前位置找一个合适的地方。</p></header>
     {choices('能玩多久（含往返）', 'availableMinutes', [['1 小时', 60], ['2 小时', 120], ['3 小时', 180]])}
     <div className="nearby-plan-numbers">
       <label>一起几个人<select aria-label="附近攻略人数" value={preferences.partySize} onChange={e => change('partySize', Number(e.target.value))}>{[1,2,3,4,5,6,7,8].map(n => <option key={n} value={n}>{n} 人</option>)}</select></label>

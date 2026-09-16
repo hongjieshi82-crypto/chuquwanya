@@ -15,6 +15,7 @@ import { getPcTravelBudgetRange } from '@/constants/pc-travel-budget-tiers';
 import { palette, radii } from '@/theme';
 import type { City, Preferences } from '@/types';
 import { NearbyPlanPanel } from '@/components/nearby-plan-panel';
+import { PlayConfigDesign } from '@/components/play-config-design';
 
 const { Content } = Layout;
 const { Text } = Typography;
@@ -506,6 +507,7 @@ export default function PcBoxConfigScreen() {
             </> : <NearbyPlanPanel key={category || 'nearby'} initialCategory={category} />}
           </Content>
         </Layout>
+        <PlayConfigDesign />
       </div>
     </ConfigProvider>
   );
