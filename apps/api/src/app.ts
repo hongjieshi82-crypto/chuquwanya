@@ -13,6 +13,7 @@ import type { PoolConnection } from "mysql2/promise";
 import { geocodeAddressWithAmap, reverseGeocodeCityWithAmap, reverseGeocodeLocationWithAmap } from "./amap-geocode.js";
 import { inferSupportedCityFromCoordinates } from './city-from-coordinates.js';
 import { searchAmapNearbyPlaces } from './nearby-live-places.js';
+import { registerNearbyPlanRoutes } from './nearby-plan-routes.js';
 import { activityVectorService } from "./activityVector.service.js";
 import { config } from "./config.js";
 import { registerCheckinRoutes } from "./checkins.js";
@@ -1304,6 +1305,7 @@ export function createApp() {
   app.use("/assets", express.static(resolve(process.cwd(), "assets")));
   app.use(express.json({ limit: "30mb" }));
   app.use(attachSupabaseUser);
+  registerNearbyPlanRoutes(app);
 
   app.get(
     "/api/v1/health",

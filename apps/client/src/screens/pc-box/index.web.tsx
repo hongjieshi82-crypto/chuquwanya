@@ -17,6 +17,7 @@ import { requestDeviceCurrentPosition } from '@/lib/device-location';
 import { resolveCoordinatesCity, resolveCoordinatesAddress } from '@/lib/reverse-geocode';
 import { palette, radii } from '@/theme';
 import type { City, Preferences } from '@/types';
+import { NearbyPlanPanel } from '@/components/nearby-plan-panel';
 
 const { Content } = Layout;
 const { Text } = Typography;
@@ -537,6 +538,7 @@ export default function PcBoxConfigScreen() {
         <style>{pcBoxCss}</style>
         <Layout className="pc-box-layout">
           <Content className="pc-box-content">
+            <NearbyPlanPanel />
             <div className="pc-box-workbench">
             <div className="pc-box-sections">
               <Card className="pc-box-section" variant="borderless">
