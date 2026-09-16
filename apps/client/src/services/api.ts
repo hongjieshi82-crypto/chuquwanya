@@ -7,6 +7,7 @@ import { chinaDate, validDepartureDate, departureFailure } from '../../../api/sr
 import retiredItineraries from '@/data/itinerary-plans.json';
 
 import { clearAuthToken, getAuthToken, setAuthToken } from '@/lib/auth-storage';
+import { getBrowserSupabase } from '@/lib/supabase-browser';
 import {
   createDemoDraw,
   recordDemoOutcome,
@@ -501,8 +502,18 @@ export async function tryRestoreSession() {
       expectedStatuses: [401],
     });
   } catch (reason) {
-    if (isApiConnectionError(reason)) return null;
-    await clearAuthToken();
+    // Temporary network/server failures must not erase a persisted login.
+    if (isUnauthorizedApiError(reason)) {
+      const client = getBrowserSupabase();
+      if (client) {
+        const refreshed = await client.auth.refreshSession().catch(() => null);
+        if (refreshed?.data.session) {
+          try { return await apiRequest<GuestUser>('/auth/me', undefined, { expectedStatuses: [401] }); }
+          catch { return null; }
+        }
+        // Supabase handles invalid refresh tokens; do not discard a recoverable session here.
+      } else await clearAuthToken();
+    }
     return null;
   }
 }

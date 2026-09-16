@@ -8,7 +8,12 @@ export async function getAuthToken() {
   const supabase = getBrowserSupabase();
   if (supabase) {
     const { data } = await supabase.auth.getSession();
-    return data.session?.access_token ?? null;
+    const session = data.session;
+    if (session?.expires_at && session.expires_at * 1000 <= Date.now() + 30_000) {
+      const refreshed = await supabase.auth.refreshSession();
+      return refreshed.data.session?.access_token ?? session.access_token;
+    }
+    return session?.access_token ?? null;
   }
   return AsyncStorage.getItem(AUTH_TOKEN_KEY);
 }

@@ -14,7 +14,7 @@ const DESKTOP_CONTENT_HEIGHT = 636;
 
 function useViewportLayout() {
   const [layout, setLayout] = useState(() => {
-    const width = typeof window === 'undefined' ? DESKTOP_CANVAS_WIDTH : window.innerWidth;
+    const width = typeof window === 'undefined' ? DESKTOP_CANVAS_WIDTH : document.documentElement.clientWidth;
     const height = typeof window === 'undefined' ? 720 : window.innerHeight;
     const isMobile = width <= MOBILE_BREAKPOINT;
     const headerHeight = isMobile ? 0 : Math.min(104, Math.max(84, width * .052));
@@ -27,12 +27,13 @@ function useViewportLayout() {
 
   useEffect(() => {
     const update = () => {
-      const isMobile = window.innerWidth <= MOBILE_BREAKPOINT;
-      const headerHeight = isMobile ? 0 : Math.min(104, Math.max(84, window.innerWidth * .052));
+      const width = document.documentElement.clientWidth;
+      const isMobile = width <= MOBILE_BREAKPOINT;
+      const headerHeight = isMobile ? 0 : Math.min(104, Math.max(84, width * .052));
       setLayout({
         isMobile,
         headerHeight,
-        scale: isMobile ? 1 : Math.min(window.innerWidth / DESKTOP_CANVAS_WIDTH, (window.innerHeight - headerHeight) / DESKTOP_CONTENT_HEIGHT),
+        scale: isMobile ? 1 : Math.min(width / DESKTOP_CANVAS_WIDTH, (window.innerHeight - headerHeight) / DESKTOP_CONTENT_HEIGHT),
       });
     };
     update();
@@ -168,7 +169,14 @@ export default function PcLandingScreen() {
   }, [router, user?.id, setSelectedCityId, cities]);
 
   return <>
-    <div style={isMobile ? { position: 'fixed', inset: 0, width: '100dvw', height: '100dvh', overflow: 'hidden', background: '#0d0d13' } : { position: 'relative', width: '100%', height: `calc(100dvh - ${headerHeight}px)`, overflow: 'hidden', background: '#0d0d13' }}>
+    <style>{`
+      .responsive-home-surface{overflow:hidden;background:#0d0d13}
+      @media(max-width:760px){
+        .responsive-home-surface{position:fixed!important;inset:0!important;width:100%!important;height:100dvh!important}
+        .responsive-home-surface iframe{position:static!important;left:auto!important;top:auto!important;width:100%!important;height:100dvh!important;transform:none!important}
+      }
+    `}</style>
+    <div className="responsive-home-surface" style={isMobile ? { position: 'fixed', inset: 0, width: '100dvw', height: '100dvh', overflow: 'hidden', background: '#0d0d13' } : { position: 'relative', width: '100%', height: `calc(100dvh - ${headerHeight}px)`, overflow: 'hidden', background: '#0d0d13' }}>
       <iframe
         className="mobile-home-frame"
         ref={iframeRef}
