@@ -1,4 +1,5 @@
 import { config } from './config.js';
+import { nearbyKinds, nearbySearchTypes, nearbySearchKeywords } from './nearby-tags.js';
 
 export type NearbyLivePlace = {
   id: string;
@@ -104,7 +105,7 @@ export async function searchAmapNearbyPlaces(input: {
   const cached = nearbyCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) return cached.places;
   if (input.kind === 'any') {
-    const results = await Promise.all((['games', 'walk', 'food', 'culture'] as const).map(kind => searchAmapNearbyPlaces({ ...input, kind })));
+    const results = await Promise.all(nearbyKinds.map(kind => searchAmapNearbyPlaces({ ...input, kind })));
     if (results.every(result => result === null)) return null;
     const unique = new Map<string, NearbyLivePlace>();
     for (const places of results) for (const place of places || []) unique.set(place.id, place);
@@ -117,9 +118,8 @@ export async function searchAmapNearbyPlaces(input: {
     url.searchParams.set('key', config.amap.webServiceKey);
     url.searchParams.set('location', `${input.longitude.toFixed(6)},${input.latitude.toFixed(6)}`);
     url.searchParams.set('radius', String(Math.round(input.radiusKm * 1_000)));
-    const types = { any: '080000|050000|110000|140100', games: '080000', walk: '110000', food: '050000', culture: '110000|140100' };
-    url.searchParams.set('types', input.kind ? types[input.kind] : input.mood === '热闹' ? '080000|050000' : input.mood === '探索' ? '110000|140000' : '110000|080000|140000');
-    if (input.kind === 'games') url.searchParams.set('keywords', '桌游|棋牌|麻将|台球|保龄球|密室');
+    url.searchParams.set('types', nearbySearchTypes[input.kind ?? 'any']);
+    if (input.kind && input.kind in nearbySearchKeywords) url.searchParams.set('keywords', nearbySearchKeywords[input.kind as keyof typeof nearbySearchKeywords]);
     url.searchParams.set('region', input.cityName);
     url.searchParams.set('city_limit', 'true');
     url.searchParams.set('show_fields', 'business,photos');

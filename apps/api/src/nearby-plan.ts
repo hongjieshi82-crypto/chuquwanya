@@ -4,6 +4,8 @@ import { getCityWeather, type CityWeather } from './weather.service.js';
 import { searchAmapNearbyPlaces, type NearbyLivePlace } from './nearby-live-places.js';
 import { convertGpsToAmap, getWalkingRoute, lngLat, type Point, type WalkingRoute } from './nearby-plan-facts.js';
 import { chooseNearbyPlan } from './nearby-plan-ai.js';
+import { currentVenueIds, historyVenueIds } from './nearby-venues.js';
+import { tagNearbyPlace } from './nearby-tags.js';
 import { classifyPlace, distanceKm, freshWeather, isWeatherSuitable, openingCoverage, parseAiPlanChoice, explicitlyClosedToday, type NearbyPlanInput, type PlayKind } from './nearby-plan-policy.js';
 
 export type PlanDependencies = {
@@ -31,7 +33,6 @@ const fallbackIdeas: Record<PlayKind, string[]> = {
   culture: ['根据现场开放内容，各自挑一个感兴趣的展项', '交换观察到的细节，用自己的话讲讲为什么喜欢'],
 };
 const unique = (values: string[]) => [...new Set(values)];
-const animalAttraction = (name: string) => /动物园|海洋馆|海洋世界/.test(name);
 
 export async function generateNearbyPlan(input: NearbyPlanInput, deps: PlanDependencies = dependencies) {
   const requestTime = deps.now();
@@ -53,12 +54,14 @@ export async function generateNearbyPlan(input: NearbyPlanInput, deps: PlanDepen
   const excluded: Record<string, number> = {};
   const reject = (reason: string) => { excluded[reason] = (excluded[reason] ?? 0) + 1; };
   const seen = new Set<string>();
+  const currentVenues = currentVenueIds(location, places);
+  const historicalVenues = historyVenueIds(places, input.excludePoiIds, input.excludePlaceNames);
   const candidates = places.flatMap(place => {
     if (seen.has(place.id)) return [];
     seen.add(place.id);
     if (!place.cityName || place.cityName.replace(/市$/, '') !== location.city.replace(/市$/, '')) { reject('地点城市未核实'); return []; }
-    if (input.excludePoiIds.includes(place.id) || (place.parentId && input.excludePoiIds.includes(place.parentId)) || input.excludePlaceNames.some(name => place.name.includes(name) || name.includes(place.name) || (animalAttraction(name) && animalAttraction(place.name)))) { reject('已看过或同一场所'); return []; }
-    if (animalAttraction(location.address) && animalAttraction(place.name)) { reject('就在当前位置的景区'); return []; }
+    if (currentVenues.has(place.id) || (place.parentId && currentVenues.has(place.parentId))) { reject('当前场所及内部项目'); return []; }
+    if (historicalVenues.has(place.id) || (place.parentId && historicalVenues.has(place.parentId))) { reject('已看过或同一场所'); return []; }
     const info = classifyPlace(place);
     if (!info || (input.kind !== 'any' && info.kind !== input.kind)) { reject('玩法类型不符'); return []; }
     if (input.partySize < 4 && /麻将/.test(place.name + place.type) && !/桌游|台球/.test(place.name + place.type)) { reject('麻将人数不足'); return []; }
@@ -144,6 +147,7 @@ export async function generateNearbyPlan(input: NearbyPlanInput, deps: PlanDepen
     generation, city: location.city, generatedAt: deps.now().toISOString(), expiresAt: new Date(start.getTime() + 10 * 60_000).toISOString(),
     plan: {
       title: `${selected.place.name} · ${input.partySize}人附近小行程`,
+      tags: tagNearbyPlace(selected.place),
       place: { id: selected.place.id, parentId: selected.place.parentId ?? null, name: selected.place.name, address: selected.place.address, photoUrl: selected.place.photoUrl ?? null, sourceUrl: `https://www.amap.com/place/${encodeURIComponent(selected.place.id)}`, openingToday: selected.place.openingToday ?? null, phone: selected.place.phone ?? null },
       playIdeas,
       timeline: [

@@ -39,7 +39,10 @@ export function isAmapGeocodeConfigured() {
   return Boolean(config.amap.webServiceKey);
 }
 
-export async function reverseGeocodeLocationWithAmap(latitude: number, longitude: number): Promise<{ city: string; address: string; adcode?: string } | null> {
+export type LocatedVenue = { id: string; name: string };
+export type ReverseLocation = { city: string; address: string; adcode?: string; venues?: LocatedVenue[] };
+
+export async function reverseGeocodeLocationWithAmap(latitude: number, longitude: number): Promise<ReverseLocation | null> {
   if (!isAmapGeocodeConfigured()) return null;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), AMAP_GEOCODE_TIMEOUT_MS);
@@ -48,18 +51,25 @@ export async function reverseGeocodeLocationWithAmap(latitude: number, longitude
     url.searchParams.set("key", config.amap.webServiceKey);
     url.searchParams.set("location", `${longitude},${latitude}`);
     url.searchParams.set("output", "JSON");
+    url.searchParams.set("extensions", "all");
+    url.searchParams.set("radius", "100");
     const response = await fetch(url, { signal: controller.signal });
     if (!response.ok) return null;
     const body = await response.json() as {
       status?: string;
-      regeocode?: { formatted_address?: string; addressComponent?: { city?: string | string[]; province?: string; adcode?: string } };
+      regeocode?: { formatted_address?: string; addressComponent?: { city?: string | string[]; province?: string; adcode?: string }; aois?: Array<{ id?: string; name?: string; distance?: string | number }> };
     };
     if (body.status !== "1") return null;
     const component = body.regeocode?.addressComponent;
     const city = Array.isArray(component?.city) ? component.city[0] : component?.city;
     const cityName = (city || component?.province)?.trim();
     if (!cityName) return null;
-    return { city: cityName, address: body.regeocode?.formatted_address?.trim() || cityName, adcode: component?.adcode };
+    // AOI distance 0 means inside; a narrow boundary tolerance covers entrances.
+    const venues = (Array.isArray(body.regeocode?.aois) ? body.regeocode.aois : []).flatMap(aoi => {
+      if (typeof aoi.id !== 'string' || typeof aoi.name !== 'string' || !['string', 'number'].includes(typeof aoi.distance) || aoi.distance === '' || !Number.isFinite(Number(aoi.distance)) || Number(aoi.distance) < 0 || Number(aoi.distance) > 50) return [];
+      return [{ id: aoi.id, name: aoi.name }];
+    });
+    return { city: cityName, address: body.regeocode?.formatted_address?.trim() || cityName, adcode: component?.adcode, venues };
   } catch {
     return null;
   } finally {

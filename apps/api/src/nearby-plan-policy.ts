@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { NearbyLivePlace } from './nearby-live-places.js';
 import type { CityWeather } from './weather.service.js';
+import { tagNearbyPlace } from './nearby-tags.js';
 
 export const nearbyPlanInputSchema = z.object({
   latitude: z.number().min(-90).max(90), longitude: z.number().min(-180).max(180),
@@ -26,13 +27,7 @@ export function distanceKm(a: { latitude: number; longitude: number }, b: { lati
 export type PlayKind = 'games' | 'walk' | 'food' | 'culture';
 export const explicitlyClosedToday = (raw: string | null | undefined) => /^(?:今天|今日|全天)?\s*(?:休息|闭馆|停业|不开放|暂停营业)(?:中)?[。！!]?\s*$/.test(raw?.trim() || '');
 export function classifyPlace(place: NearbyLivePlace): { kind: PlayKind; indoor: boolean; minimumMinutes: number } | null {
-  const type = place.type;
-  if (/宾馆|酒店|住宿|学校|培训|公司|住宅|售票|停车场|出入口|售楼/.test(type + place.name)) return null;
-  if (/棋牌|麻将|桌游|台球|保龄球|密室|电玩|剧本杀/.test(type + place.name)) return { kind: 'games', indoor: !/室外|露天/.test(type + place.name), minimumMinutes: /密室|剧本杀/.test(type + place.name) ? 90 : 60 };
-  if (/餐饮|咖啡|茶艺|茶馆/.test(type)) return { kind: 'food', indoor: !/露天|夜市/.test(type + place.name), minimumMinutes: 30 };
-  if (/博物馆|美术馆|展览馆|科技馆/.test(type + place.name)) return { kind: 'culture', indoor: true, minimumMinutes: 45 };
-  if (/风景名胜|公园|广场|步行街/.test(type)) return { kind: 'walk', indoor: false, minimumMinutes: 30 };
-  return null;
+  return tagNearbyPlace(place);
 }
 
 /** Only parse explicit time ranges for today. Weekly prose/seasonal exceptions stay unknown. */

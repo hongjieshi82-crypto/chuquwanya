@@ -3,6 +3,8 @@ import test from 'node:test';
 import { nearbyPlanInputSchema, openingCoverage, parseAiPlanChoice, freshWeather } from '../src/nearby-plan-policy.js';
 import { generateNearbyPlan, type PlanDependencies } from '../src/nearby-plan.js';
 import { normalizeNearbyLivePlace } from '../src/nearby-live-places.js';
+import { currentVenueIds, historyVenueIds } from '../src/nearby-venues.js';
+import { tagNearbyPlace } from '../src/nearby-tags.js';
 
 const now = new Date('2026-09-16T06:00:00Z'); // Beijing 14:00
 const place = normalizeNearbyLivePlace({ id: 'P1', name: '真实咖啡馆', cityname: '北京市', location: '116.41,39.91', type: '餐饮服务;咖啡厅', business: { cost: '45', opentime_today: '10:00-22:00' } }, '北京')!;
@@ -117,13 +119,51 @@ test('连续生成携带历史排除地点，不再重复第一家；全部已�
 test('动物园门口不反复推荐动物园和海洋馆，历史也排除相近项目', async () => {
   const d = deps();
   d.reverse = async () => ({ city: '北京市', address: '北京市北京动物园南门' });
-  d.search = async () => [{ ...place, id: 'ZOO', name: '北京动物园', type: '风景名胜' }, { ...place, id: 'OCEAN', name: '北京海洋馆', type: '风景名胜' }, place];
+  d.search = async () => [{ ...place, id: 'ZOO', name: '北京动物园', type: '风景名胜' }, { ...place, id: 'OCEAN', parentId: 'ZOO', name: '北京海洋馆', type: '风景名胜' }, place];
   d.choose = async () => null;
   const result = await generateNearbyPlan(input(), d);
   assert.ok(result.plan);
   assert.equal(result.plan.place.id, 'P1');
+  assert.equal(result.excluded['当前场所及内部项目'], 2);
   d.reverse = async () => ({ city: '北京市', address: '北京某街道' });
   const next = await generateNearbyPlan({ ...input(), excludePlaceNames: ['北京动物园'] }, d);
   assert.ok(next.plan);
   assert.equal(next.plan.place.id, 'P1');
+});
+
+test('当前商场整体排除内部店铺和多层项目，外部同类商店保留', async () => {
+  const places = [
+    { ...place, id: 'MALL', name: '测试购物中心', type: '购物服务' },
+    { ...place, id: 'SHOP', name: '馆内咖啡', parentId: 'MALL' },
+    { ...place, id: 'SUB', name: '馆内桌游', type: '棋牌室', parentId: 'SHOP' },
+    place,
+  ];
+  const located = { city: '北京市', address: '某街道', venues: [{ id: 'AOI', name: '测试购物中心' }] };
+  const ids = currentVenueIds(located, places);
+  assert.ok(ids.has('MALL') && ids.has('SHOP') && ids.has('SUB'));
+  assert.ok(!ids.has('P1'));
+  const d = deps(); d.reverse = async () => located; d.search = async () => places;
+  const result = await generateNearbyPlan(input(), d);
+  assert.equal(result.plan?.place.id, 'P1');
+  assert.equal(result.excluded['当前场所及内部项目'], 3);
+});
+
+test('历史项目归属同一场所时排除兄弟项目，不按同类型整体排除', () => {
+  const places = [
+    { ...place, id: 'ZOO', name: '北京动物园' },
+    { ...place, id: 'OCEAN', parentId: 'ZOO', name: '北京海洋馆' },
+    { ...place, id: 'PANDA', parentId: 'ZOO', name: '熊猫馆' },
+    { ...place, id: 'OTHER', name: '独立海洋馆' },
+  ];
+  const ids = historyVenueIds(places, ['OCEAN'], []);
+  assert.ok(ids.has('ZOO') && ids.has('PANDA'));
+  assert.ok(!ids.has('OTHER'));
+});
+
+test('标签区分心情与玩法，景区不冒充散步，棋牌优先于附带餐饮标签', () => {
+  assert.equal(tagNearbyPlace({ ...place, name: '北京海洋馆', type: '风景名胜' }), null);
+  assert.equal(tagNearbyPlace({ ...place, name: '河边公园', type: '风景名胜' })?.kind, 'walk');
+  assert.equal(tagNearbyPlace({ ...place, name: '朋友桌游咖啡', type: '餐饮服务' })?.kind, 'games');
+  assert.equal(tagNearbyPlace({ ...place, name: '美术馆', type: '科教文化服务' })?.kind, 'culture');
+  assert.equal(tagNearbyPlace(place)?.experience, '咖啡茶饮');
 });
