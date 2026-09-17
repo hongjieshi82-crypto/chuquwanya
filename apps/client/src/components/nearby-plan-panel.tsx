@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { requestDeviceCurrentPosition } from '@/lib/device-location';
 import { nearbyCategoryPreset } from '@/lib/web-draw-flow';
-import { readNearbyHistory, rememberNearbyPlace } from '@/lib/nearby-history';
+import { readNearbyHistory, readNearbyPlaceNames, rememberNearbyPlace } from '@/lib/nearby-history';
 
 type Preferences = { availableMinutes: number; partySize: number; budget: number; mood: string; kind: string; maxWalkMinutes: number; allowUnverified: boolean };
 type Result = {
@@ -10,7 +10,7 @@ type Result = {
   weather: { condition: string; temperature: number | null; observedAt: string } | null;
   warnings?: string[];
   plan?: {
-    title: string; place: { id: string; name: string; address: string; photoUrl: string | null; sourceUrl: string; openingToday: string | null; phone: string | null };
+    title: string; place: { id: string; parentId?: string | null; name: string; address: string; photoUrl: string | null; sourceUrl: string; openingToday: string | null; phone: string | null };
     playIdeas: string[];
     timeline: { phase: string; label: string; startsAt: string; endsAt: string; minutes: number }[];
     totalMinutes: number; bufferMinutes: number; walkingMeters: number; navigationUrl: string;
@@ -35,6 +35,26 @@ export function NearbyPlanPanel({ initialCategory }: { initialCategory?: string 
   const sequence = useRef(0);
   const request = useRef<AbortController | null>(null);
   const seen = useRef<string[]>([]);
+  const [showResult, setShowResult] = useState(false);
+  const resultView = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!showResult) return;
+    const previousOverflow = document.body.style.overflow;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    document.body.style.overflow = 'hidden';
+    resultView.current?.focus();
+    const close = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowResult(false);
+      if (event.key !== 'Tab') return;
+      const elements = resultView.current?.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],input,select');
+      if (!elements?.length) { event.preventDefault(); return; }
+      const first = elements[0]!, last = elements[elements.length - 1]!;
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === resultView.current)) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && (document.activeElement === last || document.activeElement === resultView.current)) { event.preventDefault(); first.focus(); }
+    };
+    window.addEventListener('keydown', close);
+    return () => { document.body.style.overflow = previousOverflow; previousFocus?.focus(); window.removeEventListener('keydown', close); };
+  }, [showResult]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 30_000);
@@ -66,15 +86,16 @@ export function NearbyPlanPanel({ initialCategory }: { initialCategory?: string 
       timer = setTimeout(() => controller.abort(), 45_000);
       const response = await fetch(`${apiUrl.replace(/\/$/, '')}/nearby/plan`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: controller.signal,
-        body: JSON.stringify({ latitude: coords.latitude, longitude: coords.longitude, accuracyMeters: coords.accuracy, locationTimestamp: Date.now(), coordinateSystem: 'wgs84', availableMinutes: preferences.availableMinutes, partySize: preferences.partySize, budgetPerPersonYuan: preferences.budget, mood: preferences.mood, kind: preferences.kind, maxWalkMinutes: preferences.maxWalkMinutes, allowUnverified: preferences.allowUnverified, excludePoiIds: [...new Set([...readNearbyHistory(), ...seen.current])].slice(-100) }),
+        body: JSON.stringify({ latitude: coords.latitude, longitude: coords.longitude, accuracyMeters: coords.accuracy, locationTimestamp: Date.now(), coordinateSystem: 'wgs84', availableMinutes: preferences.availableMinutes, partySize: preferences.partySize, budgetPerPersonYuan: preferences.budget, mood: preferences.mood, kind: preferences.kind, maxWalkMinutes: preferences.maxWalkMinutes, allowUnverified: preferences.allowUnverified, excludePlaceNames: readNearbyPlaceNames(), excludePoiIds: [...new Set([...readNearbyHistory(), ...seen.current])].slice(-100) }),
       });
       const body = await response.json() as { data?: Result; error?: { message?: string } };
       if (id !== sequence.current) return;
       if (!response.ok || !body.data) throw new Error(body.error?.message || '暂时无法生成攻略，请重试。');
       setResult(body.data); setNow(Date.now());
+      setShowResult(true);
       if (body.data.plan) {
         seen.current = [...seen.current, body.data.plan.place.id].slice(-20);
-        rememberNearbyPlace(body.data.plan.place.id);
+        rememberNearbyPlace(body.data.plan.place.id, body.data.plan.place.name, body.data.plan.place.parentId);
       }
     } catch (reason) {
       if (id === sequence.current) setError(reason instanceof Error && reason.name === 'AbortError' ? '查询超时，请重试；没有展示未经核实的攻略。' : reason instanceof Error ? reason.message : '生成失败，请重试。');
@@ -102,6 +123,10 @@ export function NearbyPlanPanel({ initialCategory }: { initialCategory?: string 
     <label className="nearby-plan-consent"><input type="checkbox" checked={preferences.allowUnverified} onChange={e => change('allowUnverified', e.target.checked)} /><span>也看费用或营业时间待确认的地点（需要我出发前核实）</span></label>
     <button className="nearby-plan-generate" type="button" disabled={phase !== 'idle'} onClick={() => void generate()}>{phase === 'locating' ? '正在获取当前位置…' : phase === 'planning' ? '正在核对路线、天气并安排玩法…' : '定位并生成附近攻略'}</button>
     {error ? <p className="nearby-plan-error" role="alert">{error}</p> : null}
+    {showResult ? <div className="nearby-result-screen" role="dialog" aria-modal="true" aria-label="本次附近玩法" tabIndex={-1} ref={resultView}>
+      <div className="nearby-result-shell"><header className="nearby-result-heading"><button type="button" onClick={() => setShowResult(false)}>← 调整条件</button><span>本次附近玩法</span></header>
+      {phase !== 'idle' ? <p role="status">正在寻找另一个合适的地点…</p> : null}
+      {error ? <p role="alert" className="nearby-plan-error">{error}</p> : null}
     {result?.status === 'no_match' ? <div className="nearby-plan-result" role="status"><b>{result.message}</b><p>{Object.entries(result.excluded).filter(([, count]) => count > 0).map(([reason, count]) => `${reason} ${count} 处`).join(' · ') || '当前位置附近暂无合适数据。'}</p><p>可以调整步行上限、玩法类型或预算；未核实信息不会自动放宽。</p></div> : null}
     {plan && result ? <article className="nearby-plan-result" aria-label="生成的附近攻略">
       <div className="nearby-plan-meta">{result.city} · {result.generation === 'ai' ? 'AI 安排玩法' : '基础规则整理'} · {clockLabel(result.generatedAt)} 核对</div>
@@ -118,10 +143,14 @@ export function NearbyPlanPanel({ initialCategory }: { initialCategory?: string 
         void navigator.clipboard.writeText(text).then(() => setCopied(true)).catch(() => setError('复制失败，请长按攻略文字复制。'));
       }}>{copied ? '已复制' : '复制攻略'}</button></div>
     </article> : null}
+      </div>
+    </div> : null}
   </section>;
 }
 
 const styles = `
+.nearby-result-screen{position:fixed;inset:0;z-index:200;background:#0e1410;overflow-y:auto;overscroll-behavior:contain;padding:24px 16px calc(24px + env(safe-area-inset-bottom));box-sizing:border-box;outline:none}
+.nearby-result-shell{max-width:680px;margin:0 auto}.nearby-result-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 0 18px!important;margin:0!important;border-bottom:1px solid #ffffff20}.nearby-result-heading button{border:1px solid #ffffff25;border-radius:999px;background:#202b1b;color:#dfffaa;padding:10px 16px;min-height:44px;cursor:pointer}.nearby-result-heading span{font-size:14px;color:#b7c1b0}.nearby-result-screen .nearby-plan-result{margin-top:20px}
 .nearby-short-plan{padding:clamp(18px,3vw,28px);margin:0 auto 24px;max-width:900px;border:1px solid rgba(201,255,98,.3);border-radius:24px;background:linear-gradient(150deg,#19231b,#101414);color:#f6f7f1;min-width:0;box-sizing:border-box}
 .nearby-short-plan header small{color:#c9ff62;font-weight:800}.nearby-short-plan h2{font-size:clamp(21px,4vw,28px);line-height:1.4;margin:8px 0}.nearby-short-plan p{font-size:14px;line-height:1.7;color:#c1c9bd;margin:8px 0}
 .nearby-plan-field{border:0;padding:0;margin:18px 0;min-width:0}.nearby-plan-field legend,.nearby-plan-numbers label{font-size:13px;font-weight:700;color:#dae1d5;margin-bottom:9px}.nearby-plan-options{display:flex;flex-wrap:wrap;gap:8px}.nearby-short-plan button,.nearby-short-plan select,.nearby-short-plan input{font:inherit}.nearby-plan-options button,.nearby-plan-actions button{min-height:42px;padding:8px 13px;border:1px solid #455044;border-radius:12px;background:#1d261f;color:#e4eadf;cursor:pointer}.nearby-plan-options button[aria-pressed=true]{border-color:#c9ff62;color:#c9ff62;background:#2e3b20}.nearby-plan-numbers{display:grid;grid-template-columns:1fr 1fr;gap:12px}.nearby-plan-numbers label{display:grid;gap:8px;min-width:0}.nearby-plan-numbers select,.nearby-plan-numbers input{width:100%;min-width:0;min-height:44px;box-sizing:border-box;padding:10px;border-radius:10px;border:1px solid #455044;background:#111913;color:#f5f7f1;font-size:16px}.nearby-plan-consent{display:flex;align-items:flex-start;gap:8px;font-size:13px;line-height:1.6;color:#c1c9bd}.nearby-plan-consent input{margin-top:4px;width:18px;height:18px;flex:none}.nearby-plan-generate{width:100%;min-height:50px;margin-top:18px;padding:12px;border:0;border-radius:14px;background:#c9ff62;color:#182015;font-weight:850!important;cursor:pointer}.nearby-short-plan button:disabled{opacity:.55;cursor:wait}.nearby-short-plan :focus-visible{outline:2px solid #c9ff62;outline-offset:3px}.nearby-plan-error{color:#ffb9ae!important}

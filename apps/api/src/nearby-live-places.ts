@@ -15,6 +15,7 @@ export type NearbyLivePlace = {
   photoUrl?: string | null;
   phone?: string | null;
   cityName?: string | null;
+  parentId?: string | null;
 };
 
 type AmapPoi = {
@@ -25,6 +26,7 @@ type AmapPoi = {
   type?: string;
   cityname?: string;
   typecode?: string;
+  parent?: string;
   photos?: Array<{ url?: string; title?: string }>;
   business?: { cost?: string; opentime_today?: string; opentime_week?: string; tel?: string };
 };
@@ -56,6 +58,7 @@ export function normalizeNearbyLivePlace(poi: AmapPoi, cityName: string): Nearby
     navigationUrl: `https://uri.amap.com/search?keyword=${encodeURIComponent(cityName + ' ' + name)}`,
     typecode: poi.typecode,
     cityName: typeof poi.cityname === 'string' ? poi.cityname.trim() : null,
+    parentId: typeof poi.parent === 'string' && poi.parent ? poi.parent : null,
     openingToday: typeof poi.business?.opentime_today === 'string' ? poi.business.opentime_today.slice(0, 240) : null,
     openingWeek: typeof poi.business?.opentime_week === 'string' ? poi.business.opentime_week.slice(0, 240) : null,
     phone: typeof poi.business?.tel === 'string' ? poi.business.tel.slice(0, 80) : null,

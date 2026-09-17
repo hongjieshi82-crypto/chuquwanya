@@ -13,6 +13,7 @@ export const nearbyPlanInputSchema = z.object({
   kind: z.enum(['any', 'games', 'walk', 'food', 'culture']).default('any'),
   allowUnverified: z.boolean().default(false),
   excludePoiIds: z.array(z.string().max(80)).max(100).default([]),
+  excludePlaceNames: z.array(z.string().max(120)).max(100).default([]),
 });
 export type NearbyPlanInput = z.infer<typeof nearbyPlanInputSchema>;
 

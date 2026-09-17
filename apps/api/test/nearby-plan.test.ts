@@ -113,3 +113,17 @@ test('连续生成携带历史排除地点，不再重复第一家；全部已�
   assert.equal(end.status, 'no_match');
   assert.ok('message' in end && end.message.includes('近期看过'));
 });
+
+test('动物园门口不反复推荐动物园和海洋馆，历史也排除相近项目', async () => {
+  const d = deps();
+  d.reverse = async () => ({ city: '北京市', address: '北京市北京动物园南门' });
+  d.search = async () => [{ ...place, id: 'ZOO', name: '北京动物园', type: '风景名胜' }, { ...place, id: 'OCEAN', name: '北京海洋馆', type: '风景名胜' }, place];
+  d.choose = async () => null;
+  const result = await generateNearbyPlan(input(), d);
+  assert.ok(result.plan);
+  assert.equal(result.plan.place.id, 'P1');
+  d.reverse = async () => ({ city: '北京市', address: '北京某街道' });
+  const next = await generateNearbyPlan({ ...input(), excludePlaceNames: ['北京动物园'] }, d);
+  assert.ok(next.plan);
+  assert.equal(next.plan.place.id, 'P1');
+});
