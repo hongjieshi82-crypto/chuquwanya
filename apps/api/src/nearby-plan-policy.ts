@@ -12,7 +12,7 @@ export const nearbyPlanInputSchema = z.object({
   mood: z.enum(['放松', '探索', '热闹']).default('放松'),
   kind: z.enum(['any', 'games', 'walk', 'food', 'culture']).default('any'),
   allowUnverified: z.boolean().default(false),
-  excludePoiIds: z.array(z.string().max(80)).max(20).default([]),
+  excludePoiIds: z.array(z.string().max(80)).max(100).default([]),
 });
 export type NearbyPlanInput = z.infer<typeof nearbyPlanInputSchema>;
 

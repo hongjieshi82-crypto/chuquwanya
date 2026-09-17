@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { requestDeviceCurrentPosition } from '@/lib/device-location';
 import { nearbyCategoryPreset } from '@/lib/web-draw-flow';
+import { readNearbyHistory, rememberNearbyPlace } from '@/lib/nearby-history';
 
 type Preferences = { availableMinutes: number; partySize: number; budget: number; mood: string; kind: string; maxWalkMinutes: number; allowUnverified: boolean };
 type Result = {
@@ -43,11 +44,11 @@ export function NearbyPlanPanel({ initialCategory }: { initialCategory?: string 
   const change = <K extends keyof Preferences>(key: K, value: Preferences[K]) => {
     sequence.current += 1;
     request.current?.abort();
-    setPhase('idle'); setResult(null); setError(null); seen.current = [];
+    setPhase('idle'); setResult(null); setError(null);
     setPreferences(current => ({ ...current, [key]: value }));
   };
 
-  async function generate(another = false) {
+  async function generate(_another = false) {
     if (phase !== 'idle') return;
     if (!Number.isFinite(preferences.budget) || preferences.budget < 0 || preferences.budget > 2000) { setError('请输入 0–2000 元的人均预算。'); return; }
     const apiUrl = process.env.EXPO_PUBLIC_API_URL;
@@ -65,7 +66,7 @@ export function NearbyPlanPanel({ initialCategory }: { initialCategory?: string 
       timer = setTimeout(() => controller.abort(), 45_000);
       const response = await fetch(`${apiUrl.replace(/\/$/, '')}/nearby/plan`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: controller.signal,
-        body: JSON.stringify({ latitude: coords.latitude, longitude: coords.longitude, accuracyMeters: coords.accuracy, locationTimestamp: Date.now(), coordinateSystem: 'wgs84', availableMinutes: preferences.availableMinutes, partySize: preferences.partySize, budgetPerPersonYuan: preferences.budget, mood: preferences.mood, kind: preferences.kind, maxWalkMinutes: preferences.maxWalkMinutes, allowUnverified: preferences.allowUnverified, excludePoiIds: another ? seen.current.slice(-20) : [] }),
+        body: JSON.stringify({ latitude: coords.latitude, longitude: coords.longitude, accuracyMeters: coords.accuracy, locationTimestamp: Date.now(), coordinateSystem: 'wgs84', availableMinutes: preferences.availableMinutes, partySize: preferences.partySize, budgetPerPersonYuan: preferences.budget, mood: preferences.mood, kind: preferences.kind, maxWalkMinutes: preferences.maxWalkMinutes, allowUnverified: preferences.allowUnverified, excludePoiIds: [...new Set([...readNearbyHistory(), ...seen.current])].slice(-100) }),
       });
       const body = await response.json() as { data?: Result; error?: { message?: string } };
       if (id !== sequence.current) return;
@@ -73,6 +74,7 @@ export function NearbyPlanPanel({ initialCategory }: { initialCategory?: string 
       setResult(body.data); setNow(Date.now());
       if (body.data.plan) {
         seen.current = [...seen.current, body.data.plan.place.id].slice(-20);
+        rememberNearbyPlace(body.data.plan.place.id);
       }
     } catch (reason) {
       if (id === sequence.current) setError(reason instanceof Error && reason.name === 'AbortError' ? '查询超时，请重试；没有展示未经核实的攻略。' : reason instanceof Error ? reason.message : '生成失败，请重试。');

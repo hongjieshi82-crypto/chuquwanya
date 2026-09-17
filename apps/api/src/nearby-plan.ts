@@ -41,7 +41,7 @@ export async function generateNearbyPlan(input: NearbyPlanInput, deps: PlanDepen
   if (!origin) throw new AppError(503, 'COORDINATE_UNAVAILABLE', '暂时无法校准设备坐标，请稍后重试。');
   const location = await deps.reverse(origin.latitude, origin.longitude);
   if (!location) throw new AppError(503, 'LOCATION_UNVERIFIED', '暂时无法核实当前城市，未生成跨城攻略。');
-  // One search and at most two candidates' round trips per request. No unbounded recall loop.
+  // Bounded recall and route verification; recent places remain excluded across new requests.
   const [places, reportedWeather] = await Promise.all([
     deps.search({ ...origin, cityName: location.city.replace(/市$/, ''), radiusKm: 3, mood: input.mood, kind: input.kind }),
     deps.weather(location.adcode || location.city),
@@ -74,10 +74,20 @@ export async function generateNearbyPlan(input: NearbyPlanInput, deps: PlanDepen
   }).sort((a, b) => {
     const affinity = (kind: PlayKind) => input.mood === '热闹' ? (kind === 'games' ? 0 : 1) : input.mood === '探索' ? (kind === 'culture' ? 0 : 1) : (kind === 'walk' || kind === 'food' ? 0 : 1);
     return affinity(a.kind) - affinity(b.kind) || distanceKm(origin, a.place) - distanceKm(origin, b.place);
-  }).slice(0, 2);
+  });
+  // Round-robin different experience types instead of letting one nearest type fill the pool.
+  const diversified: typeof candidates = [];
+  const groups = new Map<PlayKind, typeof candidates>();
+  for (const candidate of candidates) groups.set(candidate.kind, [...(groups.get(candidate.kind) || []), candidate]);
+  while (diversified.length < 6 && [...groups.values()].some(group => group.length)) {
+    for (const group of groups.values()) {
+      const candidate = group.shift();
+      if (candidate && diversified.length < 6) diversified.push(candidate);
+    }
+  }
 
   const start = new Date(deps.now().getTime() + 60_000);
-  const facts = (await Promise.all(candidates.map(async candidate => {
+  const facts = (await Promise.all(diversified.map(async candidate => {
     const { place, minimumMinutes, indoor } = candidate;
     const [outbound, returning] = await Promise.all([deps.walk(origin, place), deps.walk(place, origin)]);
     if (!outbound || !returning) { reject('步行路线无法核实'); return null; }
@@ -98,7 +108,7 @@ export async function generateNearbyPlan(input: NearbyPlanInput, deps: PlanDepen
 
   if (facts.length === 0) return {
     status: 'no_match' as const, city: location.city, generatedAt: deps.now().toISOString(),
-    message: '没有找到同时满足当前时间、步行距离和预算的可核实行程。',
+    message: excluded['已看过'] ? '近期看过的地点已排除，当前条件下暂时没有新的可核实行程。可以扩大步行范围或调整玩法类型。' : '没有找到同时满足当前时间、步行距离和预算的可核实行程。',
     excluded, weather,
   };
   const rawChoice = await deps.choose(facts.map(c => ({ candidateId: c.place.id, name: c.place.name, type: c.place.type, minStay: c.minimumMinutes, maxStay: c.maxStay, walkMinutes: c.outbound.minutes, referenceCostYuan: c.estimatedPerPerson })), { partySize: input.partySize, mood: input.mood, availableMinutes: input.availableMinutes, budgetPerPersonYuan: input.budgetPerPersonYuan, localTime: start.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }), weather: weather?.condition ?? '未知' }).catch(() => null);

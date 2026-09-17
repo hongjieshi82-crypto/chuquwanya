@@ -25,7 +25,7 @@ type AmapPoi = {
   type?: string;
   cityname?: string;
   typecode?: string;
-  photos?: Array<{ url?: string }>;
+  photos?: Array<{ url?: string; title?: string }>;
   business?: { cost?: string; opentime_today?: string; opentime_week?: string; tel?: string };
 };
 
@@ -59,8 +59,20 @@ export function normalizeNearbyLivePlace(poi: AmapPoi, cityName: string): Nearby
     openingToday: typeof poi.business?.opentime_today === 'string' ? poi.business.opentime_today.slice(0, 240) : null,
     openingWeek: typeof poi.business?.opentime_week === 'string' ? poi.business.opentime_week.slice(0, 240) : null,
     phone: typeof poi.business?.tel === 'string' ? poi.business.tel.slice(0, 80) : null,
-    photoUrl: safePoiPhoto(Array.isArray(poi.photos) ? poi.photos[0]?.url : null),
+    photoUrl: selectPoiPhoto(poi.photos),
   };
+}
+
+export function selectPoiPhoto(photos: AmapPoi['photos']): string | null {
+  if (!Array.isArray(photos)) return null;
+  const ranked = photos.flatMap(photo => {
+    const url = safePoiPhoto(photo?.url);
+    if (!url) return [];
+    const title = typeof photo.title === 'string' ? photo.title : '';
+    if (/菜单|二维码|价目|截图|收据|优惠券/.test(title)) return [];
+    return [{ url, score: /环境|门面|门头|大厅|室内|外观|全景/.test(title) ? 2 : 1 }];
+  }).sort((a, b) => b.score - a.score);
+  return ranked[0]?.url ?? null;
 }
 
 export function safePoiPhoto(value: unknown): string | null {
@@ -88,6 +100,13 @@ export async function searchAmapNearbyPlaces(input: {
   const cacheKey = JSON.stringify(input);
   const cached = nearbyCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) return cached.places;
+  if (input.kind === 'any') {
+    const results = await Promise.all((['games', 'walk', 'food', 'culture'] as const).map(kind => searchAmapNearbyPlaces({ ...input, kind })));
+    if (results.every(result => result === null)) return null;
+    const unique = new Map<string, NearbyLivePlace>();
+    for (const places of results) for (const place of places || []) unique.set(place.id, place);
+    return [...unique.values()];
+  }
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5_000);
   try {

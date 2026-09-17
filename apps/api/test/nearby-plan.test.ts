@@ -99,3 +99,17 @@ test('面议和空白费用不能当成零元，缺失经纬度不能当成零�
   assert.equal(normalizeNearbyLivePlace({ id: 'P2', name: '棋牌室', location: '116.4,39.9', business: { cost: '面议' } }, '北京')?.costYuan, null);
   assert.equal(normalizeNearbyLivePlace({ id: 'P2', name: '棋牌室', location: ',39.9' }, '北京'), null);
 });
+
+test('连续生成携带历史排除地点，不再重复第一家；全部已看过时明确无新结果', async () => {
+  const d = deps();
+  d.search = async () => [place, { ...place, id: 'P2', name: '另一家咖啡馆' }];
+  d.choose = async () => null;
+  const first = await generateNearbyPlan(input(), d);
+  assert.ok(first.plan);
+  const next = await generateNearbyPlan({ ...input(), excludePoiIds: [first.plan.place.id] }, d);
+  assert.ok(next.plan);
+  assert.notEqual(first.plan.place.id, next.plan.place.id);
+  const end = await generateNearbyPlan({ ...input(), excludePoiIds: ['P1', 'P2'] }, d);
+  assert.equal(end.status, 'no_match');
+  assert.ok('message' in end && end.message.includes('近期看过'));
+});
